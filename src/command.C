@@ -769,6 +769,21 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
         }
 
+      if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
+        {
+          if (keysym == XK_V)
+            selection_request (ev.time, Sel_Clipboard);
+          else if (selection.len > 0)
+            {
+              free (selection.clip_text);
+              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
+              selection.clip_len = selection.len;
+              selection_grab (CurrentTime, true);
+            }
+
+          return;
+        }
+
       if (shft)
         {
           if (!ctrl && !meta && (priv_modes & PrivMode_ShiftKeys))
@@ -788,21 +803,6 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
                 }
             }
-        }
-
-      if (ctrl && meta && (keysym == XK_c || keysym == XK_v))
-        {
-          if (keysym == XK_v)
-            selection_request (ev.time, Sel_Clipboard);
-          else if (selection.len > 0)
-            {
-              free (selection.clip_text);
-              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
-              selection.clip_len = selection.len;
-              selection_grab (CurrentTime, true);
-            }
-
-          return;
         }
 
 #if ENABLE_FRILLS || ISO_14755
@@ -2177,11 +2177,17 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button1:
           case Button3:
             selection_make (ev.time);
+
+            free (selection.clip_text);
+            selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
+            selection.clip_len = selection.len;
+            selection_grab (CurrentTime, true);
+
             break;
 
           case Button2:
             if (IN_RANGE_EXC (ev.x, 0, vt_width) && IN_RANGE_EXC (ev.y, 0, vt_height)) // inside window?
-              selection_request (ev.time, ev.state & ModMetaMask ? Sel_Clipboard : Sel_Primary);
+              selection_request (ev.time, Sel_Clipboard);
             break;
 
 #ifdef MOUSE_WHEEL
