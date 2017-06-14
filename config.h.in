@@ -383,6 +383,9 @@
 /* "" */
 #undef UNIX98_PTY
 
+/* Define if you want 24-bit color support */
+#undef USE_24_BIT_COLOR
+
 /* Define if you want 256-color support */
 #undef USE_256_COLORS
 

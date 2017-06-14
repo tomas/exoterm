@@ -38,7 +38,7 @@ scrollBar_t::show_plain (int update)
       XGCValues gcvalue;
 
       init |= SB_STYLE_PLAIN;
-      gcvalue.foreground = term->pix_colors_focused[Color_scroll];
+      gcvalue.foreground = term->lookup_color(Color_scroll, term->pix_colors_focused);
 
       pscrollbarGC = XCreateGC (term->dpy, win, GCForeground, &gcvalue);
     }

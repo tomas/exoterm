@@ -49,13 +49,13 @@ scrollBar_t::show_xterm (int update)
         rxvt_fatal ("can't create bitmap\n");
 
       gcvalue.fill_style = FillOpaqueStippled;
-      gcvalue.foreground = term->pix_colors_focused[Color_scroll];
-      gcvalue.background = term->pix_colors_focused[Color_bg];
+      gcvalue.foreground = term->lookup_color(Color_scroll, term->pix_colors_focused);
+      gcvalue.background = term->lookup_color(Color_bg, term->pix_colors_focused);
 
       xscrollbarGC = XCreateGC (term->dpy, win,
                                 GCForeground | GCBackground
                                 | GCFillStyle | GCStipple, &gcvalue);
-      gcvalue.foreground = term->pix_colors_focused[Color_border];
+      gcvalue.foreground = term->lookup_color(Color_border, term->pix_colors_focused);
       ShadowGC = XCreateGC (term->dpy, win, GCForeground, &gcvalue);
     }
 

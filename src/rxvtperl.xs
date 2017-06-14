@@ -2205,8 +2205,8 @@ Window
 XCreateSimpleWindow (rxvt_term *term, Window parent, int x, int y, unsigned int width, unsigned int height)
 	C_ARGS: term->dpy, (Window)parent,
                 x, y, width, height, 0,
-                term->pix_colors_focused[Color_border],
-                term->pix_colors_focused[Color_border]
+                term->lookup_color(Color_border, term->pix_colors_focused),
+                term->lookup_color(Color_border, term->pix_colors_focused)
 
 #endif
 
@@ -2333,7 +2333,7 @@ rxvt_term::set_background (rxvt_img *img, bool border = false)
             img->reify ()
                ->replace (img);
 
-            img->convert_format (XRenderFindVisualFormat (THIS->dpy, THIS->visual), THIS->pix_colors [Color_bg])
+            img->convert_format (XRenderFindVisualFormat (THIS->dpy, THIS->visual), THIS->lookup_color(Color_bg, THIS->pix_colors))
                ->replace (img);
 
             THIS->bg_img = img;

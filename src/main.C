@@ -248,10 +248,10 @@ rxvt_term::~rxvt_term ()
       for (int i = 0; i < TOTAL_COLORS; i++)
         if (ISSET_PIXCOLOR (i))
           {
-            pix_colors_focused   [i].free (this);
+            lookup_color(i, pix_colors_focused).free (this);
 #if OFF_FOCUS_FADING
             if (rs[Rs_fade])
-              pix_colors_unfocused [i].free (this);
+              lookup_color(i, pix_colors_unfocused).free (this);
 #endif
           }
 
@@ -965,8 +965,8 @@ rxvt_term::set_window_color (int idx, const char *color)
         }
     }
 
-  pix_colors_focused[idx].free (this);
-  set_color (pix_colors_focused[idx], color);
+  lookup_color(idx, pix_colors_focused).free (this);
+  set_color (lookup_color(idx, pix_colors_focused), color);
 
 done:
   /*TODO: handle Color_BD, scrollbar background, etc. */
@@ -983,12 +983,12 @@ rxvt_term::recolor_cursor ()
   XColor fg, bg;
 
   (ISSET_PIXCOLOR (Color_pointer_fg)
-     ? pix_colors_focused[Color_pointer_fg]
-     : pix_colors_focused[Color_fg]).get (fg);
+     ? lookup_color(Color_pointer_fg, pix_colors_focused)
+     : lookup_color(Color_fg, pix_colors_focused)).get (fg);
 
   (ISSET_PIXCOLOR (Color_pointer_bg)
-     ? pix_colors_focused[Color_pointer_bg]
-     : pix_colors_focused[Color_bg]).get (bg);
+     ? lookup_color(Color_pointer_bg, pix_colors_focused)
+     : lookup_color(Color_bg, pix_colors_focused)).get (bg);
 
   XRecolorCursor (dpy, TermWin_cursor, &fg, &bg);
 }
@@ -1007,14 +1007,14 @@ rxvt_term::get_colorfgbg ()
   char *env_colorfgbg;
 
   for (i = Color_Black; i <= Color_White; i++)
-    if (pix_colors[Color_fg] == pix_colors[i])
+    if (lookup_color(Color_fg, pix_colors) == lookup_color(i, pix_colors))
       {
         sprintf (fstr, "%d", i - Color_Black);
         break;
       }
 
   for (i = Color_Black; i <= Color_White; i++)
-    if (pix_colors[Color_bg] == pix_colors[i])
+    if (lookup_color(Color_bg, pix_colors) == lookup_color(i, pix_colors))
       {
         sprintf (bstr, "%d", i - Color_Black);
 #if HAVE_IMG
@@ -1043,8 +1043,8 @@ rxvt_term::set_color (rxvt_color &color, const char *name)
 void
 rxvt_term::alias_color (int dst, int src)
 {
-  pix_colors[dst].free (this);
-  pix_colors[dst].set (this, rs[Rs_color + dst] = rs[Rs_color + src]);
+  lookup_color(dst, pix_colors).free (this);
+  lookup_color(dst, pix_colors).set (this, rs[Rs_color + dst] = rs[Rs_color + src]);
 }
 
 #ifdef SMART_RESIZE
@@ -1198,8 +1198,8 @@ rxvt_term::set_widthheight (unsigned int newwidth, unsigned int newheight)
 void
 rxvt_term::im_set_color (unsigned long &fg, unsigned long &bg)
 {
-  fg = pix_colors [Color_fg];
-  bg = pix_colors [Color_bg];
+  fg = lookup_color(Color_fg, pix_colors);
+  bg = lookup_color(Color_bg, pix_colors);
 }
 
 void

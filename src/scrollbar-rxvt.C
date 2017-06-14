@@ -158,11 +158,11 @@ scrollBar_t::show_rxvt (int update)
 
       init |= SB_STYLE_RXVT;
 
-      gcvalue.foreground = term->pix_colors[Color_topShadow];
+      gcvalue.foreground = term->lookup_color(Color_topShadow, term->pix_colors);
       topShadowGC = XCreateGC (term->dpy, term->vt, GCForeground, &gcvalue);
-      gcvalue.foreground = term->pix_colors[Color_bottomShadow];
+      gcvalue.foreground = term->lookup_color(Color_bottomShadow, term->pix_colors);
       botShadowGC = XCreateGC (term->dpy, term->vt, GCForeground, &gcvalue);
-      gcvalue.foreground = term->pix_colors[ (term->depth <= 2 ? Color_fg : Color_scroll)];
+      gcvalue.foreground = term->lookup_color( (term->depth <= 2 ? Color_fg : Color_scroll), term->pix_colors);
       scrollbarGC = XCreateGC (term->dpy, term->vt, GCForeground, &gcvalue);
     }
   else

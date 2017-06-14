@@ -1110,7 +1110,7 @@ rxvt_term::get_colors ()
 
   for (i = 0; i < NRS_COLORS; i++)
     if (const char *name = rs[Rs_color + i])
-      set_color (pix_colors [i], name);
+      set_color (lookup_color(i, pix_colors), name);
 
   /*
    * get scrollBar shadow colors
@@ -1119,13 +1119,13 @@ rxvt_term::get_colors ()
    * from the fvwm window manager.
    */
 #ifdef RXVT_SCROLLBAR
-  pix_colors [Color_scroll].fade (this, 50, pix_colors [Color_bottomShadow]);
+  lookup_color(Color_scroll, pix_colors).fade (this, 50, lookup_color(Color_bottomShadow, pix_colors));
 
   rgba cscroll;
-  pix_colors [Color_scroll].get (cscroll);
+  lookup_color(Color_scroll, pix_colors).get (cscroll);
 
   /* topShadowColor */
-  if (!pix_colors[Color_topShadow].set (this,
+  if (!lookup_color(Color_topShadow, pix_colors).set (this,
                    rgba (
                      min ((int)rgba::MAX_CC, max (cscroll.r / 5, cscroll.r) * 7 / 5),
                      min ((int)rgba::MAX_CC, max (cscroll.g / 5, cscroll.g) * 7 / 5),
@@ -1367,8 +1367,8 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   window_calc (0, 0);
 
   /* sub-window placement & size in rxvt_term::resize_all_windows () */
-  attributes.background_pixel = pix_colors_focused [Color_border];
-  attributes.border_pixel     = pix_colors_focused [Color_border];
+  attributes.background_pixel = lookup_color(Color_border, pix_colors_focused);
+  attributes.border_pixel     = lookup_color(Color_border, pix_colors_focused);
   attributes.colormap         = cmap;
 
   top = XCreateWindow (dpy, parent,
@@ -1465,8 +1465,8 @@ rxvt_term::create_windows (int argc, const char *const *argv)
                             window_vt_x, window_vt_y,
                             vt_width, vt_height,
                             0,
-                            pix_colors_focused[Color_fg],
-                            pix_colors_focused[Color_bg]);
+                            lookup_color(Color_fg, pix_colors_focused),
+                            lookup_color(Color_bg, pix_colors_focused));
 
   attributes.bit_gravity = NorthWestGravity;
   XChangeWindowAttributes (dpy, vt, CWBitGravity, &attributes);
@@ -1483,8 +1483,8 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   vt_ev.start (display, vt);
 
   /* graphics context for the vt window */
-  gcvalue.foreground         = pix_colors[Color_fg];
-  gcvalue.background         = pix_colors[Color_bg];
+  gcvalue.foreground         = lookup_color(Color_fg, pix_colors);
+  gcvalue.background         = lookup_color(Color_bg, pix_colors);
   gcvalue.graphics_exposures = 0;
 
   gc = XCreateGC (dpy, vt,

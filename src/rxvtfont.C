@@ -243,20 +243,20 @@ rxvt_font::clear_rect (rxvt_drawable &d, int x, int y, int w, int h, int color) 
 
 # ifdef HAVE_IMG
       if (term->bg_img
-          && !term->pix_colors[color].is_opaque ()
+          && !term->lookup_color(color, term->pix_colors).is_opaque ()
           && ((dst = XftDrawPicture (d))))
         {
           XClearArea (disp, d, x, y, w, h, false);
 
-          Picture solid_color_pict = XftDrawSrcPicture (d, &term->pix_colors[color].c);
+          Picture solid_color_pict = XftDrawSrcPicture (d, &term->lookup_color(color, term->pix_colors).c);
           XRenderComposite (disp, PictOpOver, solid_color_pict, None, dst, 0, 0, 0, 0, x, y, w, h);
         }
       else
 # endif
-        XftDrawRect (d, &term->pix_colors[color].c, x, y, w, h);
+        XftDrawRect (d, &term->lookup_color(color, term->pix_colors).c, x, y, w, h);
 
 #else
-      XSetForeground (disp, gc, term->pix_colors[color]);
+      XSetForeground (disp, gc, term->lookup_color(color, term->pix_colors));
       XFillRectangle (disp, d, gc, x, y, w, h);
 #endif
     }
@@ -342,7 +342,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
 
   clear_rect (d, x, y, term->fwidth * len, term->fheight, bg);
 
-  XSetForeground (disp, gc, term->pix_colors[fg]);
+  XSetForeground (disp, gc, term->lookup_color(fg, term->pix_colors));
 
   while (len)
     {
@@ -1056,7 +1056,7 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
   int base = ascent; // sorry, incorrect: term->fbase;
 
   XGCValues v;
-  v.foreground = term->pix_colors[fg];
+  v.foreground = term->lookup_color(fg, term->pix_colors);
   v.font = f->fid;
 
   if (enc2b)
@@ -1065,7 +1065,7 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
 
       if (bg == Color_bg && !slow)
         {
-          v.background = term->pix_colors[bg];
+          v.background = term->lookup_color(bg, term->pix_colors);
           XChangeGC (disp, gc, GCForeground | GCBackground | GCFont, &v);
           XDrawImageString16 (disp, d, gc, x, y + base, xc, len);
         }
@@ -1097,7 +1097,7 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
 
       if (bg == Color_bg && !slow)
         {
-          v.background = term->pix_colors[bg];
+          v.background = term->lookup_color(bg, term->pix_colors);
           XChangeGC (disp, gc, GCForeground | GCBackground | GCFont, &v);
           XDrawImageString (disp, d, gc, x, y + base, xc, len);
         }
@@ -1439,7 +1439,7 @@ rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
 
           if (term->bg_img
               && (bg == Color_transparent || bg == Color_bg
-                  || (bg >= 0 && !term->pix_colors[bg].is_opaque () && ((dst = XftDrawPicture (d2))))))
+                  || (bg >= 0 && !term->lookup_color(bg, term->pix_colors).is_opaque () && ((dst = XftDrawPicture (d2))))))
             {
               int src_x = x, src_y = y;
 
@@ -1476,7 +1476,7 @@ rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
 
               if (dst)
                 {
-                  Picture solid_color_pict = XftDrawSrcPicture (d2, &term->pix_colors[bg].c);
+                  Picture solid_color_pict = XftDrawSrcPicture (d2, &term->lookup_color(bg, term->pix_colors).c);
 
                   // dst can only be set when bg >= 0
                   XRenderComposite (disp, PictOpOver, solid_color_pict, None, dst, 0, 0, 0, 0, 0, 0, w, h);
@@ -1484,9 +1484,9 @@ rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
             }
           else
 #endif
-            XftDrawRect (d2, &term->pix_colors[bg >= 0 ? bg : Color_bg].c, 0, 0, w, h);
+            XftDrawRect (d2, &term->lookup_color(bg >= 0 ? bg : Color_bg, term->pix_colors).c, 0, 0, w, h);
 
-          XftDrawGlyphSpec (d2, &term->pix_colors[fg].c, f, enc, ep - enc);
+          XftDrawGlyphSpec (d2, &term->lookup_color(fg, term->pix_colors).c, f, enc, ep - enc);
           XCopyArea (disp, d2, d, gc, 0, 0, w, h, x, y);
         }
       else
@@ -1495,7 +1495,7 @@ rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
   else
     {
       clear_rect (d, x, y, w, h, bg);
-      XftDrawGlyphSpec (d, &term->pix_colors[fg].c, f, enc, ep - enc);
+      XftDrawGlyphSpec (d, &term->lookup_color(fg, term->pix_colors).c, f, enc, ep - enc);
     }
 }
 

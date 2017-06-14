@@ -713,6 +713,7 @@ enable_everything
 enable_assert
 enable_warnings
 enable_256_color
+enable_24_bit_color
 enable_unicode3
 enable_combining
 enable_xft
@@ -1387,6 +1388,7 @@ Optional Features:
   --enable-assert         enable assertions
   --enable-warnings       turn on g++ warnings
   --enable-256-color      enable 256-color support
+  --enable-24-bit-color   enable 24-bit color support
   --enable-unicode3       use 21 instead of 16 bits to represent unicode characters
   --enable-combining      enable composition of base and combining characters
   --enable-xft            enable xft support on systems that have it
@@ -4878,6 +4880,20 @@ fi
 if test x$support_256_color = xyes; then
 
 $as_echo "#define USE_256_COLORS 1" >>confdefs.h
+
+fi
+
+support_24_bit_color=no
+# Check whether --enable-24-bit-color was given.
+if test "${enable_24_bit_color+set}" = set; then :
+  enableval=$enable_24_bit_color; if test x$enableval = xyes; then
+    support_24_bit_color=yes
+  fi
+fi
+
+if test x$support_24_bit_color = xyes; then
+
+$as_echo "#define USE_24_BIT_COLOR 1" >>confdefs.h
 
 fi
 

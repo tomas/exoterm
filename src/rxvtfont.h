@@ -72,8 +72,10 @@ struct rxvt_fontset
   char *fontdesc;
 
   // must be power-of-two - 1, also has to match RS_fontMask in rxvt.h
-#if USE_256_COLORS
-  enum { fontCount =   7 }; // 2 extra colors bits, 2 fewer fontcount bits
+#if USE_24_BIT_COLOR
+  enum { fontCount =   7 }; // 36 extra colors bits, 4 fewer fontcount bits
+#elif USE_256_COLORS
+  enum { fontCount =   7 }; //  4 extra colors bits, 4 fewer fontcount bits
 #else
   enum { fontCount =  31 };
 #endif

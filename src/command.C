@@ -1824,11 +1824,11 @@ rxvt_term::update_fade_color (unsigned int idx, bool first_time)
   if (rs[Rs_fade])
     {
       if (!first_time)
-        pix_colors_focused [idx].free (this);
+        lookup_color(idx, pix_colors_focused).free (this);
 
       rgba c;
-      pix_colors [Color_fade].get (c);
-      pix_colors_focused [idx].fade (this, atoi (rs[Rs_fade]), pix_colors_unfocused [idx], c);
+      lookup_color(Color_fade, pix_colors).get (c);
+      lookup_color(idx, pix_colors_focused).fade (this, atoi (rs[Rs_fade]), lookup_color(idx, pix_colors_unfocused), c);
     }
 #endif
 }
@@ -3383,8 +3383,8 @@ update:
   rgb24_seqno[idx] = ++rgb24_sequence;
 
   idx += minTermCOLOR24;
-  pix_colors_focused [idx].free (this);
-  pix_colors_focused [idx].set (this, rgba (r * 0x0101, g * 0x0101, b * 0x0101, a * 0x0101));
+  lookup_color(idx, pix_colors_focused).free (this);
+  lookup_color(idx, pix_colors_focused).set (this, rgba (r * 0x0101, g * 0x0101, b * 0x0101, a * 0x0101));
   update_fade_color (idx, false);
 
   return idx;
@@ -3396,7 +3396,7 @@ rxvt_term::process_color_seq (int report, int color, const char *str, char resp)
   if (str[0] == '?' && !str[1])
     {
       rgba c;
-      pix_colors_focused[color].get (c);
+      lookup_color(color, pix_colors_focused).get (c);
 
 #if XFT
       if (c.a != rgba::MAX_CC)
@@ -3536,6 +3536,74 @@ rxvt_term::process_xterm_seq (int op, char *str, char resp)
       case URxvt_Color_border:
         process_color_seq (op, Color_border, str, resp);
         break;
+
+#if BG_IMAGE_FROM_ROOT
+      case URxvt_Color_tint:
+        process_color_seq (op, Color_tint, str, resp);
+        {
+          bool changed = false;
+
+          if (ISSET_PIXCOLOR (Color_tint))
+            changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
+
+          if (changed)
+            update_background ();
+        }
+
+        break;
+#endif
+
+#if BG_IMAGE_FROM_FILE
+      case Rxvt_Pixmap:
+        if (!strcmp (str, "?"))
+          {
+            char str[256];
+            int h_scale = fimage.h_scale;
+            int v_scale = fimage.v_scale;
+            int h_align = fimage.h_align;
+            int v_align = fimage.v_align;
+
+            sprintf (str, "[%dx%d+%d+%d]",
+                     h_scale, v_scale,
+                     h_align, v_align);
+            process_xterm_seq (XTerm_title, str, CHAR_ST);
+          }
+        else
+          {
+            bool changed = false;
+
+            if (*str != ';')
+              {
+                try
+                  {
+                    fimage.set_file_geometry (this, str);
+                    changed = true;
+                  }
+                catch (const class rxvt_failure_exception &e)
+                  {
+                  }
+              }
+            else
+              {
+                str++;
+                if (fimage.set_geometry (str, true))
+                  changed = true;
+              }
+
+            if (changed)
+              {
+                if (bg_window_position_sensitive ())
+                  {
+                    int x, y;
+                    get_window_origin (x, y);
+                    parent_x = x;
+                    parent_y = y;
+                  }
+                update_background ();
+              }
+          }
+        break;
+#endif
 
       case XTerm_logfile:
         // TODO, when secure mode?
@@ -3871,7 +3939,7 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
 {
   unsigned int i;
   short rendset;
-  int rendstyle;
+  rend_t rendstyle;
 
   if (nargs == 0)
     {
@@ -3958,6 +4026,21 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
           case 37:
             scr_color ((unsigned int) (minCOLOR + (arg[i] - 30)), Color_fg);
             break;
+          case 38: // set fg color, ISO 8613-6
+            if (nargs > i + 2 && arg[i + 1] == 5)
+              {
+                scr_color ((unsigned int) (minCOLOR + arg[i + 2]), Color_fg);
+                i += 2;
+              }
+#if USE_24_BIT_COLOR
+            else if (nargs > i + 4 && arg[i + 1] == 2)
+              {
+                unsigned int r = arg[i + 2], g = arg[i + 3], b = arg[i + 4];
+                scr_color_rgb (r, g, b, Color_fg);
+                i += 4;
+              }
+#endif
+            break;
           case 39:		/* default fg */
             scr_color (Color_fg, Color_fg);
             break;
@@ -3972,37 +4055,23 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
           case 47:
             scr_color ((unsigned int) (minCOLOR + (arg[i] - 40)), Color_bg);
             break;
+          case 48: // set bg color, ISO 8613-6
+            if (nargs > i + 2 && arg[i + 1] == 5)
+              {
+                scr_color ((unsigned int) (minCOLOR + arg[i + 2]), Color_bg);
+                i += 2;
+              }
+#if USE_24_BIT_COLOR
+            else if (nargs > i + 4 && arg[i + 1] == 2)
+              {
+                unsigned int r = arg[i + 2], g = arg[i + 3], b = arg[i + 4];
+                scr_color_rgb (r, g, b, Color_bg);
+                i += 4;
+              }
+#endif
+            break;
           case 49:		/* default bg */
             scr_color (Color_bg, Color_bg);
-            break;
-
-          case 38: // set fg color, ISO 8613-6
-          case 48: // set bg color, ISO 8613-6
-            {
-              unsigned int fgbg = arg[i] == 38 ? Color_fg : Color_bg;
-              unsigned int idx;
-            
-              if (nargs > i + 2 && arg[i + 1] == 5)
-                {
-                  idx = minCOLOR + arg[i + 2];
-                  i += 2;
-
-                  scr_color (idx, fgbg);
-                }
-              else if (nargs > i + 4 && arg[i + 1] == 2)
-                {
-                  unsigned int r = arg[i + 2];
-                  unsigned int g = arg[i + 3];
-                  unsigned int b = arg[i + 4];
-                  unsigned int a = 0xff;
-
-                  idx = map_rgb24_color (r, g, b, a);
-
-                  i += 4;
-
-                  scr_color (idx, fgbg);
-                }
-            }
             break;
 
           //case 50: // not variable spacing
