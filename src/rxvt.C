@@ -23,24 +23,24 @@
 #include "../config.h"
 #include "rxvt.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 int
-main (int argc, char *argv[])
-try
-  {
-    ptytty::init ();
-    rxvt_init ();
+main(int argc, char** argv)
+{
+  rxvt_term* term;
 
-    rxvt_term *t = new rxvt_term;
-    t->init (argc, argv, environ);
-    ev_run ();
+  try
+  {
+    ptytty::init();
+    rxvt_init();
+
+    term = new rxvt_term();
+    term->init(argc, argv, environ);
+    ev_run();
 
     return EXIT_SUCCESS;
   }
-catch (const class rxvt_failure_exception &e)
+  catch (const class rxvt_failure_exception& e)
   {
     return EXIT_FAILURE;
   }
-
+}
