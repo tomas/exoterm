@@ -183,31 +183,23 @@ static const char *const def_colorName[] =
     COLOR_FOREGROUND,
     COLOR_BACKGROUND,
     /* low-intensity colors */
-    "rgb:00/00/00",             // 0: black             (Black)
-    "rgb:cd/00/00",             // 1: red               (Red3)
-    "rgb:00/cd/00",             // 2: green             (Green3)
-    "rgb:cd/cd/00",             // 3: yellow            (Yellow3)
-    "rgb:00/00/cd",             // 4: blue              (Blue3)
-    "rgb:cd/00/cd",             // 5: magenta           (Magenta3)
-    "rgb:00/cd/cd",             // 6: cyan              (Cyan3)
-# ifdef XTERM_COLORS
-    "rgb:e5/e5/e5",             // 7: white             (Grey90)
-# else
-    "rgb:fa/eb/d7",             // 7: white             (AntiqueWhite)
-# endif
+    "rgb:15/15/15",             // 0: black             (Black)
+    "rgb:fb/9f/b1",             // 1: red               (Red3)
+    "rgb:ac/c2/67",             // 2: green             (Green3)
+    "rgb:dd/b2/6f",             // 3: yellow            (Yellow3)
+    "rgb:6f/c2/ef",             // 4: blue              (Blue3)
+    "rgb:e1/a3/ee",             // 5: magenta           (Magenta3)
+    "rgb:12/cf/c0",             // 6: cyan              (Cyan3)
+    "rgb:d0/d0/d0",             // 7: white             (AntiqueWhite)
     /* high-intensity colors */
-# ifdef XTERM_COLORS
-    "rgb:4d/4d/4d",             // 8: bright black      (Grey30)
-# else
-    "rgb:40/40/40",             // 8: bright black      (Grey25)
-# endif
-    "rgb:ff/00/00",             // 1/9: bright red      (Reed)
-    "rgb:00/ff/00",             // 2/10: bright green   (Green)
-    "rgb:ff/ff/00",             // 3/11: bright yellow  (Yellow)
-    "rgb:00/00/ff",             // 4/12: bright blue    (Blue)
-    "rgb:ff/00/ff",             // 5/13: bright magenta (Magenta)
-    "rgb:00/ff/ff",             // 6/14: bright cyan    (Cyan)
-    "rgb:ff/ff/ff",             // 7/15: bright white   (White)
+    "rgb:50/50/50",             // 8: bright black      (Grey25)
+    "rgb:fb/9f/b1",             // 1/9: bright red      (Reed)
+    "rgb:ac/c2/67",             // 2/10: bright green   (Green)
+    "rgb:dd/b2/6f",             // 3/11: bright yellow  (Yellow)
+    "rgb:6f/c2/ef",             // 4/12: bright blue    (Blue)
+    "rgb:e1/a3/ee",             // 5/13: bright magenta (Magenta)
+    "rgb:12/cf/c0",             // 6/14: bright cyan    (Cyan)
+    "rgb:f5/f5/f5",             // 7/15: bright white   (White)
 
 #if !USE_256_COLORS
     // 88 xterm colours
