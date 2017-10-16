@@ -1955,7 +1955,16 @@ Unlike XTerm, coordinates larger than 2015 will work fine.
 =begin table
 
 	B<< C<h> >>	Enable mouse coordinates in locale-specific encoding.
-	B<< C<l> >>	Enable mouse coordinates as binary octets.
+	B<< C<l> >>	Disable mouse coordinates in locale-specific encoding.
+
+=end table
+
+=item B<< C<Pm = 1006> >> (X11 XTerm SGR mouse mode) (Compile frills)
+
+=begin table
+
+	B<< C<h> >>	Enable xterm SGR mouse coordinate reporting.
+	B<< C<l> >>	Disable xterm SGR mouse coordinate reporting.
 
 =end table
 
@@ -1982,40 +1991,9 @@ Unlike XTerm, coordinates larger than 2015 will work fine.
 =begin table
 
 	B<< C<h> >>	Enable urxvt mouse coordinate reporting.
-	B<< C<l> >>	Use old-style C<CSI M C C C> encoding.
+	B<< C<l> >>	Disable urxvt mouse coordinate reporting.
 
 =end table
-
-Changes all mouse reporting codes to use decimal parameters instead of
-octets or characters.
-
-This mode should be enabled I<before> actually enabling mouse reporting,
-for semi-obvious reasons.
-
-The sequences received for various modes are as follows:
-
-   ESC [ M o o o    !1005, !1015 (three octets)
-   ESC [ M c c c    1005, !1015 (three characters)
-   ESC [ Pm M       1015 (three or more numeric parameters)
-
-The first three parameters are C<code>, C<x> and C<y>. Code is the numeric
-code as for the other modes (but encoded as a decimal number, including
-the additional offset of 32, so you have to subtract 32 first), C<x> and
-C<y> are the coordinates (1|1 is the upper left corner, just as with
-cursor positioning).
-
-Example: Shift-Button-1 press at top row, column 80.
-
-   ESC [ 37 ; 80 ; 1 M
-
-One can use this feature by simply enabling it and then looking for
-parameters to the C<ESC [ M> reply - if there are any, this mode is
-active, otherwise one of the old reporting styles is used.
-
-Other (to be implemented) reply sequences will use a similar encoding.
-
-In the future, more parameters might get added (pixel coordinates for
-example - anybody out there who needs this?).
 
 =item B<< C<Pm = 1021> >> (B<rxvt>)
 
@@ -2118,11 +2096,13 @@ X<Mouse>
 
 =head1 Mouse Reporting
 
+When mouse reporting is enabled and none of the extended modes 1005,
+1006, 1015 is active, urxvt sends the following sequence on a mouse
+event:
+
 =over 4
 
 =item B<< C<< ESC [ M <b> <x> <y> >> >>
-
-report mouse position
 
 =back
 
@@ -2161,11 +2141,83 @@ button was pressed and are added together (X11 mouse report only):
 
 =end table
 
+=back
+
 Col = B<< C<< <x> - SPACE >> >>
 
 Row = B<< C<< <y> - SPACE >> >>
 
+=head2 Mode 1015
+
+If mode 1015 is active, urxvt instead sends the sequence
+
+=over 4
+
+=item B<< C<< ESC [ Pm M >> >>
+
 =back
+
+where the mouse reporting codes are provided as decimal parameters
+instead of octets.
+
+This mode should be enabled I<before> actually enabling mouse reporting,
+for semi-obvious reasons.
+
+The first three parameters are C<code>, C<x> and C<y>. C<code> is the numeric
+code as for the other modes (but encoded as a decimal number, including
+the additional offset of 32, so you have to subtract 32 first), C<x> and
+C<y> are the coordinates (1|1 is the upper left corner, just as with
+cursor positioning).
+
+Example: Shift-Button-1 press at top row, column 80.
+
+   ESC [ 37 ; 80 ; 1 M
+
+One can use this feature by simply enabling it and then looking for
+parameters to the C<ESC [ M> reply - if there are any, this mode is
+active, otherwise one of the old reporting styles is used.
+
+Other (to be implemented) reply sequences will use a similar encoding.
+
+In the future, more parameters might get added (pixel coordinates for
+example - anybody out there who needs this?).
+
+=head2 Mode 1006
+
+If mode 1015 is not active but mode 1006 is, urxvt sends the following
+sequences:
+
+=over 4
+
+=item B<< C<< ESC [ < <code>;<x>;<y> M >> >> button press and motion
+
+=item B<< C<< ESC [ < <code>;<x>;<y> m >> >> button release
+
+=back
+
+C<code> is the numeric code as for the other modes, encoded as a
+decimal number, with two modifications. The offset of 32 is not
+included and the lower 2 bits encodes the button number also on button
+release (instead of the value C<3>). The type of event (press or
+release) is encoded in the final character of the sequence (M or m).
+
+C<x> and C<y> are the coordinates (1|1 is the upper left corner, just
+as with cursor positioning).
+
+=head2 Mode 1005
+
+If modes 1006 and 1015 are not active but mode 1005 is, urxvt sends
+the sequence
+
+=over 4
+
+=item B<< C<< ESC [ M <b> <x> <y> >> >>
+
+=back
+
+with the coordinates provided as characters in locale-encoding instead
+of 1 byte octets. This mode does not work sensibly in non-UTF-8
+locales and should therefore be avoided.
 
 =head1 Key Codes
 
@@ -2449,7 +2501,7 @@ in combination with other switches) is:
   skip builtin block graphics (-sbg)
   separate highlight colour (-highlightColor, -highlightTextColor)
   focus reporting mode (1004).
-  extended mouse reporting modes (1005 and 1015).
+  extended mouse reporting modes (1005, 1006 and 1015).
   visual selection via -visual and -depth.
 
 It also enables some non-essential features otherwise disabled, such as:

@@ -1284,6 +1284,8 @@ rxvt_term::mouse_report (XButtonEvent &ev)
   int button_number, key_state = 0;
   int x, y;
   int code = 32;
+  bool release = ev.type == ButtonRelease;
+  int sgr_button_value = 0;
 
   x = Pixel2Col (ev.x) + 1;
   y = Pixel2Row (ev.y) + 1;
@@ -1296,17 +1298,22 @@ rxvt_term::mouse_report (XButtonEvent &ev)
       mouse_row = x;
       mouse_col = y;
       code += 32;
+      sgr_button_value += 32;
     }
 
-  if (MEvent.button == AnyButton)
+  if (ev.button == AnyButton)
     button_number = 3;
   else
     {
-      button_number = MEvent.button - Button1;
+      button_number = ev.button - Button1;
       /* add 0x3D for wheel events, like xterm does */
       if (button_number >= 3)
         button_number += 64 - 3;
     }
+
+  sgr_button_value += button_number;
+  if (release)
+    button_number = 3;
 
   if (priv_modes & PrivMode_MouseX10)
     {
@@ -1357,6 +1364,12 @@ rxvt_term::mouse_report (XButtonEvent &ev)
               code + button_number + key_state,
               x,
               y);
+  else if (priv_modes & PrivMode_SGR_ExtMouse)
+    tt_printf ("\033[<%d;%d;%d%c",
+              sgr_button_value + key_state,
+              x,
+              y,
+              release ? 'm' : 'M');
   else if (priv_modes & PrivMode_ExtModeMouse)
     tt_printf ("\033[M%c%lc%lc",
               code + button_number + key_state,
@@ -1596,7 +1609,10 @@ rxvt_term::x_cb (XEvent &ev)
         if (!bypass_keystate
             && ((priv_modes & PrivMode_MouseBtnEvent && ev.xbutton.state & (Button1Mask|Button2Mask|Button3Mask))
                 || priv_modes & PrivMode_MouseAnyEvent))
-          mouse_report (ev.xbutton);
+          {
+            ev.xbutton.button = MEvent.button;
+            mouse_report (ev.xbutton);
+          }
         if ((priv_modes & PrivMode_mouse_report) && !bypass_keystate)
           break;
 
@@ -2183,18 +2199,6 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button1:
           case Button3:
             selection_make (ev.time);
-
-            if (selection.len > 0 && selection.end.col > 0) {
-              free (selection.clip_text);
-              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
-              selection.clip_len = selection.len;
-              selection_grab (CurrentTime, true);
-#if ENABLE_OVERLAY
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
-              scr_overlay_set (0, 0, "Copied to clipboard");
-#endif
-            }
-
             break;
 
           case Button2:
@@ -3789,6 +3793,7 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
 #if ENABLE_FRILLS
                   { 1004, PrivMode_FocusEvent },
                   { 1005, PrivMode_ExtModeMouse },
+                  { 1006, PrivMode_SGR_ExtMouse },
 #endif
                   { 1010, PrivMode_TtyOutputInh }, // rxvt extension
                   { 1011, PrivMode_Keypress }, // rxvt extension
