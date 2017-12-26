@@ -18,6 +18,9 @@
 /* Define if you want your background to use the parent window background */
 #undef ENABLE_TRANSPARENCY
 
+/* Define if you want to display wide glyphs */
+#undef ENABLE_WIDE_GLYPHS
+
 /* Define if you want european extended codesets */
 #undef ENCODING_EU
 

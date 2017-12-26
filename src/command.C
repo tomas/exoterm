@@ -237,7 +237,9 @@ rxvt_term::iso14755_51 (unicode_t ch, rend_t r, int x, int y, int y2)
 # endif
       scr_overlay_set (11, y + 1, ch, r);
 
+#if !ENABLE_WIDE_GLYPHS
       if (WCWIDTH (ch) >= 2)
+#endif
         scr_overlay_set (12, y + 1, NOCHAR, r);
     }
 
