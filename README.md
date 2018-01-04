@@ -53,7 +53,9 @@ Goes in `~/.Xdefaults`. Here's an example:
     URxvt.jumpScroll: true                                                   
     URxvt.skipScroll: true
     URxvt.mouseWheelScrollPage: true
+
     URxvt.secondaryScroll: true
+    URxvt.secondaryScreen: false
 
     ! do not scroll with output
     URxvt.scrollTtyOutput: false
