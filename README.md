@@ -118,7 +118,7 @@ And make sure that $fonts_dir is in /etc/X11/xorg.conf in the FontPath section.
 To remove borders if using JWM, add this to your jwmrc:
 
     <Group>
-      <Class>URxvt</Class>
+      <Class>Exoterm</Class>
       <Option>noborder</Option>
       <Option>notitle</Option>
     </Group>
