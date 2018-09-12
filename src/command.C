@@ -2178,10 +2178,12 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button3:
             selection_make (ev.time);
 
-            free (selection.clip_text);
-            selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
-            selection.clip_len = selection.len;
-            selection_grab (CurrentTime, true);
+            if (selection.len > 0 && selection.end.col > 0) {
+              free (selection.clip_text);
+              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
+              selection.clip_len = selection.len;
+              selection_grab (CurrentTime, true);
+            }
 
             break;
 
