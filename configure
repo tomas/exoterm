@@ -9271,9 +9271,9 @@ echo "Configuration:
   Compiler flags:             $CXXFLAGS
   Linker:                     $LINKER"
 
-if test x$support_24_bit_color = yes; then
+if test x$support_24_bit_color = xyes; then
   echo "  Color depth:                24 bit"
-elif test x$support_256_color = yes; then
+elif test x$support_256_color = xyes; then
   echo "  Color depth:                256 colors"
 else
   echo "  Color depth:                88 colors"
