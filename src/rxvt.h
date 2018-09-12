@@ -76,6 +76,11 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 #include <X11/keysymdef.h>
 #include <X11/Xatom.h>
 
+#if HAVE_XPM
+#include "icon.h"
+#include <X11/xpm.h>
+#endif
+
 #if HAVE_PIXBUF
 # include <gdk-pixbuf/gdk-pixbuf.h>
 #endif
@@ -1457,6 +1462,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   void get_colors ();
   void get_ourmods ();
   void set_icon (const char *file);
+  int set_default_icon(void);
   // main.C
   void tt_winch ();
   rxvt_term ();
