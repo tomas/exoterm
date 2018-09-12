@@ -4869,18 +4869,16 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
   fi
 fi
 
-support_256_color=no
+support_256_color=yes
 # Check whether --enable-256-color was given.
 if test "${enable_256_color+set}" = set; then :
-  enableval=$enable_256_color; if test x$enableval = xyes; then
-    support_256_color=yes
+  enableval=$enable_256_color; if test x$enableval = xno; then
+    support_256_color=no
   fi
 fi
 
 if test x$support_256_color = xyes; then
-
-$as_echo "#define USE_256_COLORS 1" >>confdefs.h
-
+  $as_echo "#define USE_256_COLORS 1" >>confdefs.h
 fi
 
 support_24_bit_color=no
@@ -4890,11 +4888,8 @@ if test "${enable_24_bit_color+set}" = set; then :
     support_24_bit_color=yes
   fi
 fi
-
 if test x$support_24_bit_color = xyes; then
-
-$as_echo "#define USE_24_BIT_COLOR 1" >>confdefs.h
-
+  $as_echo "#define USE_24_BIT_COLOR 1" >>confdefs.h
 fi
 
 # Check whether --enable-unicode3 was given.
@@ -4999,7 +4994,6 @@ if test "${enable_perl+set}" = set; then :
     support_perl=$enableval
   fi
 fi
-
 
 
 # Check whether --with-codesets was given.
@@ -9276,6 +9270,14 @@ echo "Configuration:
   Compiler:                   $CXX
   Compiler flags:             $CXXFLAGS
   Linker:                     $LINKER"
+
+if test x$support_24_bit_color = yes; then
+  echo "  Color depth:                24 bit"
+elif test x$support_256_color = yes; then
+  echo "  Color depth:                256 colors"
+else
+  echo "  Color depth:                88 colors"
+fi
 
 if test x$term != x; then
   echo "  set TERM to:                $term"

@@ -90,6 +90,7 @@ support_scroll_xterm=yes
 support_xim=yes
 support_pixbuf=yes
 support_startup_notification=yes
+support_256_color=yes
 support_xft=yes
 support_unicode3=no
 support_combining=yes
@@ -126,6 +127,7 @@ AC_ARG_ENABLE(everything,
        support_xim=no
        support_pixbuf=no
        support_startup_notification=no
+       support_256_color=no
        support_xft=no
        support_unicode3=no
        support_combining=no
@@ -155,6 +157,7 @@ AC_ARG_ENABLE(everything,
        support_xim=yes
        support_pixbuf=yes
        support_startup_notification=yes
+       support_256_color=yes
        support_xft=yes
        support_unicode3=yes
        support_combining=yes
@@ -193,11 +196,10 @@ if test x$GXX = xyes; then
   fi
 fi
 
-support_256_color=no
 AC_ARG_ENABLE(256-color,
   [  --enable-256-color      enable 256-color support],
-  [if test x$enableval = xyes; then
-    support_256_color=yes
+  [if test x$enableval = xyes -o x$enableval = xno; then
+    support_256_color=$enableval
   fi])
 if test x$support_256_color = xyes; then
   AC_DEFINE(USE_256_COLORS, 1, Define if you want 256-color support)
@@ -794,6 +796,14 @@ echo "Configuration:
   Compiler:                   $CXX
   Compiler flags:             $CXXFLAGS
   Linker:                     $LINKER"
+
+if test x$support_24_bit_color = yes; then
+  echo "  Color depth:           24 bit"
+elif test x$support_256_color = yes; then
+  echo "  Color depth:           256 colors"
+else
+  echo "  Color depth:           88 colors"
+fi
 
 if test x$term != x; then
   echo "  set TERM to:                $term"
