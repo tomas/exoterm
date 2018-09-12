@@ -312,7 +312,7 @@ rxvt_term::render_image (rxvt_image &image)
     img->draw (bg_img, PictOpOver, image.alpha * 1. / 0xffff);
 
   XRenderPictFormat *format = XRenderFindVisualFormat (dpy, visual);
-  img->convert_format (format, pix_colors [Color_bg])->replace (img);
+  img->convert_format (format, lookup_color(Color_bg, pix_colors))->replace (img);
 
   delete bg_img;
   bg_img = img;
@@ -471,7 +471,7 @@ rxvt_term::render_root_image ()
     }
 
   XRenderPictFormat *format = XRenderFindVisualFormat (dpy, visual);
-  img->convert_format (format, pix_colors [Color_bg])->replace (img);
+  img->convert_format (format, lookup_color(Color_bg, pix_colors))->replace (img);
 
   delete bg_img;
   bg_img = img;
@@ -520,7 +520,7 @@ rxvt_term::bg_init ()
         root_effects.set_blur (rs [Rs_blurradius]);
 
       if (ISSET_PIXCOLOR (Color_tint))
-        root_effects.set_tint (pix_colors_focused [Color_tint]);
+        root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
 
       if (rs [Rs_shade])
         root_effects.set_shade (rs [Rs_shade]);
