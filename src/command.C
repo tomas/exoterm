@@ -1246,11 +1246,18 @@ rxvt_term::pty_cb (ev::io &w, int revents)
   refresh_check ();
 }
 
+void
+rxvt_term::toggle_cursor (Cursor cur)
+{
+  XDefineCursor (dpy, vt, cur);
+  recolor_cursor ();
+}
+
 void ecb_cold
 rxvt_term::pointer_unblank ()
 {
-  XDefineCursor (dpy, vt, TermWin_cursor);
-  recolor_cursor ();
+
+  toggle_cursor(TermWin_cursor);
 
 #ifdef POINTER_BLANK
   hidden_pointer = 0;
@@ -3871,6 +3878,8 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
   else if (mode == 'h')
     mode = 1;		/* set */
 
+  printf("%d -> [%d]\n", nargs, arg[i]);
+
   for (i = 0; i < nargs; i++)
     {
       state = -1;
@@ -3932,6 +3941,7 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             /* case 8:	- auto repeat, can't do on a per window basis */
             case 9:			/* X10 mouse reporting */
+              printf("mouse reporting!\n");
               if (state)		/* orthogonal */
                 priv_modes &= ~(PrivMode_MouseX11|PrivMode_MouseBtnEvent|PrivMode_MouseAnyEvent);
               break;
@@ -3963,15 +3973,20 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             case 1002:
             case 1003:
+              printf("1003!\n");
+
               if (state)
                 {
+                  toggle_cursor(TermWin_arrow);
                   priv_modes &= ~(PrivMode_MouseX10|PrivMode_MouseX11);
                   priv_modes &= arg[i] == 1003 ? ~PrivMode_MouseBtnEvent : ~PrivMode_MouseAnyEvent;
                   mouse_row = mouse_col = 0;
                   vt_emask_mouse = PointerMotionMask;
                 }
-              else
+              else {
+                toggle_cursor(TermWin_cursor);
                 vt_emask_mouse = NoEventMask;
+              }
 
               vt_select_input ();
               break;

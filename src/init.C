@@ -1446,18 +1446,19 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   termwin_ev.start (display, top);
 
   /* vt cursor: Black-on-White is standard, but this is more popular */
-  unsigned int shape = XC_xterm;
+  unsigned int cursor_shape = XC_xterm;
 
 #ifdef HAVE_XMU
   if (rs[Rs_pointerShape])
     {
       int stmp = XmuCursorNameToIndex (rs[Rs_pointerShape]);
       if (stmp >= 0)
-        shape = stmp;
+        cursor_shape = stmp;
     }
 #endif
 
-  TermWin_cursor = XCreateFontCursor (dpy, shape);
+  TermWin_cursor = XCreateFontCursor (dpy, cursor_shape);
+  TermWin_arrow = XCreateFontCursor (dpy, XC_arrow);
 
   /* the vt window */
   vt = XCreateSimpleWindow (dpy, top,

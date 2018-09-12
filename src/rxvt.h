@@ -1102,7 +1102,8 @@ struct rxvt_vars : TermWin_t
   uint8_t         options[(Opt_count + 7) >> 3];
   XSizeHints      szHint;
   rxvt_color     *pix_colors;
-  Cursor          TermWin_cursor;       /* cursor for vt window */
+  Cursor          TermWin_cursor;  /* cursor for vt window */
+  Cursor          TermWin_arrow;   /* arrow cursor when mouse mode is enabled */
 
   line_t         *row_buf;      // all lines, scrollback + terminal, circular
   line_t         *drawn_buf;    // text on screen
@@ -1363,6 +1364,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   void pointer_cb (ev::timer &w, int revents); ev::timer pointer_ev;
   void pointer_blank ();
 #endif
+  void toggle_cursor(Cursor cur);
   void pointer_unblank ();
 
   void tt_printf (const char *fmt,...);
