@@ -298,23 +298,24 @@
  * Define default colours for certain items.  If you have a low colour
  * display, then consider using colours which are already pre-allocated:
  *
- *   Black      (#000000)
- *   Red3       (#CD0000)
- *   Green3     (#00CD00)
- *   Yellow3        (#CDCD00)
- *   Blue3      (#0000CD)
- *   Magenta3       (#CD00CD)
- *   Cyan3      (#00CDCD)
- *   AntiqueWhite   (#FAEBD7)
- *   Grey25     (#404040)
- *   Red        (#FF0000)
- *   Green      (#00FF00)
- *   Yellow     (#FFFF00)
- *   Blue       (#0000FF)
- *   Magenta        (#FF00FF)
- *   Cyan       (#00FFFF)
- *   White      (#FFFFFF)
+ *   Black        (#000000)
+ *   Red3         (#CD0000)
+ *   Green3       (#00CD00)
+ *   Yellow3      (#CDCD00)
+ *   Blue3        (#0000CD)
+ *   Magenta3     (#CD00CD)
+ *   Cyan3        (#00CDCD)
+ *   AntiqueWhite (#FAEBD7)
+ *   Grey25       (#404040)
+ *   Red          (#FF0000)
+ *   Green        (#00FF00)
+ *   Yellow       (#FFFF00)
+ *   Blue         (#0000FF)
+ *   Magenta      (#FF00FF)
+ *   Cyan         (#00FFFF)
+ *   White        (#FFFFFF)
  */
+
 /* These colours MUST be defined */
 #define COLOR_FOREGROUND    "rgb:d0/d0/d0"
 #define COLOR_BACKGROUND    "rgb:15/15/15"
@@ -371,7 +372,7 @@
 /*
  * Default number of lines in the scrollback buffer
  */
-#define SAVELINES   1000
+#define SAVELINES   10000
 
 #endif
 
