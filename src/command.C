@@ -779,6 +779,10 @@ rxvt_term::key_press (XKeyEvent &ev)
               selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
+#if ENABLE_OVERLAY  
+              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1); 
+              scr_overlay_set (0, 0, "Copied to clipboard");  
+#endif
             }
 
           return;
@@ -2199,6 +2203,18 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button1:
           case Button3:
             selection_make (ev.time);
+
+            if (selection.len > 0 && selection.end.col > 0) { 
+              free (selection.clip_text); 
+              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);  
+              selection.clip_len = selection.len; 
+              selection_grab (CurrentTime, true); 
+#if ENABLE_OVERLAY  
+              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1); 
+              scr_overlay_set (0, 0, "Copied to clipboard");  
+#endif  
+            } 
+
             break;
 
           case Button2:
