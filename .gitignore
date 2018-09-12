@@ -3,3 +3,5 @@ config.h
 config.log
 config.status
 Makefile
+src/*.o
+doc/*.man
