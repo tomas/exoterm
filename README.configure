@@ -237,7 +237,7 @@ CONFIGURE OPTIONS
         Enables the assertions in the code, normally disabled. This switch
         is only useful when developing rxvt-unicode.
 
-    --enable-256-color (default: off)
+    --enable-256-color (default: on)
         Force use of so-called 256 colour mode, to work around buggy
         applications that do not support termcap/terminfo, or simply improve
         support for applications hardcoding the xterm 256 colour table.
