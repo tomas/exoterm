@@ -1312,9 +1312,6 @@ int
 rxvt_term::set_default_icon ()
 {
 #ifdef HAVE_XPM
-  Pixmap icon = None;
-  Pixmap icon_mask = None;
-
   XWMHints * wh;
   XpmAttributes attr;
   Colormap cm;
@@ -1339,6 +1336,7 @@ rxvt_term::set_default_icon ()
   wh->icon_mask = icon_mask;
   XSetWMHints(dpy, parent, wh);
   XFree(wh);
+
   ret = 0;
 
 done:

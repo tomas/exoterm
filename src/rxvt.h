@@ -1241,6 +1241,11 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   void bg_render ();
 #endif
 
+#ifdef HAVE_XPM
+Pixmap icon = None;
+Pixmap icon_mask = None;
+#endif
+
 #ifdef HAVE_IMG
   enum {
     BG_IS_TRANSPARENT    = 1 << 1,
