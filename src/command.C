@@ -1509,6 +1509,16 @@ rxvt_term::x_cb (XEvent &ev)
 
             bool want_position_change = SHOULD_INVOKE (HOOK_POSITION_CHANGE);
 
+            bool moved = false;
+#ifdef HAVE_BG_PIXMAP
+            if (bg_window_position_sensitive ())
+              {
+                want_position_change = true;
+                if (bg_img == 0)
+                  moved = true;
+              }
+#endif
+
             if (want_position_change)
               {
                 int x, y;
@@ -1526,6 +1536,7 @@ rxvt_term::x_cb (XEvent &ev)
                     parent_x = x;
                     parent_y = y;
                     HOOK_INVOKE ((this, HOOK_POSITION_CHANGE, DT_INT, x, DT_INT, y, DT_END));
+                    moved = true;
                   }
               }
 
@@ -1533,6 +1544,13 @@ rxvt_term::x_cb (XEvent &ev)
               {
                 seen_resize = 1;
                 resize_all_windows (ev.xconfigure.width, ev.xconfigure.height, 1);
+              }
+            else
+              {
+#ifdef HAVE_BG_PIXMAP
+                if (moved)
+                  update_background ();
+#endif
               }
 
             HOOK_INVOKE ((this, HOOK_CONFIGURE_NOTIFY, DT_XEVENT, &ev, DT_END));
@@ -1552,6 +1570,17 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case MapNotify:
+#ifdef HAVE_BG_PIXMAP
+        // This is needed at startup for the case of no window manager
+        // or a non-reparenting window manager and also because we
+        // defer bg image updates if the window is not mapped. The
+        // short delay is to optimize for multiple ConfigureNotify
+        // events at startup when the window manager reparents the
+        // window, so as to perform the computation after we have
+        // received all of them.
+        if (bg_img == 0)
+          update_background_ev.start (0.025);
+#endif
         mapped = 1;
 #ifdef TEXT_BLINK
         text_blink_ev.start ();
@@ -1859,7 +1888,7 @@ rxvt_term::update_fade_color (unsigned int idx, bool first_time)
 #endif
 }
 
-#if ENABLE_PERL
+#if BG_IMAGE_FROM_ROOT || ENABLE_PERL
 void ecb_hot
 rxvt_term::rootwin_cb (XEvent &ev)
 {
@@ -1879,6 +1908,13 @@ rxvt_term::rootwin_cb (XEvent &ev)
         if (ev.xproperty.atom == xa[XA_XROOTPMAP_ID]
             || ev.xproperty.atom == xa[XA_ESETROOT_PMAP_ID])
           {
+#if BG_IMAGE_FROM_ROOT
+            if (option (Opt_transparent))
+              {
+                rxvt_img::new_from_root (this)->replace (root_img);
+                update_background ();
+              }
+#endif
             HOOK_INVOKE ((this, HOOK_ROOTPMAP_CHANGE, DT_END));
           }
 
@@ -2954,7 +2990,7 @@ rxvt_term::process_csi_seq ()
         break;
 
       case CSI_CUB:		/* 8.3.18: (1) CURSOR LEFT */
-      case CSI_HPB:		/* 8.3.59: (1) CHARACTER POSITION BACKWARD */
+      case CSI_HPB: 		/* 8.3.59: (1) CHARACTER POSITION BACKWARD */
 #ifdef ISO6429
         arg[0] = -arg[0];
 #else				/* emulate common DEC VTs */

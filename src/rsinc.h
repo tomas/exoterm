@@ -17,6 +17,10 @@
 #endif
   def (name)
   def (title)
+#if BG_IMAGE_FROM_FILE
+  def (path)
+  def (backgroundPixmap)
+#endif
   def (loginShell)
   def (multiClickTime)
   def (jumpScroll)
@@ -54,6 +58,11 @@
 #if USE_XIM
   def (preeditType)
   def (inputMethod)
+#endif
+#if BG_IMAGE_FROM_ROOT
+  def (transparent)
+  def (shade)
+  def (blurradius)
 #endif
 #if XFT
   def (buffered)

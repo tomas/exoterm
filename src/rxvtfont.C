@@ -241,7 +241,7 @@ rxvt_font::clear_rect (rxvt_drawable &d, int x, int y, int w, int h, int color) 
 #if XFT
       Picture dst;
 
-# ifdef HAVE_IMG
+# ifdef HAVE_BG_PIXMAP
       if (term->bg_img
           && !term->lookup_color(color, term->pix_colors).is_opaque ()
           && ((dst = XftDrawPicture (d))))
@@ -1434,7 +1434,7 @@ rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
         {
           rxvt_drawable &d2 = d.screen->scratch_drawable (w, h);
 
-#ifdef HAVE_IMG
+#ifdef HAVE_BG_PIXMAP
           Picture dst = 0; // the only assignment is done conditionally in the following if condition
 
           if (term->bg_img
