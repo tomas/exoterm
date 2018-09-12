@@ -60,7 +60,7 @@ dnl# Supply default CXXFLAGS, if not specified by `CXXFLAGS=flags ./configure'
 dnl#
 if test -z "$orig_CXXFLAGS"; then
   if test x$GCC = xyes && test "x$GXX" = xyes; then
-    CXXFLAGS="-g -O3 -fno-rtti -fvisibility-inlines-hidden -fno-threadsafe-statics -fno-enforce-eh-specs"
+    CXXFLAGS="-O3 -fno-rtti -fvisibility-inlines-hidden -fno-threadsafe-statics -fno-enforce-eh-specs"
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],[])], [], [CXXFLAGS="-g -O3"])
   else
     CXXFLAGS="-O"
@@ -89,6 +89,7 @@ support_scroll_next=yes
 support_scroll_xterm=yes
 support_xim=yes
 support_pixbuf=yes
+support_xpm=yes
 support_startup_notification=yes
 support_256_color=yes
 support_xft=yes
@@ -125,6 +126,7 @@ AC_ARG_ENABLE(everything,
        support_utmp=no
        support_wtmp=no
        support_xim=no
+       support_xpm=no
        support_pixbuf=no
        support_startup_notification=no
        support_256_color=no
@@ -155,6 +157,7 @@ AC_ARG_ENABLE(everything,
        support_utmp=yes
        support_wtmp=yes
        support_xim=yes
+       support_xpm=yes
        support_pixbuf=yes
        support_startup_notification=yes
        support_256_color=yes
@@ -243,6 +246,12 @@ AC_ARG_ENABLE(wide-glyphs,
   [  --enable-wide-glyphs    enable displaying of wide glyphs],
   [if test x$enableval = xyes -o x$enableval = xno; then
     support_wide_glyphs=$enableval
+  fi])
+
+AC_ARG_ENABLE(xpm,
+  [  --enable-xpm         enable support for xpm (for icon)],
+  [if test x$enableval = xyes -o x$enableval = xno; then
+    support_xpm=$enableval
   fi])
 
 AC_ARG_ENABLE(pixbuf,
@@ -454,8 +463,19 @@ AC_PATH_XTRA
 
 AC_PATH_TOOL(PKG_CONFIG, pkg-config, no)
 
-image_lib=none
+XPM_CFLAGS=
+XPM_LIBS=
 
+if test x$support_xpm = xyes; then
+  RXVT_CHECK_MODULES([XPM], [xpm], [
+    AC_DEFINE(HAVE_XPM, 1, Define if you want to use xpm for icon)
+  ], [:])
+fi
+
+AC_SUBST(XPM_CFLAGS)
+AC_SUBST(XPM_LIBS)
+
+image_lib=none
 PIXBUF_CFLAGS=
 PIXBUF_LIBS=
 
@@ -602,10 +622,13 @@ TTY_GROUP_CHECK
 dnl# --------------------------------------------------------------------------
 dnl# now add and remove other stuff
 dnl# --------------------------------------------------------------------------
+
 support_image=no
+
 if test x$support_inheritpixmap = xyes || test x$support_pixbuf = xyes; then
   support_image=yes
 fi
+
 if test x$support_xft = xyes || test x$support_image = xyes; then
   rxvt_have_xrender=no
   RXVT_CHECK_MODULES([XRENDER], [xrender], [
@@ -620,6 +643,8 @@ if test x$support_xft = xyes || test x$support_image = xyes; then
     LIBS="$save_LIBS"
   ], [:])
 fi
+
+
 
 if test x$support_xft = xyes && test x$rxvt_have_xrender = xyes; then
   RXVT_CHECK_MODULES([XFT], [fontconfig xft], [

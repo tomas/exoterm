@@ -218,6 +218,11 @@ rxvt_term::~rxvt_term ()
 
   emergency_cleanup ();
 
+#if HAVE_XPM
+  if (icon != None) XFreePixmap(dpy, icon);
+  if (icon_mask != None) XFreePixmap(dpy, icon_mask);
+#endif
+
 #if ENABLE_STYLES
   for (int i = RS_styleCount; --i; )
     if (fontset[i] != fontset[0])

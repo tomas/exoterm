@@ -1308,6 +1308,45 @@ rxvt_term::set_icon (const char *file)
 #endif
 }
 
+int
+rxvt_term::set_default_icon ()
+{
+#ifdef HAVE_XPM
+  XWMHints * wh;
+  XpmAttributes attr;
+  Colormap cm;
+  int ret;
+
+  /* Create color map */
+  cm = XCreateColormap(dpy, parent, DefaultVisual(dpy, DefaultScreen(dpy)), AllocNone);
+  if (cm == BadAlloc || cm == BadMatch || cm == BadValue || cm == BadWindow) {
+    return 1;
+  }
+
+  attr.valuemask = XpmColormap;
+  attr.colormap = cm;
+  ret = XpmCreatePixmapFromData(dpy, parent, icon_xpm, &icon, &icon_mask, &attr);
+  if (ret != XpmSuccess || ret < 0) goto done;
+
+  wh = XAllocWMHints();
+  if (!wh) goto done;
+
+  wh->flags = IconPixmapHint | IconMaskHint;
+  wh->icon_pixmap = icon;
+  wh->icon_mask = icon_mask;
+  XSetWMHints(dpy, parent, wh);
+  XFree(wh);
+
+  ret = 0;
+
+done:
+  XFreeColormap(dpy, cm);
+  return ret;
+#else // no XPM
+  return 0;
+#endif
+}
+
 /*----------------------------------------------------------------------*/
 /* Open and map the window */
 void
@@ -1403,6 +1442,10 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 
   if (rs [Rs_iconfile])
     set_icon (rs [Rs_iconfile]);
+  else
+    set_default_icon();
+#else
+    set_default_icon();
 #endif
 
 #if ENABLE_FRILLS

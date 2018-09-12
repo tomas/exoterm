@@ -256,6 +256,9 @@
 /* Define to enable Xmu support */
 #undef HAVE_XMU
 
+/* Define if you want to use xpm for icon */
+#undef HAVE_XPM
+
 /* Define if setlocale (defined to Xsetlocale) works */
 #undef HAVE_XSETLOCALE
 
