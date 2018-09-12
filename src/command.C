@@ -3878,8 +3878,6 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
   else if (mode == 'h')
     mode = 1;		/* set */
 
-  printf("%d -> [%d]\n", nargs, arg[i]);
-
   for (i = 0; i < nargs; i++)
     {
       state = -1;
@@ -3973,8 +3971,6 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             case 1002:
             case 1003:
-              printf("1003!\n");
-
               if (state)
                 {
                   toggle_cursor(TermWin_arrow);
