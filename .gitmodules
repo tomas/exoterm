@@ -1,6 +1,7 @@
 [submodule "libptytty"]
-  path = libptytty
-  url = https://github.com/yusiwen/libptytty
+	path = libptytty
+	url = https://github.com/yusiwen/libptytty
 [submodule "libev"]
-  path = libev
-  url = https://git.lighttpd.net/libev.git
+	path = libev
+	url = https://git.lighttpd.net/libev.git
+  
