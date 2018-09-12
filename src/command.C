@@ -1391,6 +1391,9 @@ rxvt_term::x_cb (XEvent &ev)
   switch (ev.type)
     {
       case KeyPress:
+#if ENABLE_OVERLAY
+        scr_overlay_off();
+#endif
         key_press (ev.xkey);
         break;
 
@@ -1399,6 +1402,9 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case ButtonPress:
+#if ENABLE_OVERLAY
+        scr_overlay_off();
+#endif
         button_press (ev.xbutton);
         break;
 
@@ -2183,6 +2189,10 @@ rxvt_term::button_release (XButtonEvent &ev)
               selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
+#if ENABLE_OVERLAY
+              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
+              scr_overlay_set (0, 0, "Copied to clipboard");
+#endif
             }
 
             break;
