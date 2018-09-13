@@ -324,9 +324,7 @@ rxvt_term::destroy ()
 
   HOOK_INVOKE ((this, HOOK_DESTROY, DT_END));
 
-#if ENABLE_OVERLAY
   scr_overlay_off ();
-#endif
 
   if (display)
     {

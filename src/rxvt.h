@@ -49,10 +49,6 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 
 #include "feature.h"
 
-#if defined (ISO_14755) || defined (ENABLE_PERL)
-# define ENABLE_OVERLAY 1
-#endif
-
 #if ENABLE_PERL
 # define ENABLE_FRILLS    1
 # define ENABLE_COMBINING 1
@@ -1258,7 +1254,6 @@ Pixmap icon_mask = None;
   rxvt_img *bg_img;
 #endif
 
-#if ENABLE_OVERLAY
   overlay_base ov;
 
   void scr_swap_overlay () NOTHROW;
@@ -1269,7 +1264,6 @@ Pixmap icon_mask = None;
                         rend_t rend = OVERLAY_RSTYLE) NOTHROW;
   void scr_overlay_set (int x, int y, const char *s) NOTHROW;
   void scr_overlay_set (int x, int y, const wchar_t *s) NOTHROW;
-#endif
 
   vector<void *> allocated;           // free these memory blocks with free()
 

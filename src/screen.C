@@ -214,9 +214,7 @@ rxvt_term::copy_line (line_t &dst, line_t &src)
 void ecb_cold
 rxvt_term::scr_reset ()
 {
-#if ENABLE_OVERLAY
   scr_overlay_off ();
-#endif
 
   view_start = 0;
   num_scr = 0;
@@ -475,9 +473,7 @@ void ecb_cold
 rxvt_term::scr_soft_reset () NOTHROW
 {
   /* only affects modes, nothing drastic such as clearing the screen */
-#if ENABLE_OVERLAY
   scr_overlay_off ();
-#endif
 
   if (current_screen != PRIMARY)
     scr_swap_screen ();
@@ -2118,9 +2114,8 @@ rxvt_term::scr_refresh () NOTHROW
   scr_reverse_selection ();
 
   HOOK_INVOKE ((this, HOOK_REFRESH_BEGIN, DT_END));
-#if ENABLE_OVERLAY
+
   scr_swap_overlay ();
-#endif
 
   bool showcursor = screen.flags & Screen_VisibleCursor;
 
@@ -2533,9 +2528,8 @@ rxvt_term::scr_refresh () NOTHROW
   /*
    * H: cleanup selection
    */
-#if ENABLE_OVERLAY
   scr_swap_overlay ();
-#endif
+
   HOOK_INVOKE ((this, HOOK_REFRESH_END, DT_END));
 
   scr_reverse_selection ();
@@ -3601,7 +3595,6 @@ rxvt_term::im_set_position (XPoint &pos) NOTHROW
 }
 #endif
 
-#if ENABLE_OVERLAY
 void
 rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
 {
@@ -3738,6 +3731,5 @@ rxvt_term::scr_swap_overlay () NOTHROW
     }
 }
 
-#endif
 /* ------------------------------------------------------------------------- */
 
