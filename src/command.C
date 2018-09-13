@@ -554,8 +554,16 @@ rxvt_term::key_press (XKeyEvent &ev)
                   kbuf[2] = "dacb"[keysym - XK_Left];
                 else if (ctrl)
                   {
-                    kbuf[1] = 'O';
-                    kbuf[2] = "dacb"[keysym - XK_Left];
+                    // regular urxvt behaviour - disabled
+                    // kbuf[1] = 'O';
+                    // kbuf[2] = "dacb"[keysym - XK_Left];
+
+                    // xterm behaviour
+                    kbuf[1] = '[';
+                    kbuf[2] = '1';
+                    kbuf[3] = ';';
+                    kbuf[4] = '5';
+                    kbuf[5] = "DACB"[keysym - XK_Left];
                   }
                 else if (priv_modes & PrivMode_aplCUR)
                   kbuf[1] = 'O';
