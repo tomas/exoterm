@@ -360,9 +360,9 @@ struct mouse_event
 #endif
 #ifndef TERMENV
 # if USE_256_COLORS
-#  define TERMENV        "xterm-256color"
+#  define TERMENV        "rxvt-unicode-256color"
 # else
-#  define TERMENV        "xterm"
+#  define TERMENV        "rxvt-unicode"
 # endif
 #endif
 
