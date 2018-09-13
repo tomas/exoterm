@@ -180,9 +180,12 @@ rxvt_network_display (const char *display)
 
 static const char *const def_colorName[] =
   {
-    COLOR_FOREGROUND,
-    COLOR_BACKGROUND,
-    /* low-intensity colors */
+
+#ifdef CHALK_COLORS
+
+    "rgb:d0/d0/d0",             // foreground
+    "rgb:11/11/11",             // background
+
     "rgb:15/15/15",             // 0: black             (Black)
     "rgb:fb/9f/b1",             // 1: red               (Red3)
     "rgb:ac/c2/67",             // 2: green             (Green3)
@@ -191,8 +194,8 @@ static const char *const def_colorName[] =
     "rgb:e1/a3/ee",             // 5: magenta           (Magenta3)
     "rgb:12/cf/c0",             // 6: cyan              (Cyan3)
     "rgb:d0/d0/d0",             // 7: white             (AntiqueWhite)
-    /* high-intensity colors */
     "rgb:50/50/50",             // 8: bright black      (Grey25)
+
     "rgb:fb/9f/b1",             // 1/9: bright red      (Reed)
     "rgb:ac/c2/67",             // 2/10: bright green   (Green)
     "rgb:dd/b2/6f",             // 3/11: bright yellow  (Yellow)
@@ -200,6 +203,77 @@ static const char *const def_colorName[] =
     "rgb:e1/a3/ee",             // 5/13: bright magenta (Magenta)
     "rgb:12/cf/c0",             // 6/14: bright cyan    (Cyan)
     "rgb:f5/f5/f5",             // 7/15: bright white   (White)
+
+#elif MONOKAI_COLORS
+
+    "rgb:f8/f8/f2",             // foreground
+    "rgb:27/28/22",             // background
+
+    "rgb:75/71/5e",             // 0: black             (Black)
+    "rgb:f9/26/72",             // 1: red               (Red3)
+    "rgb:a6/e2/2e",             // 2: green             (Green3)
+    "rgb:f4/bf/75",             // 3: yellow            (Yellow3)
+    "rgb:66/d9/ef",             // 4: blue              (Blue3)
+    "rgb:ae/81/ff",             // 5: magenta           (Magenta3)
+    "rgb:2a/a1/98",             // 6: cyan              (Cyan3)
+    "rgb:f9/f8/f5",             // 7: white             (AntiqueWhite)
+    "rgb:27/28/22",             // 8: bright black      (Grey25)
+
+    "rgb:f9/26/72",             // 1/9: bright red      (Reed)
+    "rgb:a6/e2/2e",             // 2/10: bright green   (Green)
+    "rgb:f4/bf/75",             // 3/11: bright yellow  (Yellow)
+    "rgb:66/d9/ef",             // 4/12: bright blue    (Blue)
+    "rgb:ae/81/ff",             // 5/13: bright magenta (Magenta)
+    "rgb:2a/a1/98",             // 6/14: bright cyan    (Cyan)
+    "rgb:f8/f8/f2",             // 7/15: bright white   (White)
+
+#elif SMYCK_COLORS
+
+    "rgb:f7/f7/f7",             // foreground
+    "rgb:24/24/24",             // background
+
+    "rgb:00/00/00",             // 0: black             (Black)
+    "rgb:C7/56/46",             // 1: red               (Red3)
+    "rgb:8E/B3/3B",             // 2: green             (Green3)
+    "rgb:D0/B0/3C",             // 3: yellow            (Yellow3)
+    "rgb:72/B3/CC",             // 4: blue              (Blue3)
+    "rgb:C8/A0/D1",             // 5: magenta           (Magenta3)
+    "rgb:21/86/93",             // 6: cyan              (Cyan3)
+    "rgb:B0/B0/B0",             // 7: white             (AntiqueWhite)
+    "rgb:5D/5D/5D",             // 8: bright black      (Grey25)
+
+    "rgb:E0/96/90",             // 1/9: bright red      (Reed)
+    "rgb:CD/EE/69",             // 2/10: bright green   (Green)
+    "rgb:FF/E3/77",             // 3/11: bright yellow  (Yellow)
+    "rgb:9C/D9/F0",             // 4/12: bright blue    (Blue)
+    "rgb:FB/B1/F9",             // 5/13: bright magenta (Magenta)
+    "rgb:77/DF/D8",             // 6/14: bright cyan    (Cyan)
+    "rgb:F7/F7/F7",             // 7/15: bright white   (White)
+
+#else // monokai modified
+
+    "rgb:f1/eb/eb",    // foreground
+    "rgb:27/28/22",    // background
+
+    "rgb:48/48/3e",    // 0: black             (Black)
+    "rgb:e8/3c/59",    // 1: red               (Red3)
+    "rgb:28/bb/83",    // 2: green             (Green3)
+    "rgb:d4/c6/6e",    // 3: yellow            (Yellow3)
+    "rgb:55/7c/ce",    // 4: blue              (Blue3)
+    "rgb:94/59/ff",    // 5: magenta           (Magenta3)
+    "rgb:56/b7/b2",    // 6: cyan              (Cyan3)
+    "rgb:ac/ad/a1",    // 7: white             (AntiqueWhite)
+    "rgb:76/71/5e",    // 8: bright black      (Grey25)
+
+    "rgb:ff/66/8a",    // 1/9: bright red      (Reed)
+    "rgb:2e/e2/9d",    // 2/10: bright green   (Green)
+    "rgb:ea/e5/6d",    // 3/11: bright yellow  (Yellow)
+    "rgb:53/a1/ff",    // 4/12: bright blue    (Blue)
+    "rgb:b7/8f/ff",    // 5/13: bright magenta (Magenta)
+    "rgb:66/ef/e8",    // 6/14: bright cyan    (Cyan)
+    "rgb:cf/d0/c2",    // 7/15: bright white   (White)
+
+#endif
 
 #if !USE_256_COLORS
     // 88 xterm colours

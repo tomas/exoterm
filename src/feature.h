@@ -317,8 +317,8 @@
  */
 
 /* These colours MUST be defined */
-#define COLOR_FOREGROUND    "rgb:d0/d0/d0"
-#define COLOR_BACKGROUND    "rgb:15/15/15"
+#define COLOR_FOREGROUND    "rgb:ee/ee/ee"
+#define COLOR_BACKGROUND    "rgb:11/11/11"
 #define COLOR_SCROLLBAR     "rgb:b2/b2/b2"  /* scrollColor match Netscape */
 #define COLOR_SCROLLTROUGH  "rgb:96/96/96"
 
