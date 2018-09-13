@@ -2398,14 +2398,6 @@ rxvt_term::scr_refresh () NOTHROW
               if (invert)
                 {
                     ::swap (fore, back);
-
-#ifndef NO_BOLD_UNDERLINE_REVERSE
-                  if (fore == back)
-                    {
-                      fore = Color_bg;
-                      back = Color_fg;
-                    }
-#endif
                 }
 
 #ifdef TEXT_BLINK
