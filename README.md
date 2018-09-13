@@ -31,11 +31,17 @@ Goes in `~/.Xdefaults`. Here's an example:
     URxvt.iso14755: false
     URxvt.iso14755_52: false
 
-    ! transparent background    
+    ! fake transparent background    
     URxvt.inheritPixmap: true
     URxvt.transparent: true
     URxvt.tintColor: #00ffff
     URxvt.shading: 30
+
+    ! for real transparency
+    URxvt.inheritPixmap: false
+    URxvt.transparent: false
+    URxvt.depth: 32
+    URxvt.background: rgba:0000/0000/0800/c800
 
     ! enable URL highlight plugin 
     URxvt.perl-ext-common: default,matcher
