@@ -181,6 +181,8 @@ rxvt_network_display (const char *display)
 static const char *const def_colorName[] =
   {
 
+// #define MONOKAI_MODIFIED 1
+
 #ifdef CHALK_COLORS
 
     "rgb:d0/d0/d0",             // foreground
@@ -250,7 +252,7 @@ static const char *const def_colorName[] =
     "rgb:77/DF/D8",             // 6/14: bright cyan    (Cyan)
     "rgb:F7/F7/F7",             // 7/15: bright white   (White)
 
-#else // monokai modified
+#elif MONOKAI_MODIFIED
 
     "rgb:f1/eb/eb",    // foreground
     "rgb:27/28/22",    // background
@@ -264,7 +266,6 @@ static const char *const def_colorName[] =
     "rgb:56/b7/b2",    // 6: cyan              (Cyan3)
     "rgb:ac/ad/a1",    // 7: white             (AntiqueWhite)
     "rgb:76/71/5e",    // 8: bright black      (Grey25)
-
     "rgb:ff/66/8a",    // 1/9: bright red      (Reed)
     "rgb:2e/e2/9d",    // 2/10: bright green   (Green)
     "rgb:ea/e5/6d",    // 3/11: bright yellow  (Yellow)
@@ -272,6 +273,27 @@ static const char *const def_colorName[] =
     "rgb:b7/8f/ff",    // 5/13: bright magenta (Magenta)
     "rgb:66/ef/e8",    // 6/14: bright cyan    (Cyan)
     "rgb:cf/d0/c2",    // 7/15: bright white   (White)
+
+#else // if CHALK_MODIFIED_COLORS
+
+    "rgb:ee/ee/ee",    // foreground
+    "rgb:15/15/15",    // background
+    "rgb:15/15/15",    // 0: black             (Black)  
+    "rgb:ff/86/c7",    // 1: red               (Red3) 
+    "rgb:1b/f0/c2",    // 2: green             (Green3)
+    "rgb:dd/c1/6f",    // 3: yellow            (Yellow3)
+    "rgb:6e/cc/ff",    // 4: blue              (Blue3)
+    "rgb:f0/91/f7",    // 5: magenta           (Magenta3)
+    "rgb:14/c8/d6",    // 6: cyan              (Cyan3)
+    "rgb:aa/aa/aa",    // 7: white             (AntiqueWhite)
+    "rgb:50/50/50",    // 8: bright black      (Grey25)
+    "rgb:fb/9f/c9",    // 1/9: bright red      (Reed)
+    "rgb:5e/ce/b3",    // 2/10: bright green   (Green)
+    "rgb:d2/b1/62",    // 3/11: bright yellow  (Yellow)
+    "rgb:69/be/ed",    // 4/12: bright blue    (Blue)
+    "rgb:e1/a3/ee",    // 5/13: bright magenta (Magenta)
+    "rgb:12/c5/cf",    // 6/14: bright cyan    (Cyan)
+    "rgb:f5/f5/f5",    // 7/15: bright white   (White)
 
 #endif
 
