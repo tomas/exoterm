@@ -823,11 +823,11 @@ echo "Configuration:
   Linker:                     $LINKER"
 
 if test x$support_24_bit_color = xyes; then
-  echo "  Color depth:           24 bit"
+  echo "  Color depth:                24 bit"
 elif test x$support_256_color = xyes; then
-  echo "  Color depth:           256 colors"
+  echo "  Color depth:                256 colors"
 else
-  echo "  Color depth:           88 colors"
+  echo "  Color depth:                88 colors"
 fi
 
 if test x$term != x; then
@@ -836,14 +836,18 @@ fi
 if test x$terminfo != x; then
   echo "  set TERMINFO to:            $terminfo"
 fi
+
 echo "  default resource name:      $RESNAME"
 echo "  resource class:             $RESCLASS"
+
 if test x$RESFALLBACK != x; then
    echo "  resource class fallback:    $RESFALLBACK"
 fi
+
 echo
 echo "  embedded perl:              $support_perl"
 echo "  image library:              $image_lib"
+echo "  XPM support:                $support_xpm"
 echo
 if test x$support_xim = xyes -a x$rxvt_cv_func_xlocale = xno; then
   echo ".----------------------------------------------------------------."
