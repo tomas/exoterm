@@ -37,6 +37,11 @@ Goes in `~/.Xdefaults`. Here's an example:
     URxvt.tintColor: #00ffff
     URxvt.shading: 30
 
+    ! enable URL highlight plugin 
+    URxvt.perl-ext-common: default,matcher
+    URxvt.urlLauncher: xdg-open
+    URxvt.colorUL: #ff6600
+
     ! scrolling 
     URxvt.saveLines: 10000
     URxvt.scrollBar: false
@@ -44,7 +49,18 @@ Goes in `~/.Xdefaults`. Here's an example:
     URxvt.internalBorder: 0
     URxvt.externalBorder: 0
 
-    ! enable URL highlight plugin 
-    URxvt.perl-ext-common: default,matcher
-    URxvt.urlLauncher: xdg-open
-    URxvt.colorUL: #ff6600
+    ! more scrolling
+    URxvt.jumpScroll: true                                                   
+    URxvt.skipScroll: true
+    URxvt.mouseWheelScrollPage: true
+    URxvt.secondaryScroll: true
+
+    ! do not scroll with output
+    URxvt.scrollTtyOutput: false
+
+    ! scroll in relation to buffer (with mouse scroll or Shift+Page Up)
+    URxvt.scrollWithBuffer: true
+
+    ! scroll back to the bottom on keypress
+    URxvt.scrollTtyKeypress: true
+
