@@ -471,7 +471,7 @@ sub register_keysyms {
   $self->parse_keysym('Control-t', $prefix . ':new_tab');
   $self->parse_keysym('Control-Left', $prefix . ':prev_tab');
   $self->parse_keysym('Control-Right', $prefix . ':next_tab');
-  $self->parse_keysym('Control-Shift-Tab', $prefix . ':prev_tab');
+  $self->parse_keysym('Control-Shift-ISO_Left_Tab', $prefix . ':prev_tab');
   $self->parse_keysym('Control-Tab', $prefix . ':next_tab');
   for my $num (1..12) {
     $self->parse_keysym('Meta-F' . $num,
