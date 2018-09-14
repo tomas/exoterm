@@ -426,15 +426,16 @@ package urxvt::ext::tabbed_new::tab;
 # simply proxies all interesting calls back to the tabbed class.
 
 {
-    for my $hook qw(start destroy key_press property_notify) {
-        eval qq{
-            sub on_$hook \{
-                my \$parent = \$_[0]\{term\}\{parent\} or return;
-                \$parent->tab_$hook(\@_);
-            \}
-        };
-        die if $@;
-    }
+   for my $hook (qw(start destroy key_press property_notify)) {
+      eval qq{
+         sub on_$hook {
+            my \$parent = \$_[0]{term}{parent}
+               or return;
+            \$parent->tab_$hook (\@_)
+         }
+      };
+      die if $@;
+   }
 }
 
 sub on_add_lines {
