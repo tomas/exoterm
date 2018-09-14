@@ -464,12 +464,15 @@ sub on_init {
 sub register_keysyms {
   my ($self, $supports_action) = @_;
   my $prefix = ($supports_action && $self->{_name}) || 'perl:tabbedex';
-  $self->parse_keysym('Shift-Left', $prefix . ':prev_tab');
-  $self->parse_keysym('Shift-Right', $prefix . ':next_tab');
-  $self->parse_keysym('Shift-Down', $prefix . ':new_tab');
-  $self->parse_keysym('Shift-Up', $prefix . ':rename_tab');
-  $self->parse_keysym('Control-Left', $prefix . ':move_tab_left');
-  $self->parse_keysym('Control-Right', $prefix . ':move_tab_right');
+  # $self->parse_keysym('Shift-Left', $prefix . ':prev_tab');
+  # $self->parse_keysym('Shift-Right', $prefix . ':next_tab');
+  # $self->parse_keysym('Shift-Down', $prefix . ':new_tab');
+  # $self->parse_keysym('Shift-Up', $prefix . ':rename_tab');
+  $self->parse_keysym('Control-t', $prefix . ':new_tab');
+  $self->parse_keysym('Control-Left', $prefix . ':prev_tab');
+  $self->parse_keysym('Control-Right', $prefix . ':next_tab');
+  $self->parse_keysym('Control-Shift-Tab', $prefix . ':prev_tab');
+  $self->parse_keysym('Control-Tab', $prefix . ':next_tab');
   for my $num (1..12) {
     $self->parse_keysym('Meta-F' . $num,
             $prefix . ':goto_tab_' . $num);
@@ -990,23 +993,23 @@ sub init {
 
    my $rs = new urxvt::ext::tabbedex::rs_reader($root);
 
-   my $timeouts = $rs->text('tabbar-timeouts',
-                            '0:▁:3:▂:6:▃:9:▄:12:▅:15:▆:18:▇:21:█');
-   if ($timeouts) {
-      my @timeouts;
-      my $re = eval { qr/\G(\d+):(\X)(?::|$)/ } // qr/\G(\d+):(.)(?::|$)/;
-      while ($timeouts =~ /$re/g) {
-         push @timeouts, [ $1, $root->special_encode($2) ];
-      }
-      if (@timeouts) {
-         @timeouts = sort { $b->[0] <=> $a->[0] } @timeouts;
-         $root->{timeouts} = \@timeouts;
-      }
-   }
+   # my $timeouts = $rs->text('tabbar-timeouts',
+   #                          '0:▁:3:▂:6:▃:9:▄:12:▅:15:▆:18:▇:21:█');
+   # if ($timeouts) {
+   #    my @timeouts;
+   #    my $re = eval { qr/\G(\d+):(\X)(?::|$)/ } // qr/\G(\d+):(.)(?::|$)/;
+   #    while ($timeouts =~ /$re/g) {
+   #       push @timeouts, [ $1, $root->special_encode($2) ];
+   #    }
+   #    if (@timeouts) {
+   #       @timeouts = sort { $b->[0] <=> $a->[0] } @timeouts;
+   #       $root->{timeouts} = \@timeouts;
+   #    }
+   # }
 
    $root->{bell_timeout}     = int($rs->text('bell-timeout') // 1);
    $root->{new_button}       = $rs->bool('new-button', 0);
-   $root->{tab_title}        = $rs->bool('title', 1);
+   $root->{tab_title}        = $rs->bool('title', 0);
    $root->{autohide}         = $rs->bool('autohide', 1);
    $root->{register_keysyms} = !$rs->bool('no-tabbedex-keys', 0);
    $root->{reopen_on_close}  = $rs->bool('reopen-on-close', 0);
@@ -1025,8 +1028,8 @@ sub init {
        $root->{perl_ext_blacklist} = ',-' . $blacklist;
    }
 
-   my ($colours, $colours_cmd) = $rs->colours([3, 0, 'tabbar'],
-                                              [0, 1, 'tab'],
+   my ($colours, $colours_cmd) = $rs->colours([15, 0, 'tabbar'],
+                                              [0, 15, 'tab'],
                                               [0, 3, 'bell'],
                                               [5, 4, 'bell-tab'],
                                               [2, 0, 'title']);
