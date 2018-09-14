@@ -209,8 +209,8 @@ sub on_init {
 
     defined $renamebg or $renamebg = 11;
     defined $divfg    or $divfg = 8;
-    defined $fg       or $fg    = 0;
-    defined $bg       or $bg    = 15;
+    defined $fg       or $fg    = 15;
+    defined $bg       or $bg    = 0;
     defined $tabfg    or $tabfg = 1;
     defined $tabbg    or $tabbg = 15;
     defined $selfg    or $selfg = 0;
@@ -299,10 +299,11 @@ sub tab_key_press {
         } else {
             $action = 'prev-tab'     if $keysum == 0xff51;  # Mod4+Left
             $action = 'next-tab'     if $keysum == 0xff53;  # Mod4+Right
-            $action = 'new-tab'      if $keysum == 0x74;    # Mod4+T
+            # $action = 'new-tab'      if $keysum == 0x74;    # Mod4+T
             $action = 'rename-start' if $keysum == 0x6e;    # Mod4+N
         }
     } elsif ($event->{state} & urxvt::ControlMask) {
+        $action = 'new-tab'          if $keysum == 0x74;    # Ctrl+T
         $action = 'next-tab'         if $keysum == 0xff09;  # Ctrl+Tab
     } elsif (defined $self->{tab_rename_started} && $self->{tab_rename_started}) {
         if ($keysum == 0xff1b) {                            # Esc
