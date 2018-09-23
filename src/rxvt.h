@@ -1338,6 +1338,8 @@ Pixmap icon_mask = None;
   void refresh_check ();
   void flush ();
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
+  void new_tab ();
+
   void cmdbuf_reify ();
   void cmdbuf_append (const char *str, size_t count);
   bool pty_fill ();

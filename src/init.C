@@ -891,12 +891,16 @@ rxvt_term::init (stringvec *argv, stringvec *envv)
   for (int i = 0; i < this->envv->size (); i++)
     env[i] = this->envv->at (i);
 
+  printf("init1. calling init2\n");
   init2 (argv->size () - 1, argv->begin ());
 }
 
 void
 rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
 {
+
+printf("init1 base.\n");
+
 #if ENABLE_PERL
   // perl might want to access the stringvecs later, so we need to copy them
   stringvec *args = new stringvec;
@@ -907,8 +911,10 @@ rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
   for (const char *const *var = envv; *var; var++)
     envs->push_back (strdup (*var));
 
+  printf("calling init1.\n");
   init (args, envs);
 #else
+  printf("calling init2.\n");
   init2 (argc, argv);
 #endif
 }
@@ -916,6 +922,9 @@ rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
 void
 rxvt_term::init2 (int argc, const char *const *argv)
 {
+
+  printf("init2!\n");
+
   SET_R (this);
   set_locale ("");
   set_environ (env); // a few things in X do not call setlocale :(
@@ -995,6 +1004,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
     sn_launchee_context_setup_window (snContext, parent);
 #endif
 
+  printf("mapping window.\n");
   XMapWindow (dpy, vt);
   XMapWindow (dpy, parent);
 
@@ -1010,6 +1020,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   sn_display_unref (snDisplay);
 #endif
 
+  printf("calling refresh_check.\n");
   refresh_check ();
 }
 

@@ -777,6 +777,12 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
         }
 
+      // Ctrl + Shift + T
+      if (ctrl && shft && (keysym == XK_T)) {
+        new_tab();
+        return;
+      }
+
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
         {
           if (keysym == XK_V)
@@ -1044,6 +1050,42 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
   refresh_count = 0;
   flush ();
 }
+
+void
+rxvt_term::new_tab () {
+  printf("Opening new tab\n");
+  rxvt_term *term = new rxvt_term;
+  // rxvt_term *term = new rxvt_term();
+
+   stringvec *argv = new stringvec;
+//   for (int i = 0; i <= AvFILL (arg); i++)
+//     argv->push_back (strdup (SvPVbyte_nolen (*av_fetch (arg, i, 1))));
+// 
+   stringvec *envv = new stringvec;
+//   for (int i = AvFILL (env) + 1; i--; ) 
+//     envv->push_back (strdup (SvPVbyte_nolen (*av_fetch (env, i, 1))));
+
+  
+  // term->init(argc, argv, environ);
+
+  int argc = 0;
+  const char* const* args;
+  // char** args;
+
+  try {
+    // term->init (argv, envv);
+
+    term->init (argc, args, environ);
+    printf("initialized!!");
+  } catch (const class rxvt_failure_exception &e) {
+    printf("shit!!");
+    term->destroy ();
+    printf("error while initializing new terminal instance!\n");
+  }
+
+  return;
+}
+
 
 #ifdef CURSOR_BLINK
 void
