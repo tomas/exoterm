@@ -19,13 +19,21 @@ See `README.configure` for more details and configuration options.
 
 # Configuration
 
-Goes in `~/.Xdefaults`. Here's an example:
+Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/X.defaults` after you update it.
 
-    ! geometry and font
+Here's an example:
+
+    ! geometry and cursor
     URxvt.geometry: 100x25
     URxvt.cursorColor: #ff6600
+
+    ! font: tamzen 8x16
     URxvt.font: -misc-tamzen-medium-r-normal--16-116-100-100-c-80-iso8859-1
     URxvt.boldFont: -misc-tamzen-bold-r-normal--16-116-100-100-c-80-iso8859-1
+
+    ! or terminus 8x16
+    URxvt.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
+    URxvt.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
     ! to disable iso14755 mode
     URxvt.iso14755: false
