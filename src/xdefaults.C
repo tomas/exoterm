@@ -499,13 +499,17 @@ rxvt_term::get_options (int argc, const char *const *argv)
 {
   int i, bad_option = 0;
 
+printf("%d\n", argc);
   for (i = 1; i < argc; i++)
     {
       unsigned int entry, longopt = 0;
       const char *opt;
       int flag;
 
+
       opt = argv[i];
+      if (opt == 0) continue;
+      printf("opt %d: %d\n", i, opt);
 
       if (*opt == '-')
         {
@@ -601,7 +605,9 @@ rxvt_term::get_options (int argc, const char *const *argv)
       else
         {
 #if ENABLE_PERL
+          printf("xxx!\n");
           rxvt_perl.init (this);
+          printf("yyy!\n");
 
           if (int flags = rxvt_perl.parse_resource (this, opt, true, longopt, flag, argv [i + 1]))
             {

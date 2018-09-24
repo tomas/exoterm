@@ -1054,35 +1054,85 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
 void
 rxvt_term::new_tab () {
   printf("Opening new tab\n");
-  rxvt_term *term = new rxvt_term;
+  rxvt_term *newterm = new rxvt_term();
   // rxvt_term *term = new rxvt_term();
 
-   stringvec *argv = new stringvec;
+//   stringvec *argv = new stringvec;
 //   for (int i = 0; i <= AvFILL (arg); i++)
 //     argv->push_back (strdup (SvPVbyte_nolen (*av_fetch (arg, i, 1))));
 // 
-   stringvec *envv = new stringvec;
+//   stringvec *envv = new stringvec;
 //   for (int i = AvFILL (env) + 1; i--; ) 
 //     envv->push_back (strdup (SvPVbyte_nolen (*av_fetch (env, i, 1))));
 
-  
   // term->init(argc, argv, environ);
 
-  int argc = 0;
-  const char* const* args;
+  // int argc = 0;
+  // const char* const* args;
   // char** args;
 
   try {
-    // term->init (argv, envv);
+    newterm->init (argv, envv);
+    // term->init (argc, args, environ);
+    printf("initialized!!\n");
 
-    term->init (argc, args, environ);
-    printf("initialized!!");
+    // change input, from tab_start in perl script
+    XWindowAttributes attr;
+    XGetWindowAttributes(newterm->dpy, newterm->parent, &attr);
+    XSelectInput(newterm->dpy, newterm->parent, attr.your_event_mask | PropertyChangeMask);
+
+    int tabheight = 0;
+
+    // configure
+    // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
+    // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
+    XMoveResizeWindow(newterm->dpy, newterm->parent, 0, tabheight + 1, vt_width, vt_height - tabheight);
+    XMoveResizeWindow(newterm->dpy, newterm->parent, 0, tabheight, vt_width, vt_height - tabheight);
+
+    // copy properties
+
+    // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
+    // my $current = delete $root->{current_properties};
+    Atom normal_hints = XInternAtom(newterm->dpy, "WM_NORMAL_HINTS", 1);
+
+    /*
+    // pass 1: copy over properties different or nonexisting
+    for my $atom ($tab->XListProperties ($tab->parent)) {
+      my ($type, $format, $items) = $root->XGetWindowProperty ($tab->parent, $atom);
+
+      // fix up size hints
+      if ($atom == $wm_normal_hints) {
+         my (@hints) = unpack "l!*", $items;
+         $hints[$_] += $root->{tabheight} for (4, 6, 16);
+         $items = pack "l!*", @hints;
+      }
+
+      my $cur = delete $current->{$atom};
+
+      # update if changed, we assume empty items and zero type and
+      # format will not happen
+      $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
+         if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
+
+      $root->{current_properties}{$atom} = [$type, $format, $items];
+    }
+    */
+
+    // pass 2, delete all extraneous properties
+    // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
+
+    // final map window call
+    XMapWindow(newterm->dpy, newterm->parent);
+
+    // refresh_check();
+
   } catch (const class rxvt_failure_exception &e) {
     printf("shit!!");
-    term->destroy ();
+    newterm->destroy ();
     printf("error while initializing new terminal instance!\n");
   }
 
+  printf("returning from new_tab\n");
   return;
 }
 

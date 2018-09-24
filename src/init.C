@@ -929,7 +929,11 @@ rxvt_term::init2 (int argc, const char *const *argv)
   set_locale ("");
   set_environ (env); // a few things in X do not call setlocale :(
 
+
+    printf("init vars\n");
   init_vars ();
+
+  printf("init res\n");
 
   const char **cmd_argv = init_resources (argc, argv);
 
@@ -950,8 +954,10 @@ rxvt_term::init2 (int argc, const char *const *argv)
   if (option (Opt_scrollBar))
     scrollBar.state = SB_STATE_IDLE;    /* set existence for size calculations */
 
+  printf("ptty create\n");
   pty = ptytty::create ();
 
+  printf("create windows\n");
   create_windows (argc, argv);
 
   init_xlocale ();
@@ -970,6 +976,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
 #if ENABLE_PERL
+  printf("PERL rootwin.start\n");
   rootwin_ev.start (display, display->root);
 #endif
 
@@ -980,7 +987,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
   if (pty->pty >= 0)
     pty_ev.start (pty->pty, ev::READ);
 
+  printf(" -- hook start before\n");
   HOOK_INVOKE ((this, HOOK_START, DT_END));
+  printf(" -- hook start after\n");
 
 #if ENABLE_XEMBED
   if (rs[Rs_embed])
@@ -996,6 +1005,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   SnDisplay *snDisplay;
   SnLauncheeContext *snContext;
 
+  printf("sn_display_new\n");
   snDisplay = sn_display_new (dpy, NULL, NULL);
   snContext = sn_launchee_context_new_from_environment (snDisplay, DefaultScreen (dpy));
 

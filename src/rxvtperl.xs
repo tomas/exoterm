@@ -1194,7 +1194,7 @@ _new (AV *env, AV *arg)
 	CODE:
 {
         rxvt_term *term = new rxvt_term;
-        printf("new rxvt term\n");
+        printf("perl initializing new term\n");
 
 	stringvec *argv = new stringvec;
         for (int i = 0; i <= AvFILL (arg); i++)

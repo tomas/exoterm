@@ -616,6 +616,8 @@ char **rxvt_environ; // startup environment
 void
 rxvt_init ()
 {
+  printf("main rxvt_init()\n");
+
   assert (("fontMask must not overlap other RS masks",
            0 == (RS_fontMask & (RS_Sel | RS_baseattrMask | RS_customMask | RS_bgMask | RS_fgMask))));
 
