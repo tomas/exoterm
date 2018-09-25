@@ -1076,6 +1076,9 @@ rxvt_term::new_tab () {
     // term->init (argc, args, environ);
     printf("initialized!!\n");
 
+    // unmap current tab
+    XUnmapWindow(dpy, parent);
+
     // change input, from tab_start in perl script
     XWindowAttributes attr;
     XGetWindowAttributes(newterm->dpy, newterm->parent, &attr);
@@ -1122,7 +1125,13 @@ rxvt_term::new_tab () {
     // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
 
     // final map window call
+    newterm->focus_in();
+
     XMapWindow(newterm->dpy, newterm->parent);
+
+    // newterm->scr_reset();
+    // newterm->display->flush();
+    // newterm->refresh_check();
 
     // refresh_check();
 
