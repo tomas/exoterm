@@ -80,3 +80,6 @@ Here's an example:
     ! scroll back to the bottom on keypress
     URxvt.scrollTtyKeypress: true
 
+    ! prev/next tab for tabbedex
+    URxvt.keysym.Meta-z: tabbedex:prev_tab
+    URxvt.keysym.Meta-x: tabbedex:next_tab
