@@ -811,14 +811,28 @@ sub new_tab {
     }
   }
 
+
+  my ($self) = @_;
+  my $pwd;
+  if ($self->{tabs} > 1) {
+    # Get the working directory of the current tab and append a -cd to the command line
+    my $pid = $self->{cur}{pid};
+    $pwd = readlink "/proc/$pid/cwd";
+  }
+
   push @urxvt::TERM_INIT, sub { $root->tab_term_init($_[0]) };
   push @urxvt::TERM_EXT, urxvt::ext::tabbedex::;
   new urxvt::term
     $root->env, $urxvt::RXVTNAME,
-    -embed => $root->parent,
+    -embed => $root->parent, -cd => "$pwd",
     @{ $args }
 }
 
+sub tab_child_start {
+  my ($self, $term, $pid) = @_;
+  $term->{pid} = $pid;
+  1;
+}
 
 sub configure {
    my ($root) = @_;
@@ -1272,8 +1286,7 @@ use POSIX qw/tcgetpgrp/;
 
 
 sub enable_hooks {
-  for my $hook (qw(start destroy property_notify add_lines
-                   bell osc_seq_perl)) {
+  for my $hook (qw(start destroy property_notify child_start add_lines bell osc_seq_perl)) {
     my $name = "urxvt::ext::tabbedex::root::tab_$hook";
     $_[0]->enable($hook => sub {
       unshift @_, $_[0]{root};
