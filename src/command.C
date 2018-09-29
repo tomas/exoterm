@@ -1139,7 +1139,7 @@ rxvt_term::new_tab () {
     newterm->focus_in();
     XMapWindow(newterm->dpy, newterm->parent);
 
-    want_refresh = 1;
+    // want_refresh = 1;
     // tt_printf ("aa\n");
 
     // newterm->scr_reset();

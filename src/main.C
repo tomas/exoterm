@@ -196,14 +196,8 @@ rxvt_term::rxvt_term ()
   termlist.push_back (this);
 
 #ifdef KEYSYM_RESOURCE
-  printf("xxx!\n");
-
   keyboard = new keyboard_manager;
-
 #endif
-
-  printf("qwe!\n");
-
 }
 
 // clean up the most important stuff, do *not* call x or free mem etc.
