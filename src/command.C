@@ -1063,13 +1063,15 @@ rxvt_term::new_tab () {
   rxvt_term *newterm = new rxvt_term();
   // rxvt_term *term = new rxvt_term();
 
-//   stringvec *argv = new stringvec;
-//   for (int i = 0; i <= AvFILL (arg); i++)
-//     argv->push_back (strdup (SvPVbyte_nolen (*av_fetch (arg, i, 1))));
-// 
-//   stringvec *envv = new stringvec;
-//   for (int i = AvFILL (env) + 1; i--; ) 
-//     envv->push_back (strdup (SvPVbyte_nolen (*av_fetch (env, i, 1))));
+/*
+  stringvec *args = new stringvec;
+  for (int i = 0; i < argv->size(); i++)
+    args->push_back (strdup ((const char*)argv[i]));
+
+  stringvec *envs = new stringvec;
+  for (const char *const *var = envv; *var; var++)
+    envs->push_back (strdup (*var));
+*/
 
   // term->init(argc, argv, environ);
 

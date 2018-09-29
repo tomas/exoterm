@@ -899,10 +899,6 @@ void
 rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
 {
 
-printf("init1 base.\n");
-
-#if ENABLE_PERL
-  // perl might want to access the stringvecs later, so we need to copy them
   stringvec *args = new stringvec;
   for (int i = 0; i < argc; i++)
     args->push_back (strdup (argv [i]));
@@ -911,12 +907,7 @@ printf("init1 base.\n");
   for (const char *const *var = envv; *var; var++)
     envs->push_back (strdup (*var));
 
-  printf("calling init1.\n");
   init (args, envs);
-#else
-  printf("calling init2.\n");
-  init2 (argc, argv);
-#endif
 }
 
 void
@@ -930,7 +921,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   set_environ (env); // a few things in X do not call setlocale :(
 
 
-    printf("init vars\n");
+  printf("init vars\n");
   init_vars ();
 
   printf("init res\n");
