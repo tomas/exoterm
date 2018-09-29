@@ -2147,6 +2147,8 @@ rxvt_term::scr_refresh () NOTHROW
 
   want_refresh = 0;        /* screen is current */
 
+  printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
+
   if (refresh_type == NO_REFRESH || !mapped)
     return;
 
@@ -2318,6 +2320,8 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
+  printf("ncol: %d, nrow: %d\n", ncol, nrow); 
+
   /*
    * E: main pass across every character
    */
@@ -2336,8 +2340,10 @@ rxvt_term::scr_refresh () NOTHROW
       for (col = 0; col < ncol; col++)
         {
           /* compare new text with old - if exactly the same then continue */
-          if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col]))
+          if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col])) {
+            // printf("same!\n");
             continue;
+          }
 
           // redraw one or more characters
 
@@ -2364,6 +2370,7 @@ rxvt_term::scr_refresh () NOTHROW
                   count++;
                   i++;
 
+                  printf("nochar!\n");
                   continue;
                 }
 
@@ -2579,6 +2586,8 @@ rxvt_term::scr_refresh () NOTHROW
   HOOK_INVOKE ((this, HOOK_REFRESH_END, DT_END));
 
   scr_reverse_selection ();
+
+  printf("refresh end\n");
 
   screen.flags = old_screen_flags;
   num_scr = 0;

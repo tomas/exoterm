@@ -1550,7 +1550,7 @@ sub put_cursor {
   $bar->{cursor} = length($bar->{text}) + $dx + 1;
 }
 
-sub apply {
+xsub apply {
   my ($bar) = @_;
   $bar->{pipe_pending} = 0;
   $bar->_append(' ' x ($bar->{ncol} - length $bar->{text}),

@@ -783,6 +783,12 @@ rxvt_term::key_press (XKeyEvent &ev)
         return;
       }
 
+      // Ctrl + Shift + R
+      if (ctrl && shft && (keysym == XK_R)) {
+        close_tab();
+        return;
+      }
+
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
         {
           if (keysym == XK_V)
@@ -1076,8 +1082,11 @@ rxvt_term::new_tab () {
     // term->init (argc, args, environ);
     printf("initialized!!\n");
 
+    // screen = newterm->screen;
+    // display = newterm->display;
+
     // unmap current tab
-    XUnmapWindow(dpy, parent);
+    // XUnmapWindow(dpy, parent);
 
     // change input, from tab_start in perl script
     XWindowAttributes attr;
@@ -1126,8 +1135,10 @@ rxvt_term::new_tab () {
 
     // final map window call
     newterm->focus_in();
-
     XMapWindow(newterm->dpy, newterm->parent);
+
+    want_refresh = 1;
+    // tt_printf ("aa\n");
 
     // newterm->scr_reset();
     // newterm->display->flush();
@@ -1145,6 +1156,10 @@ rxvt_term::new_tab () {
   return;
 }
 
+
+void rxvt_term::close_tab () {
+  printf("closing tab!\n");
+}
 
 #ifdef CURSOR_BLINK
 void
@@ -1879,6 +1894,7 @@ rxvt_term::x_cb (XEvent &ev)
     }
 #endif
 
+  printf("loop done, refresh check\n");
   refresh_check ();
 }
 
