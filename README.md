@@ -23,7 +23,14 @@ Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/X.defaults` after you upda
 
 Here's an example:
 
+    ! main
+    ! URxvt.display: :0
+    ! URxvt.termName: rxvt-unicode
+    ! URxvt,loginShell: /bin/bash
+    ! URxvt.chdir: /home/tomas 
+
     ! geometry and cursor
+    URxvt.foreground: #fff
     URxvt.geometry: 100x25
     URxvt.cursorColor: #ff6600
 
