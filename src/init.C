@@ -666,14 +666,13 @@ rxvt_term::init_vars ()
   MEvent.button = AnyButton;
   want_refresh = 1;
   priv_modes = SavedModes = PrivMode_Default;
-  ncol = 80;
+  ncol = 100;
   nrow = 24;
   int_bwidth = INTERNALBORDERWIDTH;
   ext_bwidth = EXTERNALBORDERWIDTH;
   lineSpace = LINESPACE;
   letterSpace = LETTERSPACE;
   saveLines = SAVELINES;
-
   refresh_type = SLOW_REFRESH;
 
   oldcursor.row = oldcursor.col = -1;
@@ -961,7 +960,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
 #if ENABLE_PERL
-  printf("PERL rootwin.start\n");
   rootwin_ev.start (display, display->root);
 #endif
 
@@ -1518,8 +1516,13 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 
   this->parent = top;
 
-  set_title     (rs [Rs_title]);
+  char title[24];
+  sprintf(title, "%s (%d tabs)", rs [Rs_title], termlist.size());
+
+  set_title(title);
   set_icon_name (rs [Rs_iconName]);
+
+  // free(title);
 
   classHint.res_name  = (char *)rs[Rs_name];
   classHint.res_class = (char *)RESCLASS;

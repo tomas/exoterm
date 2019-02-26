@@ -2147,7 +2147,7 @@ rxvt_term::scr_refresh () NOTHROW
 
   want_refresh = 0;        /* screen is current */
 
-  printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
+  // printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
 
   if (refresh_type == NO_REFRESH || !mapped)
     return;
@@ -2320,7 +2320,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  printf("ncol: %d, nrow: %d\n", ncol, nrow); 
+  // printf("ncol: %d, nrow: %d\n", ncol, nrow); 
 
   /*
    * E: main pass across every character

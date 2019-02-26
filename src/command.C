@@ -409,7 +409,7 @@ rxvt_wcsdup (const wchar_t *str, int len)
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
-  int ctrl, meta, shft, len;
+  int ctrl, meta, shft, super, len;
   KeySym keysym = NoSymbol;
   char rkbuf[KBUFSZ + 1];
   char *kbuf = rkbuf + 1;
@@ -425,15 +425,15 @@ rxvt_term::key_press (XKeyEvent &ev)
    *
    * Always permit `shift' to override the current setting
    */
-  shft = ev.state & ShiftMask;
-  ctrl = ev.state & ControlMask;
-  meta = ev.state & ModMetaMask;
+  shft  = ev.state & ShiftMask;
+  ctrl  = ev.state & ControlMask;
+  meta  = ev.state & ModMetaMask;
+  super = ev.state & Mod4Mask;
 
   kbuf[0] = 0;
 
 #if USE_XIM
-  if (Input_Context)
-    {
+  if (Input_Context) {
       Status status_return;
 
 #if 0
@@ -486,19 +486,16 @@ rxvt_term::key_press (XKeyEvent &ev)
       len = XLookupString (&ev, kbuf, KBUFSZ, &keysym, &compose);
     }
 
-  if (keysym != NoSymbol)
-    {
+  if (keysym != NoSymbol) {
       KeySym orig_keysym = keysym;
 
       /* Shift + F1 - F10 generates F11 - F20 */
-      if (shft && keysym >= XK_F1 && keysym <= XK_F10)
-        {
+      if (shft && keysym >= XK_F1 && keysym <= XK_F10) {
           keysym += (XK_F11 - XK_F1);
           shft = 0;	/* turn off Shift */
-        }
+      }
 
-      if (keysym >= 0xFF00 && keysym <= 0xFFFF)
-        {
+      if (keysym >= 0xFF00 && keysym <= 0xFFFF) {
           bool kp = priv_modes & PrivMode_aplKP ? !shft : shft;
           unsigned int newlen = 1;
 
@@ -507,8 +504,7 @@ rxvt_term::key_press (XKeyEvent &ev)
 
           keysym = translate_keypad (keysym, kp);
 
-          switch (keysym)
-            {
+          switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
                 if (priv_modes & PrivMode_HaveBackSpace)
@@ -547,6 +543,15 @@ rxvt_term::key_press (XKeyEvent &ev)
               case XK_Down:	/* "\033[B" */
               case XK_Right:	/* "\033[C" */
               case XK_Left:	/* "\033[D" */
+
+                if (meta) {
+                  if (keysym == XK_Left) {
+                    return prev_tab();
+                  } else if (keysym == XK_Right) {
+                    return next_tab();
+                  }
+                }
+
                 strcpy (kbuf, "\033[Z");
                 kbuf[2] = "DACB"[keysym - XK_Left];
                 /* do Shift first */
@@ -1058,17 +1063,16 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
 }
 
 void copy_position(Display * dpy, Window src, Window target, int offset_x, int offset_y) {
-  int x, y;
+  int x, y, status;
   Window child;
   XWindowAttributes xwa;
   XTranslateCoordinates(dpy, src, DefaultRootWindow(dpy), 0, 0, &x, &y, &child);
   XGetWindowAttributes(dpy, src, &xwa);
 
-  // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
-
-  // copy x/y coordinates to new window
-  XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
-  // XFlush(dpy);
+  printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
+  status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  printf("move window status: %d\n", status);
+  XFlush(dpy);
 }
 
 void copy_hints(Display * dpy, Window src, Window target) {
@@ -1132,7 +1136,6 @@ void copy_hints(Display * dpy, Window src, Window target) {
 
   // pass 2, delete all extraneous properties
   // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
-
 }
 
 void
@@ -1152,75 +1155,67 @@ rxvt_term::new_tab () {
 
   try {
     newterm->init(args, envs);
-
-    Window tab = newterm->parent;
-    Window current = parent; // current tab
-
-    // TODO
-    // int tabheight = 24;
-    // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
-    // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
-    // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
-    // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
-
-    copy_position(dpy, parent, tab, 0, 0);
     // copy_hints(dpy, parent, tab);
 
-    // unmap current tab
-    XUnmapWindow(dpy, current);
-
-    // and show new window
-    newterm->focus_in();
-    XMapWindow(dpy, tab);
-
+    next_tab();
     // want_refresh = 1;
-    // tt_printf ("aa\n");
-
     // newterm->scr_reset();
     // newterm->display->flush();
     // newterm->refresh_check();
-
     // refresh_check();
 
   } catch (const class rxvt_failure_exception &e) {
-    printf("shit!!");
-    newterm->destroy ();
     printf("error while initializing new terminal instance!\n");
+    newterm->destroy ();
   }
 
-  printf("returning from new_tab\n");
   return;
 }
 
 void rxvt_term::switch_to_tab(unsigned int index) {
   rxvt_term * tab = termlist.at(index);
-  if (tab == NULL) return;
+  if (tab == NULL)  {
+    printf("tab not found at index %d\n", index);
+    return;
+  }
 
   printf("switching to tab at index: %d\n", index);
+
+  // TODO
+  // int tabheight = 24;
+  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
+  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
+  // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
+  // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
+
+  copy_position(dpy, parent, tab->parent, 0, 0);
 
   // unmap current
   XUnmapWindow(dpy, parent);
 
   // map new tab
   XMapWindow(dpy, tab->parent);
+
+  tab->want_refresh = 1;
   tab->make_current();
   tab->focus_in();
 }
 
 void rxvt_term::prev_tab() {
-  unsigned int idx = tab_index == 0 ? termlist.size() : tab_index - 1;
+  printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+  unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
   return switch_to_tab(idx);
 }
 
 void rxvt_term::next_tab() {
-  unsigned int idx = tab_index == termlist.size() ? 0 : tab_index + 1;
+  printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+  unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
   return switch_to_tab(idx);
 }
 
 void rxvt_term::close_tab () {
   printf("closing tab!\n");
-  // prev_tab();
-  // delete this;
+  destroy(); // calls prev_tab
 }
 
 #ifdef CURSOR_BLINK

@@ -314,7 +314,6 @@ rxvt_term::child_cb (ev::child &w, int status)
 {
   printf("CHILD EXIT!!");
 
-
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -374,11 +373,10 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
+  printf("destroy_cb called!");
   make_current ();
 
-  printf("destroy_cb called!");
   if (termlist.size() > 1) {
-    printf("prev tab!\n");
     prev_tab();
   }
 
@@ -948,10 +946,10 @@ rxvt_term::set_utf8_property (Atom prop, const char *str, int len)
 void
 rxvt_term::set_title (const char *str)
 {
-  set_mbstring_property (XA_WM_NAME, str);
-#if ENABLE_EWMH
-  set_utf8_property (xa[XA_NET_WM_NAME], str);
-#endif
+   set_mbstring_property (XA_WM_NAME, str);
+ #if ENABLE_EWMH
+   set_utf8_property (xa[XA_NET_WM_NAME], str);
+ #endif
 }
 
 void
