@@ -1057,87 +1057,121 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
   flush ();
 }
 
+void copy_position(Display * dpy, Window src, Window target, int offset_x, int offset_y) {
+  int x, y;
+  Window child;
+  XWindowAttributes xwa;
+  XTranslateCoordinates(dpy, src, DefaultRootWindow(dpy), 0, 0, &x, &y, &child);
+  XGetWindowAttributes(dpy, src, &xwa);
+
+  // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
+
+  // copy x/y coordinates to new window
+  XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  // XFlush(dpy);
+}
+
+void copy_hints(Display * dpy, Window src, Window target) {
+
+  // change input, from tab_start in perl script
+  // XWindowAttributes attr;
+  // XGetWindowAttributes(dpy, win, &attr);
+  // XSelectInput(dpy, win, attr.your_event_mask | PropertyChangeMask);
+
+  // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
+  // my $current = delete $root->{current_properties};
+  Atom normal_hints = XInternAtom(dpy, "WM_NORMAL_HINTS", 1);
+
+  // pass 1: copy over properties different or nonexisting
+  // for my $atom ($tab->XListProperties ($tab->parent)) {
+  //   my ($type, $format, $items) = $root->XGetWindowProperty ($tab->parent, $atom);
+
+  Atom *proplist;
+  int i, n_prop = 0;
+  proplist = XListProperties(dpy, src, &n_prop);
+
+  Atom prop, type;
+  int status, format;
+  unsigned long items, bytes_after;
+  unsigned char *data = NULL;
+
+  for (i = 0; i < n_prop; i++) {
+    status = XGetWindowProperty(dpy, src, proplist[i], 0, 1<<24, 0, AnyPropertyType, &type, &format, &items, &bytes_after, &data);
+
+/*
+    fix up size hints
+    if ($atom == $wm_normal_hints) {
+      my (@hints) = unpack "l!*", $items;
+      $hints[$_] += $root->{tabheight} for (4, 6, 16);
+      $items = pack "l!*", @hints;
+    }
+*/
+
+    if (proplist[i] == normal_hints) {
+      printf("got normal hints\n");
+    }
+
+/*
+    my $cur = delete $current->{$atom};
+
+    # update if changed, we assume empty items and zero type and
+    # format will not happen
+    $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
+       if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
+
+    $root->{current_properties}{$atom} = [$type, $format, $items];
+*/
+
+    // int len = strlen((const char *)data);
+    // int elemsize = format == 16 ? sizeof (short) : format == 32 ? sizeof (long) : 1;
+    // printf("len: %d, elemsize: %d\n", len, elemsize);
+    // int success = XChangeProperty(dpy, target, proplist[i], type, format, PropModeReplace, data, len / elemsize);
+  }
+
+  XFree(proplist);
+
+  // pass 2, delete all extraneous properties
+  // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
+
+}
+
 void
 rxvt_term::new_tab () {
   printf("Opening new tab\n");
   rxvt_term *newterm = new rxvt_term();
-  // rxvt_term *term = new rxvt_term();
 
-/*
+  // make a copy of args and envs from current tab
+  // but skip last element that was pushed back in init()
   stringvec *args = new stringvec;
-  for (int i = 0; i < argv->size(); i++)
-    args->push_back (strdup ((const char*)argv[i]));
+  for (int i = 0; i < argv->size()-1; i++)
+    args->push_back (strdup(this->argv->at(i)));
 
   stringvec *envs = new stringvec;
-  for (const char *const *var = envv; *var; var++)
-    envs->push_back (strdup (*var));
-*/
-
-  // term->init(argc, argv, environ);
-
-  // int argc = 0;
-  // const char* const* args;
-  // char** args;
+  for (int v = 0; v < envv->size()-1; v++)
+    envs->push_back (strdup(this->envv->at(v)));
 
   try {
-    newterm->init (argv, envv);
-    // term->init (argc, args, environ);
-    printf("initialized!!\n");
+    newterm->init(args, envs);
 
-    // screen = newterm->screen;
-    // display = newterm->display;
+    Window tab = newterm->parent;
+    Window current = parent; // current tab
 
-    // unmap current tab
-    // XUnmapWindow(dpy, parent);
-
-    // change input, from tab_start in perl script
-    XWindowAttributes attr;
-    XGetWindowAttributes(newterm->dpy, newterm->parent, &attr);
-    XSelectInput(newterm->dpy, newterm->parent, attr.your_event_mask | PropertyChangeMask);
-
-    int tabheight = 0;
-
-    // configure
+    // TODO
+    // int tabheight = 24;
     // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
     // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
-    XMoveResizeWindow(newterm->dpy, newterm->parent, 0, tabheight + 1, vt_width, vt_height - tabheight);
-    XMoveResizeWindow(newterm->dpy, newterm->parent, 0, tabheight, vt_width, vt_height - tabheight);
+    // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
+    // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
 
-    // copy properties
+    copy_position(dpy, parent, tab, 0, 0);
+    // copy_hints(dpy, parent, tab);
 
-    // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
-    // my $current = delete $root->{current_properties};
-    Atom normal_hints = XInternAtom(newterm->dpy, "WM_NORMAL_HINTS", 1);
+    // unmap current tab
+    XUnmapWindow(dpy, current);
 
-    /*
-    // pass 1: copy over properties different or nonexisting
-    for my $atom ($tab->XListProperties ($tab->parent)) {
-      my ($type, $format, $items) = $root->XGetWindowProperty ($tab->parent, $atom);
-
-      // fix up size hints
-      if ($atom == $wm_normal_hints) {
-         my (@hints) = unpack "l!*", $items;
-         $hints[$_] += $root->{tabheight} for (4, 6, 16);
-         $items = pack "l!*", @hints;
-      }
-
-      my $cur = delete $current->{$atom};
-
-      # update if changed, we assume empty items and zero type and
-      # format will not happen
-      $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
-         if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
-
-      $root->{current_properties}{$atom} = [$type, $format, $items];
-    }
-    */
-
-    // pass 2, delete all extraneous properties
-    // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
-
-    // final map window call
+    // and show new window
     newterm->focus_in();
-    XMapWindow(newterm->dpy, newterm->parent);
+    XMapWindow(dpy, tab);
 
     // want_refresh = 1;
     // tt_printf ("aa\n");
@@ -1158,9 +1192,35 @@ rxvt_term::new_tab () {
   return;
 }
 
+void rxvt_term::switch_to_tab(unsigned int index) {
+  rxvt_term * tab = termlist.at(index);
+  if (tab == NULL) return;
+
+  printf("switching to tab at index: %d\n", index);
+
+  // unmap current
+  XUnmapWindow(dpy, parent);
+
+  // map new tab
+  XMapWindow(dpy, tab->parent);
+  tab->make_current();
+  tab->focus_in();
+}
+
+void rxvt_term::prev_tab() {
+  unsigned int idx = tab_index == 0 ? termlist.size() : tab_index - 1;
+  return switch_to_tab(idx);
+}
+
+void rxvt_term::next_tab() {
+  unsigned int idx = tab_index == termlist.size() ? 0 : tab_index + 1;
+  return switch_to_tab(idx);
+}
 
 void rxvt_term::close_tab () {
   printf("closing tab!\n");
+  // prev_tab();
+  // delete this;
 }
 
 #ifdef CURSOR_BLINK
@@ -1896,7 +1956,7 @@ rxvt_term::x_cb (XEvent &ev)
     }
 #endif
 
-  printf("loop done, refresh check\n");
+  // printf("loop done, refresh check\n");
   refresh_check ();
 }
 

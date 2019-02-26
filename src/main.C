@@ -194,6 +194,8 @@ rxvt_term::rxvt_term ()
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 
   termlist.push_back (this);
+  tab_index = termlist.size()-1;
+  printf("pushed new term instance. current term count: %d!\n", tab_index);
 
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;
@@ -214,7 +216,9 @@ rxvt_term::emergency_cleanup ()
 
 rxvt_term::~rxvt_term ()
 {
+
   termlist.erase (find (termlist.begin (), termlist.end(), this));
+  printf("destroying term instance. current term count: %d!\n", termlist.size());
 
   emergency_cleanup ();
 
@@ -248,14 +252,14 @@ rxvt_term::~rxvt_term ()
 #endif
       scrollBar.destroy ();
 
-      if (gc)
-        XFreeGC (dpy, gc);
-
+      if (gc) XFreeGC (dpy, gc);
       delete drawable;
 
       // destroy all windows
-      if (parent)
+      if (parent) {
+        printf("destroying parent window\n");
         XDestroyWindow (dpy, parent);
+      }
 
       for (int i = 0; i < TOTAL_COLORS; i++)
         if (ISSET_PIXCOLOR (i))
@@ -290,13 +294,13 @@ rxvt_term::~rxvt_term ()
     rxvt_warn ("env has been modified, probably as a result of a lib calling setenv.\n");
 
   delete [] env;
-
   delete envv;
   delete argv;
 
 #ifdef KEYSYM_RESOURCE
   delete keyboard;
 #endif
+
 #ifndef NO_RESOURCES
   XrmDestroyDatabase (option_db);
 #endif
@@ -308,6 +312,9 @@ rxvt_term::~rxvt_term ()
 void
 rxvt_term::child_cb (ev::child &w, int status)
 {
+  printf("CHILD EXIT!!");
+
+
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -319,6 +326,9 @@ rxvt_term::child_cb (ev::child &w, int status)
 void
 rxvt_term::destroy ()
 {
+
+  printf("destroying!");
+
   if (destroy_ev.is_active ())
     return;
 
@@ -363,7 +373,14 @@ rxvt_term::destroy ()
 void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
+
   make_current ();
+
+  printf("destroy_cb called!");
+  if (termlist.size() > 1) {
+    printf("prev tab!\n");
+    prev_tab();
+  }
 
   delete this;
 }

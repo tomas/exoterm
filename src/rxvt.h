@@ -1122,8 +1122,9 @@ struct rxvt_vars : TermWin_t
 struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
 {
 
-  rxvt_term * prev_tab;
-  rxvt_term * next_tab;
+  // rxvt_term * prev_tab;
+  // rxvt_term * next_tab;
+  unsigned int tab_index;
 
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
@@ -1342,6 +1343,9 @@ Pixmap icon_mask = None;
   void flush ();
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
   void new_tab ();
+  void prev_tab ();
+  void next_tab ();
+  void switch_to_tab(unsigned int index);
   void close_tab ();
 
   void cmdbuf_reify ();

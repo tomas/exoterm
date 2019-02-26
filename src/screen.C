@@ -2587,7 +2587,7 @@ rxvt_term::scr_refresh () NOTHROW
 
   scr_reverse_selection ();
 
-  printf("refresh end\n");
+  // printf("refresh end\n");
 
   screen.flags = old_screen_flags;
   num_scr = 0;

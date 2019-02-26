@@ -881,6 +881,7 @@ rxvt_term::init_resources (int argc, const char *const *argv)
 void
 rxvt_term::init (stringvec *argv, stringvec *envv)
 {
+
   argv->push_back (0);
   envv->push_back (0);
 
@@ -891,7 +892,6 @@ rxvt_term::init (stringvec *argv, stringvec *envv)
   for (int i = 0; i < this->envv->size (); i++)
     env[i] = this->envv->at (i);
 
-  printf("init1. calling init2\n");
   init2 (argv->size () - 1, argv->begin ());
 }
 
@@ -914,17 +914,12 @@ void
 rxvt_term::init2 (int argc, const char *const *argv)
 {
 
-  printf("init2!\n");
-
   SET_R (this);
   set_locale ("");
   set_environ (env); // a few things in X do not call setlocale :(
 
-
-  printf("init vars\n");
+  // printf("init vars\n");
   init_vars ();
-
-  printf("init res\n");
 
   const char **cmd_argv = init_resources (argc, argv);
 
@@ -945,14 +940,13 @@ rxvt_term::init2 (int argc, const char *const *argv)
   if (option (Opt_scrollBar))
     scrollBar.state = SB_STATE_IDLE;    /* set existence for size calculations */
 
-  printf("ptty create\n");
+  // printf("ptty create\n");
   pty = ptytty::create ();
 
-  printf("create windows\n");
+  // printf("create windows\n");
   create_windows (argc, argv);
 
   init_xlocale ();
-
   scr_poweron (); // initialize screen
 
 #if 0
@@ -978,9 +972,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   if (pty->pty >= 0)
     pty_ev.start (pty->pty, ev::READ);
 
-  printf(" -- hook start before\n");
   HOOK_INVOKE ((this, HOOK_START, DT_END));
-  printf(" -- hook start after\n");
 
 #if ENABLE_XEMBED
   if (rs[Rs_embed])
@@ -996,7 +988,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
   SnDisplay *snDisplay;
   SnLauncheeContext *snContext;
 
-  printf("sn_display_new\n");
   snDisplay = sn_display_new (dpy, NULL, NULL);
   snContext = sn_launchee_context_new_from_environment (snDisplay, DefaultScreen (dpy));
 
