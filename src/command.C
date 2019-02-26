@@ -496,6 +496,7 @@ rxvt_term::key_press (XKeyEvent &ev)
       }
 
       if (keysym >= 0xFF00 && keysym <= 0xFFFF) {
+
           bool kp = priv_modes & PrivMode_aplKP ? !shft : shft;
           unsigned int newlen = 1;
 
@@ -649,8 +650,7 @@ rxvt_term::key_press (XKeyEvent &ev)
           if (newlen)
             len = strlen (kbuf);
 
-          if (len > 0)
-            {
+          if (len > 0) {
               /*
                * pass Shift/Control indicators for function keys ending with `~'
                *
@@ -782,17 +782,17 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
         }
 
-      // Ctrl + Shift + T
-      if (ctrl && shft && (keysym == XK_T)) {
-        new_tab();
-        return;
-      }
+        // Ctrl + Shift + T
+        if (ctrl && (keysym == 116)) {
+          new_tab();
+          return;
+        }
 
-      // Ctrl + Shift + R
-      if (ctrl && shft && (keysym == XK_R)) {
-        close_tab();
-        return;
-      }
+        // Ctrl + Shift + R
+        if (ctrl && (keysym == 113)) {
+          close_tab();
+          return;
+        }
 
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
         {
