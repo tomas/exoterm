@@ -994,9 +994,10 @@ rxvt_term::init2 (int argc, const char *const *argv)
     sn_launchee_context_setup_window (snContext, parent);
 #endif
 
-  printf("mapping window.\n");
   XMapWindow (dpy, vt);
-  XMapWindow (dpy, parent);
+  // if (termlist.size() == 1) {
+    XMapWindow (dpy, parent);
+  // }
 
 #if HAVE_STARTUP_NOTIFICATION
   if (snContext)

@@ -1069,10 +1069,18 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   XTranslateCoordinates(dpy, src, DefaultRootWindow(dpy), 0, 0, &x, &y, &child);
   XGetWindowAttributes(dpy, src, &xwa);
 
+  XSizeHints my_hints = {0};
+  my_hints.flags  = PPosition | PSize;
+  my_hints.x      = (x - xwa.x) + offset_x;
+  my_hints.y      = (y - xwa.y) + offset_y;
+  my_hints.width  = xwa.width;
+  my_hints.height = xwa.height;
+  XSetNormalHints(dpy, target, &my_hints);
+
   printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
-  status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  // status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  status = XMoveResizeWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y, xwa.width, xwa.height);
   printf("move window status: %d\n", status);
-  XFlush(dpy);
 }
 
 void copy_hints(Display * dpy, Window src, Window target) {
@@ -1188,13 +1196,13 @@ void rxvt_term::switch_to_tab(unsigned int index) {
   // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
   // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
 
+  // want_refresh = 1;
   copy_position(dpy, parent, tab->parent, 0, 0);
 
-  // unmap current
+  // unmap current, map new one, and flush
   XUnmapWindow(dpy, parent);
-
-  // map new tab
   XMapWindow(dpy, tab->parent);
+  XFlush(dpy);
 
   tab->want_refresh = 1;
   tab->make_current();
