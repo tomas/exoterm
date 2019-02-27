@@ -996,7 +996,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 
   XMapWindow (dpy, vt);
   // if (termlist.size() == 1) {
-    XMapWindow (dpy, parent);
+    // XMapWindow (dpy, parent);
   // }
 
 #if HAVE_STARTUP_NOTIFICATION

@@ -973,5 +973,4 @@ rxvt_img::filter (const char *name, int nparams, nv *params)
   return cc;
 }
 
-#endif
-
+#endif // HAVE_IMG

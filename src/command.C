@@ -2103,7 +2103,7 @@ rxvt_term::rootwin_cb (XEvent &ev)
 #if BG_IMAGE_FROM_ROOT
             if (option (Opt_transparent))
               {
-                rxvt_img::new_from_root (this)->replace (root_img);
+                // rxvt_img::new_from_root (this)->replace (root_img);
                 update_background ();
               }
 #endif
@@ -3808,8 +3808,8 @@ rxvt_term::process_xterm_seq (int op, char *str, char resp)
         {
           bool changed = false;
 
-          if (ISSET_PIXCOLOR (Color_tint))
-            changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
+          // if (ISSET_PIXCOLOR (Color_tint))
+          //   changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
 
           if (changed)
             update_background ();

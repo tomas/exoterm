@@ -2630,9 +2630,10 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
 # if ENABLE_TRANSPARENCY
       if (bg_flags & BG_IS_TRANSPARENT)
         {
+          // XClearWindow(dpy, parent);
+          // XSetWindowBackgroundPixmap (dpy, parent, winbg);
           XSetWindowBackgroundPixmap (dpy, parent, bg_img->pm);
           XSetWindowBackgroundPixmap (dpy, vt, ParentRelative);
-
           transparent = true;
         }
       else
