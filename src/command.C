@@ -2104,6 +2104,7 @@ rxvt_term::rootwin_cb (XEvent &ev)
             if (option (Opt_transparent))
               {
                 // rxvt_img::new_from_root (this)->replace (root_img);
+                printf("updating background\n");
                 update_background ();
               }
 #endif
@@ -3815,58 +3816,6 @@ rxvt_term::process_xterm_seq (int op, char *str, char resp)
             update_background ();
         }
 
-        break;
-#endif
-
-#if BG_IMAGE_FROM_FILE
-      case Rxvt_Pixmap:
-        if (!strcmp (str, "?"))
-          {
-            char str[256];
-            int h_scale = fimage.h_scale;
-            int v_scale = fimage.v_scale;
-            int h_align = fimage.h_align;
-            int v_align = fimage.v_align;
-
-            sprintf (str, "[%dx%d+%d+%d]",
-                     h_scale, v_scale,
-                     h_align, v_align);
-            process_xterm_seq (XTerm_title, str, CHAR_ST);
-          }
-        else
-          {
-            bool changed = false;
-
-            if (*str != ';')
-              {
-                try
-                  {
-                    fimage.set_file_geometry (this, str);
-                    changed = true;
-                  }
-                catch (const class rxvt_failure_exception &e)
-                  {
-                  }
-              }
-            else
-              {
-                str++;
-                if (fimage.set_geometry (str, true))
-                  changed = true;
-              }
-
-            if (changed)
-              {
-                if (bg_window_position_sensitive ())
-                  {
-                    int x, y;
-                    get_window_origin (x, y);
-                    parent_x = x;
-                    parent_y = y;
-                  }
-                update_background ();
-              }
-          }
         break;
 #endif
 

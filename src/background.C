@@ -509,8 +509,7 @@ void
 rxvt_term::bg_init ()
 {
 #if BG_IMAGE_FROM_ROOT
-  if (option (Opt_transparent))
-    {
+  if (option (Opt_transparent)) {
 
       int w, h;
       root_img = load_root_img(dpy, parent, gc, &w, &h);

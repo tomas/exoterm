@@ -996,7 +996,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 
   XMapWindow (dpy, vt);
   // if (termlist.size() == 1) {
-    // XMapWindow (dpy, parent);
+    XMapWindow (dpy, parent);
   // }
 
 #if HAVE_STARTUP_NOTIFICATION
@@ -1607,6 +1607,17 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   TermWin_arrow = XCreateFontCursor (dpy, XC_arrow);
 
   /* the vt window */
+
+/*
+  vt = XCreateWindow (dpy, top,
+                       window_vt_x, window_vt_y,
+                       vt_width, vt_height,
+                       0,
+                       CopyFromParent, InputOutput, CopyFromParent,
+                       CWColormap | CWBackPixel | CWBorderPixel | CWOverrideRedirect,
+                       &attributes);
+*/
+
   vt = XCreateSimpleWindow (dpy, top,
                             window_vt_x, window_vt_y,
                             vt_width, vt_height,
