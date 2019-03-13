@@ -1705,7 +1705,8 @@ rxvt_term::x_cb (XEvent &ev)
             if (bg_window_position_sensitive ())
               {
                 want_position_change = true;
-                if (bg_img == 0)
+                // if (bg_img == 0)
+                if (winbg != None)
                   moved = true;
               }
 #endif

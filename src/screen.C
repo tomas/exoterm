@@ -1817,7 +1817,8 @@ rxvt_term::scr_rvideo_mode (bool on) NOTHROW
 
       ::swap (lookup_color(Color_fg, pix_colors), lookup_color(Color_bg, pix_colors));
 #ifdef HAVE_IMG
-      if (bg_img == 0)
+      // if (bg_img == 0)
+      if (winbg != None)
 #endif
           XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
 
@@ -2160,7 +2161,8 @@ rxvt_term::scr_refresh () NOTHROW
   unsigned int old_screen_flags = screen.flags;
   bool have_bg = 0;
 #ifdef HAVE_IMG
-  have_bg = bg_img != 0;
+  // have_bg = bg_img != 0;
+  have_bg = winbg != None;
 #endif
   ocrow = oldcursor.row; /* is there an old outline cursor on screen? */
 
@@ -2642,7 +2644,8 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
         {
           printf("non transparent\n");
           XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
-          XSetWindowBackgroundPixmap (dpy, vt, bg_img->pm);
+          // XSetWindowBackgroundPixmap (dpy, vt, bg_img->pm);
+          XSetWindowBackgroundPixmap (dpy, parent, winbg);
         }
     }
   else
