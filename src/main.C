@@ -1734,6 +1734,7 @@ rxvt_term::get_window_origin (int &x, int &y)
 void
 rxvt_term::update_background ()
 {
+
   if (update_background_ev.is_active ())
     return;
 

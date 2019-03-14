@@ -2632,7 +2632,7 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
 # if ENABLE_TRANSPARENCY
       if (bg_flags & BG_IS_TRANSPARENT)
         {
-          printf("is transparent\n");
+          // printf("is transparent\n");
           // XClearWindow(dpy, parent);
           XSetWindowBackgroundPixmap (dpy, parent, winbg);
           // XSetWindowBackgroundPixmap (dpy, parent, bg_img->pm);
@@ -2642,7 +2642,7 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
       else
 # endif
         {
-          printf("non transparent\n");
+          // printf("non transparent\n");
           XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
           // XSetWindowBackgroundPixmap (dpy, vt, bg_img->pm);
           XSetWindowBackgroundPixmap (dpy, parent, winbg);
@@ -2651,7 +2651,7 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
   else
 #endif
     {
-      printf("no bg image\n");
+      // printf("no bg image\n");
       XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
       XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
     }

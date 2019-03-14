@@ -2105,7 +2105,6 @@ rxvt_term::rootwin_cb (XEvent &ev)
             if (option (Opt_transparent))
               {
                 // rxvt_img::new_from_root (this)->replace (root_img);
-                printf("updating background\n");
                 update_background ();
               }
 #endif

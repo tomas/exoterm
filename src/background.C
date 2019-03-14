@@ -356,7 +356,7 @@ Pixmap getRootPixmap(Display *dpy) {
   Pixmap root_pixmap = None;
   static Atom id = None;
   const char* pixmap_id_names[] = {
-    "_XROOTPMAP_ID", "ESETROOT_PMAP_ID", NULL
+    "ESETROOT_PMAP_ID", "_XROOTPMAP_ID", NULL
   };
 
   int i = 0;
@@ -450,12 +450,13 @@ Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out)
     return NULL;
   }
 
-  Window rootwin;
   int xpos, ypos;
   unsigned int w, h, border_width, depth;
 
   // get bg image size
-  XGetGeometry(dpy, bg, &rootwin, &xpos, &ypos, &w, &h, &border_width, &depth);
+  // Window rootwin;
+  // XGetGeometry(dpy, bg, &rootwin, &xpos, &ypos, &w, &h, &border_width, &depth);
+  XGetGeometry(dpy, bg, &win, &xpos, &ypos, &w, &h, &border_width, &depth);
 
   // shade it
   ShadingInfo shade;
@@ -492,10 +493,8 @@ rxvt_term::bg_render ()
     {
 
       int x, y;
-      getCoords(dpy, parent, &x, &y);
-      // printf("got coords: %d/%d -- %d/%d\n", x, y, width, height);
+      getCoords(dpy, vt, &x, &y);
       XCopyArea(dpy, root_img, winbg, gc, x, y, width, height, 0, 0);
-
       bg_flags |= BG_IS_TRANSPARENT;
     }
 # endif
@@ -511,10 +510,15 @@ rxvt_term::bg_init ()
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
 
+      // when initializing a new term, if this is a second tab 
+      // then the root image with windows would return the existing tab
+      // already rendered. so we just get the ESETROOT bg, which is simply
+      // the background with no windows
+
       int w, h;
       root_img = load_root_img(dpy, parent, gc, &w, &h);
 
-      printf("creating pixmap: %d/%d, depth: %d\n", w, h, depth);
+      // printf("creating pixmap: %d/%d, depth: %d\n", w, h, depth);
       winbg = XCreatePixmap(dpy, parent, w, h, depth);
 
       // if (rs [Rs_blurradius])
