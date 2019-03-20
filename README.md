@@ -73,7 +73,7 @@ Here's an example:
     ! more scrolling
     URxvt.jumpScroll: true                                                   
     URxvt.skipScroll: true
-    URxvt.mouseWheelScrollPage: true
+    URxvt.mouseWheelScrollPage: false
 
     URxvt.secondaryScroll: true
     URxvt.secondaryScreen: false
