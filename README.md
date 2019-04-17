@@ -26,8 +26,8 @@ Here's an example:
     ! main
     ! URxvt.display: :0
     ! URxvt.termName: rxvt-unicode
-    ! URxvt,loginShell: /bin/bash
     ! URxvt.chdir: /home/tomas 
+    URxvt.loginShell: true
 
     ! geometry and cursor
     URxvt.foreground: #fff
@@ -73,7 +73,7 @@ Here's an example:
     ! more scrolling
     URxvt.jumpScroll: true                                                   
     URxvt.skipScroll: true
-    URxvt.mouseWheelScrollPage: true
+    URxvt.mouseWheelScrollPage: false
 
     URxvt.secondaryScroll: true
     URxvt.secondaryScreen: false
