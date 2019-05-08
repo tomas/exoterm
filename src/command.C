@@ -980,6 +980,33 @@ rxvt_term::key_release (XKeyEvent &ev)
 #endif
 }
 
+void parse_line(line_t * l) {
+  int i;
+  int len = l->l;
+  if (len < 5) return;
+
+  int in_link = 0;
+  for (i = 3; i < len; i++) {
+    if (l->t[i-3] == 'h' 
+     && l->t[i-2] == 't' 
+     && l->t[i-1] == 't' 
+     && l->t[i-0] == 'p') {
+      in_link = 1;
+
+      l->r[i-3] |= RS_Uline; l->r[i-3] |= Color_Yellow << RS_fgShift;
+      l->r[i-2] |= RS_Uline; l->r[i-2] |= Color_Yellow << RS_fgShift;
+      l->r[i-1] |= RS_Uline; l->r[i-1] |= Color_Yellow << RS_fgShift;
+      l->r[i-0] |= RS_Uline; l->r[i-0] |= Color_Yellow << RS_fgShift;
+
+    } else if (in_link) {
+      if (l->t[i] == ' ') 
+        in_link = 0;
+      else
+        l->r[i] |= RS_Uline; l->r[i] |= Color_Yellow << RS_fgShift;
+    }
+  }
+}
+
 void
 rxvt_term::flush ()
 {
@@ -995,7 +1022,7 @@ rxvt_term::flush ()
 
   if (want_refresh)
     {
-      if (SHOULD_INVOKE (HOOK_LINE_UPDATE))
+      if (1) // (SHOULD_INVOKE (HOOK_LINE_UPDATE))
         {
           int row = view_start;
           int end_row = row + nrow;
@@ -1022,7 +1049,8 @@ rxvt_term::flush ()
                           l->f |= LINE_FILTERED;
                         }
 
-                      // and filter it
+                      // this is where the matcher perl plugin listened for line updates
+                      if (l->l > 0) parse_line(l);
                       HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
 
                       break;
