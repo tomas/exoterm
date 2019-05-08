@@ -1212,12 +1212,14 @@ void rxvt_term::switch_to_tab(unsigned int index) {
 void rxvt_term::prev_tab() {
   printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
+  if (idx == tab_index) return;
   return switch_to_tab(idx);
 }
 
 void rxvt_term::next_tab() {
   printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
+  if (idx == tab_index) return;
   return switch_to_tab(idx);
 }
 
