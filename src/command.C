@@ -1200,8 +1200,8 @@ void rxvt_term::switch_to_tab(unsigned int index) {
   copy_position(dpy, parent, tab->parent, 0, 0);
 
   // unmap current, map new one, and flush
-  XUnmapWindow(dpy, parent);
   XMapWindow(dpy, tab->parent);
+  XUnmapWindow(dpy, parent);
   XFlush(dpy);
 
   tab->want_refresh = 1;
