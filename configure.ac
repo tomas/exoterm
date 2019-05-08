@@ -848,6 +848,9 @@ echo
 echo "  embedded perl:              $support_perl"
 echo "  image library:              $image_lib"
 echo "  XPM support:                $support_xpm"
+echo "  XFT support:                $support_xft (required for real transparency)"
+echo "  Inherit pixmap:             $support_inheritpixmap"
+echo "  Xrender support:            $rxvt_have_xrender"
 echo
 if test x$support_xim = xyes -a x$rxvt_cv_func_xlocale = xno; then
   echo ".----------------------------------------------------------------."
