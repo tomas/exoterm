@@ -362,7 +362,7 @@
 /*
  * Default number of extra dots between lines
  */
-#define LINESPACE   0
+#define LINESPACE   2
 
 /*
  * Default number of extra dots between columns
