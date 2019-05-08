@@ -273,8 +273,8 @@ rxvt_term::~rxvt_term ()
 #endif
           }
 
+      printf("clear/flush\n");
       clear ();
-
       display->flush (); /* ideally .put should do this */
       displays.put (display);
     }
@@ -307,6 +307,7 @@ rxvt_term::~rxvt_term ()
   XrmDestroyDatabase (option_db);
 #endif
 
+  printf("SET_R!\n");
   SET_R ((rxvt_term *)0);
 }
 
@@ -314,8 +315,8 @@ rxvt_term::~rxvt_term ()
 void
 rxvt_term::child_cb (ev::child &w, int status)
 {
-  printf("CHILD EXIT!!");
 
+  printf("Child exit db!\n");
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -328,7 +329,7 @@ void
 rxvt_term::destroy ()
 {
 
-  printf("destroying!");
+  printf("Destroying!\n");
 
   if (destroy_ev.is_active ())
     return;
@@ -375,7 +376,7 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
-  printf("destroy_cb called!");
+  printf("destroy_cb called!\n");
   make_current ();
 
   if (termlist.size() > 1) {
