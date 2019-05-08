@@ -241,7 +241,7 @@ rxvt_term::~rxvt_term ()
 #if HAVE_IMG
   delete bg_img;
   // delete winbg;
-  XFreePixmap(dpy, winbg);
+  if (winbg != None) XFreePixmap(dpy, winbg);
 #endif
 
   if (display)
