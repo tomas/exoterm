@@ -80,13 +80,13 @@
 
 static const struct
   {
-    const uint8_t   index;      /* Option index */
-    const uint8_t   flag;	/* Option flag */
-    const int16_t   doff;	/* resource value index or -1 */
-    const char     *kw;		/* keyword */
-    const char     *opt;	/* option */
-    const char     *arg;	/* argument */
-    const char     *desc;	/* description */
+    const uint8_t   index; /* Option index */
+    const uint8_t   flag;	 /* Option flag */
+    const int16_t   doff;	 /* resource value index or -1 */
+    const char     *kw;		 /* keyword */
+    const char     *opt;	 /* option */
+    const char     *arg;	 /* argument */
+    const char     *desc;	 /* description */
   }
 optList[] = {
               STRG (Rs_display_name, NULL, "d", NULL, NULL),	/* short form */

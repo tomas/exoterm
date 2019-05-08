@@ -2372,7 +2372,6 @@ rxvt_term::scr_refresh () NOTHROW
                   count++;
                   i++;
 
-                  printf("nochar!\n");
                   continue;
                 }
 
