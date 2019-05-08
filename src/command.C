@@ -2439,7 +2439,7 @@ rxvt_term::button_release (XButtonEvent &ev)
               selection.clip_len = selection.len; 
               selection_grab (CurrentTime, true); 
 
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1); 
+              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1); 
               scr_overlay_set (0, 0, "Copied to clipboard");  
             } 
 
