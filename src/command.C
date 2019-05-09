@@ -993,16 +993,16 @@ void parse_line(line_t * l) {
      && l->t[i-0] == 'p') {
       in_link = 1;
 
-      l->r[i-3] |= RS_Uline; l->r[i-3] |= Color_Yellow << RS_fgShift;
-      l->r[i-2] |= RS_Uline; l->r[i-2] |= Color_Yellow << RS_fgShift;
-      l->r[i-1] |= RS_Uline; l->r[i-1] |= Color_Yellow << RS_fgShift;
-      l->r[i-0] |= RS_Uline; l->r[i-0] |= Color_Yellow << RS_fgShift;
+      l->r[i-3] |= RS_Uline; // l->r[i-3] |= Color_Yellow << RS_fgShift;
+      l->r[i-2] |= RS_Uline; // l->r[i-2] |= Color_Yellow << RS_fgShift;
+      l->r[i-1] |= RS_Uline; // l->r[i-1] |= Color_Yellow << RS_fgShift;
+      l->r[i-0] |= RS_Uline; // l->r[i-0] |= Color_Yellow << RS_fgShift;
 
     } else if (in_link) {
       if (l->t[i] == ' ') 
         in_link = 0;
       else
-        l->r[i] |= RS_Uline; l->r[i] |= Color_Yellow << RS_fgShift;
+        l->r[i] |= RS_Uline; // l->r[i] |= Color_Yellow << RS_fgShift;
     }
   }
 }
@@ -2249,6 +2249,10 @@ rxvt_term::button_press (XButtonEvent &ev)
                 MEvent.button = Button1;
                 break;
 
+              case Button2:
+                selection_click (2, ev.x, ev.y);
+                break;
+
               case Button3:
                 if (MEvent.button == Button3 && clickintime)
                   selection_rotate (ev.x, ev.y);
@@ -2394,6 +2398,28 @@ rxvt_term::button_press (XButtonEvent &ev)
     }
 }
 
+void rxvt_term::open_url(char * link, int len) {
+  printf("opening url: %s\n", link);
+
+/*
+  char * args [] = { "xdg-open", link, NULL}; 
+  // run_command(args);
+
+  int pid = fork();
+  if (pid == -1) // can't fork, stopping here.
+    return;
+
+  init_env();
+  set_environ(env);
+  int res = execvp(args[0], args);
+  _exit (255);
+*/
+
+  char command[len + 12];
+  sprintf(command, "xdg-open '%s'", link);
+  system(command);
+}
+
 void
 rxvt_term::button_release (XButtonEvent &ev)
 {
@@ -2476,8 +2502,24 @@ rxvt_term::button_release (XButtonEvent &ev)
             break;
 
           case Button2:
-            if (IN_RANGE_EXC (ev.x, 0, vt_width) && IN_RANGE_EXC (ev.y, 0, vt_height)) // inside window?
-              selection_request (ev.time, Sel_Clipboard);
+            selection_make (ev.time);
+
+            if (selection.len > 0 
+             && selection.end.col > 0 
+             && selection.text[0] == 'h' 
+             && selection.text[1] == 't'
+             && selection.text[2] == 't'
+             && selection.text[3] == 'p') { 
+
+              char * url = rxvt_wcstombs(selection.text);
+              open_url(url, selection.len);
+              delete(url);
+
+            } else {
+              if (IN_RANGE_EXC (ev.x, 0, vt_width) && IN_RANGE_EXC (ev.y, 0, vt_height)) // inside window?
+                selection_request (ev.time, Sel_Clipboard);
+            }
+
             break;
 
 #ifdef MOUSE_WHEEL

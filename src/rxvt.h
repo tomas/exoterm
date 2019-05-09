@@ -1388,6 +1388,7 @@ Pixmap icon_mask; //  = None;
   FILE *popen_printer ();
   int pclose_printer (FILE *stream);
 #endif
+  void open_url(char * url, int len);
   void process_print_pipe ();
   void process_nonprinting (unicode_t ch);
   void process_escape_vt52 (unicode_t ch);
