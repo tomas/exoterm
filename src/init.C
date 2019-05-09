@@ -274,6 +274,28 @@ static const char *const def_colorName[] =
     "rgb:66/ef/e8",    // 6/14: bright cyan    (Cyan)
     "rgb:cf/d0/c2",    // 7/15: bright white   (White)
 
+#elif ANOTHER_SET
+
+    "rgb:93/a1/a1", // foreground
+    "rgb:14/1c/21", // background
+
+    "rgb:26/36/40", // color0
+    "rgb:d1/2f/2c", // color1
+    "rgb:81/94/00", // color2
+    "rgb:b0/85/00", // color3
+    "rgb:25/87/cc", // color4
+    "rgb:69/6e/bf", // color5
+    "rgb:28/9c/93", // color6
+    "rgb:bf/ba/ac", // color7
+    "rgb:4a/69/7d", // color8
+    "rgb:fa/39/35", // color9
+    "rgb:a4/bd/00", // color10
+    "rgb:d9/a4/00", // color11
+    "rgb:2c/a2/f5", // color12
+    "rgb:80/86/e8", // color13
+    "rgb:33/c5/ba", // color14
+    "rgb:fd/f6/e3", // color15
+
 #else // if CHALK_MODIFIED_COLORS
 
     "rgb:ee/ee/ee",    // foreground
@@ -1013,6 +1035,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 
   printf("calling refresh_check.\n");
   refresh_check ();
+  printf("init2 complete\n");
 }
 
 /*----------------------------------------------------------------------*/
