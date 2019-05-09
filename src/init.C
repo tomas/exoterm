@@ -303,7 +303,7 @@ static const char *const def_colorName[] =
     "rgb:ee/ee/ee",    // foreground
     "rgb:15/15/15",    // background
     "rgb:15/15/15",    // 0: black             (Black)  
-    "rgb:ff/86/a7",    // 1: red               (Red3) 
+    "rgb:ff/86/b7",    // 1: red               (Red3) 
     "rgb:1b/f0/c2",    // 2: green             (Green3)
     "rgb:dd/c1/6f",    // 3: yellow            (Yellow3)
     "rgb:6e/cc/ff",    // 4: blue              (Blue3)
