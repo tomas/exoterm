@@ -1104,10 +1104,10 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   my_hints.height = xwa.height;
   XSetNormalHints(dpy, target, &my_hints);
 
-  printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
+  // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
   // status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
   status = XMoveResizeWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y, xwa.width, xwa.height);
-  printf("move window status: %d\n", status);
+  // printf("move window status: %d\n", status);
 }
 
 void copy_hints(Display * dpy, Window src, Window target) {
@@ -1198,6 +1198,7 @@ rxvt_term::new_tab () {
     // newterm->display->flush();
     // newterm->refresh_check();
     // refresh_check();
+    printf("tab initialized!\n");
 
   } catch (const class rxvt_failure_exception &e) {
     printf("error while initializing new terminal instance!\n");
@@ -1239,15 +1240,13 @@ void rxvt_term::switch_to_tab(unsigned int index) {
 void rxvt_term::prev_tab() {
   printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx == tab_index) return;
-  return switch_to_tab(idx);
+  if (idx != tab_index) switch_to_tab(idx);
 }
 
 void rxvt_term::next_tab() {
   printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
-  if (idx == tab_index) return;
-  return switch_to_tab(idx);
+  if (idx != tab_index) switch_to_tab(idx);
 }
 
 void rxvt_term::close_tab () {
