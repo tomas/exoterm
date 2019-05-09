@@ -2248,7 +2248,10 @@ rxvt_term::button_press (XButtonEvent &ev)
                 break;
 
               case Button2:
-                selection_click (2, ev.x, ev.y);
+                if (CHAR_AT(ev.x, ev.y) != ' ') {
+                  selection_click (2, ev.x, ev.y);
+                }
+
                 break;
 
               case Button3:

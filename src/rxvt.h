@@ -724,6 +724,8 @@ typedef struct _mwmhints
 #define LINENO(n) LINENO_of (this, n)
 #define ROW(n) ROW_of (this, n)
 
+#define CHAR_AT(x,y) ROW(Pixel2Row(y)).t[Pixel2Col(x)]
+
 /* how to build & extract colors and attributes */
 #define GET_BASEFG(x)           ((((rend_t) (x)) & RS_fgMask) >> RS_fgShift)
 #define GET_BASEBG(x)           ((((rend_t) (x)) & RS_bgMask) >> RS_bgShift)
