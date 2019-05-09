@@ -980,31 +980,30 @@ rxvt_term::key_release (XKeyEvent &ev)
 #endif
 }
 
-void parse_line(line_t * l) {
-  int i;
+int parse_links(line_t * l, int in_link) {
   int len = l->l;
-  if (len < 5) return;
+  if (!in_link && len < 10) return 0;
 
-  int in_link = 0;
-  for (i = 3; i < len; i++) {
-    if (l->t[i-3] == 'h' 
-     && l->t[i-2] == 't' 
-     && l->t[i-1] == 't' 
-     && l->t[i-0] == 'p') {
-      in_link = 1;
-
-      l->r[i-3] |= RS_Uline; // l->r[i-3] |= Color_Yellow << RS_fgShift;
-      l->r[i-2] |= RS_Uline; // l->r[i-2] |= Color_Yellow << RS_fgShift;
-      l->r[i-1] |= RS_Uline; // l->r[i-1] |= Color_Yellow << RS_fgShift;
-      l->r[i-0] |= RS_Uline; // l->r[i-0] |= Color_Yellow << RS_fgShift;
-
-    } else if (in_link) {
-      if (l->t[i] == ' ') 
+  int i = in_link ? 0 : 4;
+  for (i; i < len; i++) {
+    if (in_link) {
+      if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'') {
         in_link = 0;
-      else
+      } else {
         l->r[i] |= RS_Uline; // l->r[i] |= Color_Yellow << RS_fgShift;
+      }
+    } else if (l->t[i] == ':' && l->t[i+1] == '/' && l->t[i+2] == '/') { // ://
+      in_link = 1;
+      l->r[i]   |= RS_Uline; // :
+      l->r[i-1] |= RS_Uline; // s
+      l->r[i-2] |= RS_Uline; // p
+      l->r[i-3] |= RS_Uline; // p
+      l->r[i-4] |= RS_Uline; // t
+      if (l->t[i-5] == 'h') l->r[i-5] |= RS_Uline; // h or something else, if this was simply http:
     }
   }
+
+  return in_link;
 }
 
 void
@@ -1026,9 +1025,11 @@ rxvt_term::flush ()
         {
           int row = view_start;
           int end_row = row + nrow;
+          int in_link = 0;
 
-          while (row > top_row && ROW (row - 1).is_longer ())
+          while (row > top_row && ROW (row - 1).is_longer ()) {
             --row;
+          }
 
           do
             {
@@ -1038,23 +1039,21 @@ rxvt_term::flush ()
               do
                 {
                   l = &ROW (row++);
+                  if ((l->l > 0) && !(l->f & LINE_FILTERED)) {
+                    in_link = parse_links(l, in_link);
 
-                  if (!(l->f & LINE_FILTERED))
-                    {
-                      // line not filtered, mark it as filtered
+                    // line not filtered, mark it as filtered
+                    l->f |= LINE_FILTERED;
+                    while (l->is_longer ()) {
+                      l = &ROW (row++);
+
+                      if (in_link) in_link = parse_links(l, in_link);
                       l->f |= LINE_FILTERED;
-                      while (l->is_longer ())
-                        {
-                          l = &ROW (row++);
-                          l->f |= LINE_FILTERED;
-                        }
-
-                      // this is where the matcher perl plugin listened for line updates
-                      if (l->l > 0) parse_line(l);
-                      HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
-
-                      break;
                     }
+
+                    HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
+                    break;
+                  }
                 }
               while (l->is_longer () && row < end_row);
             }
