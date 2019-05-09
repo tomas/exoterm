@@ -751,7 +751,11 @@ rxvt_term::init_resources (int argc, const char *const *argv)
   if (rs[Rs_visual])
     select_visual (strtol (rs[Rs_visual], 0, 0));
   else if (rs[Rs_depth])
-    select_depth (strtol (rs[Rs_depth], 0, 0));
+    #if XFT
+      select_depth (strtol (rs[Rs_depth], 0, 0));
+    #else
+      printf("Built without XFT support. Depth not supported.\n");
+    #endif
 #endif
 
   for (int i = NUM_RESOURCES; i--; )
