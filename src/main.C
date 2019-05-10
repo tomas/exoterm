@@ -1185,8 +1185,10 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
 #ifdef HAVE_BG_PIXMAP
-      if (bg_window_size_sensitive ())
-        update_background ();
+      if (bg_window_size_sensitive ()) {
+        int enlarged = newwidth > old_width || newheight > old_height ? 1 : 0;
+        update_background (enlarged ? 3 : 2);
+      }
 #endif
     }
 
@@ -1733,25 +1735,39 @@ rxvt_term::get_window_origin (int &x, int &y)
 #ifdef HAVE_BG_PIXMAP
 
 void
-rxvt_term::update_background ()
+rxvt_term::update_background (int ev_type)
 {
 
-  if (update_background_ev.is_active ())
-    return;
+  // ev_type = 0 -> initializing window
+  // ev_type = 1 -> window moved
+  // ev_type = 2 -> window resized, shrinked
+  // ev_type = 3 -> window resized, enlarged
+  // ev_type = 4 -> tint color changed
+  // printf("update background: %d\n", ev_type);
 
-  ev_tstamp to_wait = 0.5 - (ev::now () - bg_valid_since);
+  if (update_background_ev.is_active ()) {
+    if (ev_type == 3) {
+      update_background_ev.stop();
+    } else {
+      return;
+    }
+  }
 
-  if (to_wait <= 0.)
+  double expiration = ev_type == 3 ? 0.05 : 0.5;
+  ev_tstamp to_wait = (expiration - (ev::now () - bg_valid_since));
+
+  if (to_wait <= 0.) {
     bg_render ();
-  else
+  } else {
     update_background_ev.start (to_wait);
+  }
 }
 
 void
 rxvt_term::update_background_cb (ev::timer &w, int revents)
 {
-  make_current ();
 
+  make_current ();
   update_background_ev.stop ();
   bg_render ();
   refresh_check ();

@@ -1279,7 +1279,7 @@ Pixmap icon_mask; //  = None;
   xevent_watcher rootwin_ev;
 #endif
 #ifdef HAVE_BG_PIXMAP
-  void update_background ();
+  void update_background (int ev_type);
   void update_background_cb (ev::timer &w, int revents);
   ev::timer update_background_ev;
 #endif

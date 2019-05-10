@@ -478,22 +478,25 @@ Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out)
 void
 rxvt_term::bg_render ()
 {
-  if (bg_flags & BG_INHIBIT_RENDER)
+
+  if (bg_flags & BG_INHIBIT_RENDER) {
     return;
+  }
 
   // delete bg_img;
   // bg_img = 0;
   // bg_flags = 0;
 
-  if (!mapped)
+  if (!mapped) {
     return;
+  }
 
 # if BG_IMAGE_FROM_ROOT
   if (root_img)
     {
-
       int x, y;
       getCoords(dpy, vt, &x, &y);
+      // printf("Copying area: %d/%d - %d/%d\n", x, y, width, height);
       XCopyArea(dpy, root_img, winbg, gc, x, y, width, height, 0, 0);
       bg_flags |= BG_IS_TRANSPARENT;
     }

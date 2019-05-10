@@ -1769,7 +1769,7 @@ rxvt_term::x_cb (XEvent &ev)
               {
 #ifdef HAVE_BG_PIXMAP
                 if (moved)
-                  update_background ();
+                  update_background (1);
 #endif
               }
 
@@ -2133,7 +2133,7 @@ rxvt_term::rootwin_cb (XEvent &ev)
             if (option (Opt_transparent))
               {
                 // rxvt_img::new_from_root (this)->replace (root_img);
-                update_background ();
+                update_background (0);
               }
 #endif
             HOOK_INVOKE ((this, HOOK_ROOTPMAP_CHANGE, DT_END));
@@ -3886,7 +3886,7 @@ rxvt_term::process_xterm_seq (int op, char *str, char resp)
           //   changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
 
           if (changed)
-            update_background ();
+            update_background (4);
         }
 
         break;
