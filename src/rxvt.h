@@ -249,53 +249,6 @@ struct image_effects
   bool set_shade (const char *shade_str);
   bool set_blur (const char *geom);
 };
-
-# if BG_IMAGE_FROM_FILE
-enum {
-  IM_IS_SIZE_SENSITIVE = 1 << 1,
-  IM_KEEP_ASPECT       = 1 << 2,
-  IM_ROOT_ALIGN        = 1 << 3,
-  IM_TILE              = 1 << 4,
-  IM_GEOMETRY_FLAGS    = IM_KEEP_ASPECT | IM_ROOT_ALIGN | IM_TILE,
-};
-
-enum {
-  noScale = 0,
-  windowScale = 100,
-  defaultScale = windowScale,
-  centerAlign = 50,
-  defaultAlign = centerAlign,
-};
-
-struct rxvt_image : image_effects
-{
-  unsigned short alpha;
-  uint8_t flags;
-  unsigned int h_scale, v_scale; /* percents of the window size */
-  int h_align, v_align;          /* percents of the window size:
-                                    0 - left align, 50 - center, 100 - right */
-
-  bool is_size_sensitive ()
-  {
-    return (!(flags & IM_TILE)
-            || h_scale || v_scale
-            || (!(flags & IM_ROOT_ALIGN) && (h_align || v_align)));
-  }
-
-  rxvt_img *img;
-
-  void destroy ()
-  {
-    delete img;
-    img = 0;
-  }
-
-  rxvt_image ();
-  void set_file_geometry (rxvt_screen *s, const char *file);
-  void set_file (rxvt_screen *s, const char *file);
-  bool set_geometry (const char *geom, bool update = false);
-};
-# endif
 #endif
 
 /*
@@ -771,6 +724,8 @@ typedef struct _mwmhints
 #define LINENO(n) LINENO_of (this, n)
 #define ROW(n) ROW_of (this, n)
 
+#define CHAR_AT(x,y) ROW(Pixel2Row(y)).t[Pixel2Col(x)]
+
 /* how to build & extract colors and attributes */
 #define GET_BASEFG(x)           ((((rend_t) (x)) & RS_fgMask) >> RS_fgShift)
 #define GET_BASEBG(x)           ((((rend_t) (x)) & RS_bgMask) >> RS_bgShift)
@@ -1122,6 +1077,10 @@ struct rxvt_vars : TermWin_t
 struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
 {
 
+  // rxvt_term * prev_tab;
+  // rxvt_term * next_tab;
+  unsigned int tab_index;
+
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
   static const char resval_on [];       // boolean options switched on
@@ -1217,14 +1176,11 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   void bg_init ();
   void bg_destroy ();
 
-# if BG_IMAGE_FROM_FILE
-  rxvt_image fimage;
-  void render_image (rxvt_image &image);
-# endif
-
 # if BG_IMAGE_FROM_ROOT
-  rxvt_img *root_img;
-  image_effects root_effects;
+  // rxvt_img *root_img;
+  // image_effects root_effects;
+  Pixmap root_img;
+  Pixmap winbg = None;
 
   void render_root_image ();
 # endif
@@ -1250,8 +1206,8 @@ Pixmap icon_mask; //  = None;
   };
 
   uint8_t bg_flags;
-
   rxvt_img *bg_img;
+  // Pixmap bg_img;
 #endif
 
   overlay_base ov;
@@ -1323,7 +1279,7 @@ Pixmap icon_mask; //  = None;
   xevent_watcher rootwin_ev;
 #endif
 #ifdef HAVE_BG_PIXMAP
-  void update_background ();
+  void update_background (int ev_type);
   void update_background_cb (ev::timer &w, int revents);
   ev::timer update_background_ev;
 #endif
@@ -1338,6 +1294,12 @@ Pixmap icon_mask; //  = None;
   void refresh_check ();
   void flush ();
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
+  void new_tab ();
+  void prev_tab ();
+  void next_tab ();
+  void switch_to_tab(unsigned int index);
+  void close_tab ();
+
   void cmdbuf_reify ();
   void cmdbuf_append (const char *str, size_t count);
   bool pty_fill ();
@@ -1428,6 +1390,7 @@ Pixmap icon_mask; //  = None;
   FILE *popen_printer ();
   int pclose_printer (FILE *stream);
 #endif
+  void open_url(char * url, int len);
   void process_print_pipe ();
   void process_nonprinting (unicode_t ch);
   void process_escape_vt52 (unicode_t ch);

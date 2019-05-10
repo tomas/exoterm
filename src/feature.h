@@ -347,12 +347,12 @@
  * Default separating chars for multiple-click selection
  * Space and tab are separate separating characters and are not settable
  */
-#define CUTCHARS    "\"&'()*,;<=>?@[\\]^`{|}"
+#define CUTCHARS    "\"'()*;<>@[\\]^`{|}"
 
 /*
  * Width of the term internal border
  */
-#define INTERNALBORDERWIDTH 2
+#define INTERNALBORDERWIDTH 0
 
 /*
  * Width of the term external border
@@ -362,7 +362,7 @@
 /*
  * Default number of extra dots between lines
  */
-#define LINESPACE   0
+#define LINESPACE   2
 
 /*
  * Default number of extra dots between columns
@@ -373,6 +373,9 @@
  * Default number of lines in the scrollback buffer
  */
 #define SAVELINES   10000
+
+
+//#define SMART_RESIZE 1
 
 #endif
 

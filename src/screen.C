@@ -1817,7 +1817,8 @@ rxvt_term::scr_rvideo_mode (bool on) NOTHROW
 
       ::swap (lookup_color(Color_fg, pix_colors), lookup_color(Color_bg, pix_colors));
 #ifdef HAVE_IMG
-      if (bg_img == 0)
+      // if (bg_img == 0)
+      if (winbg != None)
 #endif
           XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
 
@@ -2147,6 +2148,8 @@ rxvt_term::scr_refresh () NOTHROW
 
   want_refresh = 0;        /* screen is current */
 
+  // printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
+
   if (refresh_type == NO_REFRESH || !mapped)
     return;
 
@@ -2158,7 +2161,8 @@ rxvt_term::scr_refresh () NOTHROW
   unsigned int old_screen_flags = screen.flags;
   bool have_bg = 0;
 #ifdef HAVE_IMG
-  have_bg = bg_img != 0;
+  // have_bg = bg_img != 0;
+  have_bg = winbg != None;
 #endif
   ocrow = oldcursor.row; /* is there an old outline cursor on screen? */
 
@@ -2318,6 +2322,8 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
+  // printf("ncol: %d, nrow: %d\n", ncol, nrow); 
+
   /*
    * E: main pass across every character
    */
@@ -2336,8 +2342,10 @@ rxvt_term::scr_refresh () NOTHROW
       for (col = 0; col < ncol; col++)
         {
           /* compare new text with old - if exactly the same then continue */
-          if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col]))
+          if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col])) {
+            // printf("same!\n");
             continue;
+          }
 
           // redraw one or more characters
 
@@ -2580,6 +2588,8 @@ rxvt_term::scr_refresh () NOTHROW
 
   scr_reverse_selection ();
 
+  // printf("refresh end\n");
+
   screen.flags = old_screen_flags;
   num_scr = 0;
   num_scr_allow = 1;
@@ -2616,26 +2626,31 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
   bool transparent = false;
 
 #ifdef HAVE_IMG
-  if (bg_img != 0)
-    {
+  // if (bg_img != 0) {
+  if (winbg != None) {
 # if ENABLE_TRANSPARENCY
       if (bg_flags & BG_IS_TRANSPARENT)
         {
-          XSetWindowBackgroundPixmap (dpy, parent, bg_img->pm);
+          // printf("is transparent\n");
+          // XClearWindow(dpy, parent);
+          XSetWindowBackgroundPixmap (dpy, parent, winbg);
+          // XSetWindowBackgroundPixmap (dpy, parent, bg_img->pm);
           XSetWindowBackgroundPixmap (dpy, vt, ParentRelative);
-
           transparent = true;
         }
       else
 # endif
         {
+          // printf("non transparent\n");
           XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
-          XSetWindowBackgroundPixmap (dpy, vt, bg_img->pm);
+          // XSetWindowBackgroundPixmap (dpy, vt, bg_img->pm);
+          XSetWindowBackgroundPixmap (dpy, parent, winbg);
         }
     }
   else
 #endif
     {
+      // printf("no bg image\n");
       XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
       XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
     }

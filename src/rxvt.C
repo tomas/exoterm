@@ -35,6 +35,7 @@ main(int argc, char** argv)
 
     term = new rxvt_term();
     term->init(argc, argv, environ);
+    // printf("ev_run()\n");
     ev_run();
 
     return EXIT_SUCCESS;

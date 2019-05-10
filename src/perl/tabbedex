@@ -677,6 +677,8 @@ sub _size_tabs_for_refresh {
 sub refresh {
   my ($root) = @_;
 
+  print(" --> refresh!\n");
+
   my $visible = (!$root->{autohide} ||
                  @{ $root->{tabs} } > 1 ||
                  $root->{cur}->is_being_renamed);
@@ -893,12 +895,15 @@ sub copy_properties {
 sub make_current {
   my ($root, $tab, $bell_ends) = @_;
 
+  print(" --> making current\n");
+
   my $cur = $root->{cur};
   if ($cur == $tab) {
     return;
   }
 
   if ($cur) {
+    print(" --> cur, unmapping current parent\n");
     delete $cur->{last_activity};
     $cur->{bell_ends} = 0;
     $cur->XUnmapWindow ($cur->parent) if $cur->mapped;
@@ -907,6 +912,7 @@ sub make_current {
 
   $root->{cur} = $tab;
 
+  print(" --> configure/copying properties\n");
   $root->configure;
   $root->copy_properties;
 
@@ -1070,6 +1076,7 @@ _on start => sub {
       $root->{tab_title} = $root->XInternAtom("_NET_WM_NAME", 1);
    }
 
+   print(" --> new tab\n");
    $root->new_tab;
 
    if (defined $root->{timeouts}) {
@@ -1543,7 +1550,7 @@ sub put_cursor {
   $bar->{cursor} = length($bar->{text}) + $dx + 1;
 }
 
-sub apply {
+xsub apply {
   my ($bar) = @_;
   $bar->{pipe_pending} = 0;
   $bar->_append(' ' x ($bar->{ncol} - length $bar->{text}),

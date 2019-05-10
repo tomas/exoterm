@@ -409,7 +409,7 @@ rxvt_wcsdup (const wchar_t *str, int len)
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
-  int ctrl, meta, shft, len;
+  int ctrl, meta, shft, super, len;
   KeySym keysym = NoSymbol;
   char rkbuf[KBUFSZ + 1];
   char *kbuf = rkbuf + 1;
@@ -425,15 +425,15 @@ rxvt_term::key_press (XKeyEvent &ev)
    *
    * Always permit `shift' to override the current setting
    */
-  shft = ev.state & ShiftMask;
-  ctrl = ev.state & ControlMask;
-  meta = ev.state & ModMetaMask;
+  shft  = ev.state & ShiftMask;
+  ctrl  = ev.state & ControlMask;
+  meta  = ev.state & ModMetaMask;
+  super = ev.state & Mod4Mask;
 
   kbuf[0] = 0;
 
 #if USE_XIM
-  if (Input_Context)
-    {
+  if (Input_Context) {
       Status status_return;
 
 #if 0
@@ -486,19 +486,17 @@ rxvt_term::key_press (XKeyEvent &ev)
       len = XLookupString (&ev, kbuf, KBUFSZ, &keysym, &compose);
     }
 
-  if (keysym != NoSymbol)
-    {
+  if (keysym != NoSymbol) {
       KeySym orig_keysym = keysym;
 
       /* Shift + F1 - F10 generates F11 - F20 */
-      if (shft && keysym >= XK_F1 && keysym <= XK_F10)
-        {
+      if (shft && keysym >= XK_F1 && keysym <= XK_F10) {
           keysym += (XK_F11 - XK_F1);
           shft = 0;	/* turn off Shift */
-        }
+      }
 
-      if (keysym >= 0xFF00 && keysym <= 0xFFFF)
-        {
+      if (keysym >= 0xFF00 && keysym <= 0xFFFF) {
+
           bool kp = priv_modes & PrivMode_aplKP ? !shft : shft;
           unsigned int newlen = 1;
 
@@ -507,8 +505,7 @@ rxvt_term::key_press (XKeyEvent &ev)
 
           keysym = translate_keypad (keysym, kp);
 
-          switch (keysym)
-            {
+          switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
                 if (priv_modes & PrivMode_HaveBackSpace)
@@ -547,6 +544,15 @@ rxvt_term::key_press (XKeyEvent &ev)
               case XK_Down:	/* "\033[B" */
               case XK_Right:	/* "\033[C" */
               case XK_Left:	/* "\033[D" */
+
+                if (meta) {
+                  if (keysym == XK_Left) {
+                    return prev_tab();
+                  } else if (keysym == XK_Right) {
+                    return next_tab();
+                  }
+                }
+
                 strcpy (kbuf, "\033[Z");
                 kbuf[2] = "DACB"[keysym - XK_Left];
                 /* do Shift first */
@@ -644,8 +650,7 @@ rxvt_term::key_press (XKeyEvent &ev)
           if (newlen)
             len = strlen (kbuf);
 
-          if (len > 0)
-            {
+          if (len > 0) {
               /*
                * pass Shift/Control indicators for function keys ending with `~'
                *
@@ -775,6 +780,18 @@ rxvt_term::key_press (XKeyEvent &ev)
                 }
             }
 #endif
+        }
+
+        // Ctrl + Shift + T
+        if (ctrl && (keysym == 116)) {
+          new_tab();
+          return;
+        }
+
+        // Ctrl + Shift + R
+        if (ctrl && (keysym == 113)) {
+          close_tab();
+          return;
         }
 
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
@@ -963,6 +980,32 @@ rxvt_term::key_release (XKeyEvent &ev)
 #endif
 }
 
+int parse_links(line_t * l, int in_link) {
+  int len = l->l;
+  if (!in_link && len < 10) return 0;
+
+  int i = in_link ? 0 : 4;
+  for (i; i < len; i++) {
+    if (in_link) {
+      if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'') {
+        in_link = 0;
+      } else {
+        l->r[i] |= RS_Uline; // l->r[i] |= Color_Yellow << RS_fgShift;
+      }
+    } else if (l->t[i] == ':' && l->t[i+1] == '/' && l->t[i+2] == '/') { // ://
+      in_link = 1;
+      l->r[i]   |= RS_Uline; // :
+      l->r[i-1] |= RS_Uline; // s
+      l->r[i-2] |= RS_Uline; // p
+      l->r[i-3] |= RS_Uline; // p
+      l->r[i-4] |= RS_Uline; // t
+      if (l->t[i-5] == 'h') l->r[i-5] |= RS_Uline; // h or something else, if this was simply http:
+    }
+  }
+
+  return in_link;
+}
+
 void
 rxvt_term::flush ()
 {
@@ -978,13 +1021,15 @@ rxvt_term::flush ()
 
   if (want_refresh)
     {
-      if (SHOULD_INVOKE (HOOK_LINE_UPDATE))
+      if (1) // (SHOULD_INVOKE (HOOK_LINE_UPDATE))
         {
           int row = view_start;
           int end_row = row + nrow;
+          int in_link = 0;
 
-          while (row > top_row && ROW (row - 1).is_longer ())
+          while (row > top_row && ROW (row - 1).is_longer ()) {
             --row;
+          }
 
           do
             {
@@ -994,22 +1039,21 @@ rxvt_term::flush ()
               do
                 {
                   l = &ROW (row++);
+                  if ((l->l > 0) && !(l->f & LINE_FILTERED)) {
+                    in_link = parse_links(l, in_link);
 
-                  if (!(l->f & LINE_FILTERED))
-                    {
-                      // line not filtered, mark it as filtered
+                    // line not filtered, mark it as filtered
+                    l->f |= LINE_FILTERED;
+                    while (l->is_longer ()) {
+                      l = &ROW (row++);
+
+                      if (in_link) in_link = parse_links(l, in_link);
                       l->f |= LINE_FILTERED;
-                      while (l->is_longer ())
-                        {
-                          l = &ROW (row++);
-                          l->f |= LINE_FILTERED;
-                        }
-
-                      // and filter it
-                      HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
-
-                      break;
                     }
+
+                    HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
+                    break;
+                  }
                 }
               while (l->is_longer () && row < end_row);
             }
@@ -1043,6 +1087,171 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
 
   refresh_count = 0;
   flush ();
+}
+
+void copy_position(Display * dpy, Window src, Window target, int offset_x, int offset_y) {
+  int x, y, status;
+  Window child;
+  XWindowAttributes xwa;
+  XTranslateCoordinates(dpy, src, DefaultRootWindow(dpy), 0, 0, &x, &y, &child);
+  XGetWindowAttributes(dpy, src, &xwa);
+
+  XSizeHints my_hints = {0};
+  my_hints.flags  = PPosition | PSize;
+  my_hints.x      = (x - xwa.x) + offset_x;
+  my_hints.y      = (y - xwa.y) + offset_y;
+  my_hints.width  = xwa.width;
+  my_hints.height = xwa.height;
+  XSetNormalHints(dpy, target, &my_hints);
+
+  // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
+  // status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  status = XMoveResizeWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y, xwa.width, xwa.height);
+  // printf("move window status: %d\n", status);
+}
+
+void copy_hints(Display * dpy, Window src, Window target) {
+
+  // change input, from tab_start in perl script
+  // XWindowAttributes attr;
+  // XGetWindowAttributes(dpy, win, &attr);
+  // XSelectInput(dpy, win, attr.your_event_mask | PropertyChangeMask);
+
+  // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
+  // my $current = delete $root->{current_properties};
+  Atom normal_hints = XInternAtom(dpy, "WM_NORMAL_HINTS", 1);
+
+  // pass 1: copy over properties different or nonexisting
+  // for my $atom ($tab->XListProperties ($tab->parent)) {
+  //   my ($type, $format, $items) = $root->XGetWindowProperty ($tab->parent, $atom);
+
+  Atom *proplist;
+  int i, n_prop = 0;
+  proplist = XListProperties(dpy, src, &n_prop);
+
+  Atom prop, type;
+  int status, format;
+  unsigned long items, bytes_after;
+  unsigned char *data = NULL;
+
+  for (i = 0; i < n_prop; i++) {
+    status = XGetWindowProperty(dpy, src, proplist[i], 0, 1<<24, 0, AnyPropertyType, &type, &format, &items, &bytes_after, &data);
+
+/*
+    fix up size hints
+    if ($atom == $wm_normal_hints) {
+      my (@hints) = unpack "l!*", $items;
+      $hints[$_] += $root->{tabheight} for (4, 6, 16);
+      $items = pack "l!*", @hints;
+    }
+*/
+
+    if (proplist[i] == normal_hints) {
+      printf("got normal hints\n");
+    }
+
+/*
+    my $cur = delete $current->{$atom};
+
+    # update if changed, we assume empty items and zero type and
+    # format will not happen
+    $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
+       if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
+
+    $root->{current_properties}{$atom} = [$type, $format, $items];
+*/
+
+    // int len = strlen((const char *)data);
+    // int elemsize = format == 16 ? sizeof (short) : format == 32 ? sizeof (long) : 1;
+    // printf("len: %d, elemsize: %d\n", len, elemsize);
+    // int success = XChangeProperty(dpy, target, proplist[i], type, format, PropModeReplace, data, len / elemsize);
+  }
+
+  XFree(proplist);
+
+  // pass 2, delete all extraneous properties
+  // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
+}
+
+void
+rxvt_term::new_tab () {
+  printf("Opening new tab\n");
+  rxvt_term *newterm = new rxvt_term();
+
+  // make a copy of args and envs from current tab
+  // but skip last element that was pushed back in init()
+  stringvec *args = new stringvec;
+  for (int i = 0; i < argv->size()-1; i++)
+    args->push_back (strdup(this->argv->at(i)));
+
+  stringvec *envs = new stringvec;
+  for (int v = 0; v < envv->size()-1; v++)
+    envs->push_back (strdup(this->envv->at(v)));
+
+  try {
+    newterm->init(args, envs);
+    // copy_hints(dpy, parent, tab);
+
+    next_tab();
+    // want_refresh = 1;
+    // newterm->scr_reset();
+    // newterm->display->flush();
+    // newterm->refresh_check();
+    // refresh_check();
+    printf("tab initialized!\n");
+
+  } catch (const class rxvt_failure_exception &e) {
+    printf("error while initializing new terminal instance!\n");
+    newterm->destroy ();
+  }
+
+  return;
+}
+
+void rxvt_term::switch_to_tab(unsigned int index) {
+  rxvt_term * tab = termlist.at(index);
+  if (tab == NULL)  {
+    printf("tab not found at index %d\n", index);
+    return;
+  }
+
+  printf("switching to tab at index: %d\n", index);
+
+  // TODO
+  // int tabheight = 24;
+  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
+  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
+  // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
+  // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
+
+  // want_refresh = 1;
+  copy_position(dpy, parent, tab->parent, 0, 0);
+
+  // unmap current, map new one, and flush
+  XMapWindow(dpy, tab->parent);
+  XUnmapWindow(dpy, parent);
+  XFlush(dpy);
+
+  tab->want_refresh = 1;
+  tab->make_current();
+  tab->focus_in();
+}
+
+void rxvt_term::prev_tab() {
+  printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+  unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
+  if (idx != tab_index) switch_to_tab(idx);
+}
+
+void rxvt_term::next_tab() {
+  printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+  unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
+  if (idx != tab_index) switch_to_tab(idx);
+}
+
+void rxvt_term::close_tab () {
+  printf("closing tab!\n");
+  destroy(); // calls prev_tab
 }
 
 #ifdef CURSOR_BLINK
@@ -1524,7 +1733,8 @@ rxvt_term::x_cb (XEvent &ev)
             if (bg_window_position_sensitive ())
               {
                 want_position_change = true;
-                if (bg_img == 0)
+                // if (bg_img == 0)
+                if (winbg != None)
                   moved = true;
               }
 #endif
@@ -1559,7 +1769,7 @@ rxvt_term::x_cb (XEvent &ev)
               {
 #ifdef HAVE_BG_PIXMAP
                 if (moved)
-                  update_background ();
+                  update_background (1);
 #endif
               }
 
@@ -1778,6 +1988,7 @@ rxvt_term::x_cb (XEvent &ev)
     }
 #endif
 
+  // printf("loop done, refresh check\n");
   refresh_check ();
 }
 
@@ -1921,8 +2132,8 @@ rxvt_term::rootwin_cb (XEvent &ev)
 #if BG_IMAGE_FROM_ROOT
             if (option (Opt_transparent))
               {
-                rxvt_img::new_from_root (this)->replace (root_img);
-                update_background ();
+                // rxvt_img::new_from_root (this)->replace (root_img);
+                update_background (0);
               }
 #endif
             HOOK_INVOKE ((this, HOOK_ROOTPMAP_CHANGE, DT_END));
@@ -2034,6 +2245,13 @@ rxvt_term::button_press (XButtonEvent &ev)
                   }
 
                 MEvent.button = Button1;
+                break;
+
+              case Button2:
+                if (CHAR_AT(ev.x, ev.y) != ' ') {
+                  selection_click (2, ev.x, ev.y);
+                }
+
                 break;
 
               case Button3:
@@ -2181,6 +2399,28 @@ rxvt_term::button_press (XButtonEvent &ev)
     }
 }
 
+void rxvt_term::open_url(char * link, int len) {
+  printf("opening url: %s\n", link);
+
+/*
+  char * args [] = { "xdg-open", link, NULL}; 
+  // run_command(args);
+
+  int pid = fork();
+  if (pid == -1) // can't fork, stopping here.
+    return;
+
+  init_env();
+  set_environ(env);
+  int res = execvp(args[0], args);
+  _exit (255);
+*/
+
+  char command[len + 12];
+  sprintf(command, "xdg-open '%s'", link);
+  system(command);
+}
+
 void
 rxvt_term::button_release (XButtonEvent &ev)
 {
@@ -2256,15 +2496,31 @@ rxvt_term::button_release (XButtonEvent &ev)
               selection.clip_len = selection.len; 
               selection_grab (CurrentTime, true); 
 
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1); 
+              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1); 
               scr_overlay_set (0, 0, "Copied to clipboard");  
             } 
 
             break;
 
           case Button2:
-            if (IN_RANGE_EXC (ev.x, 0, vt_width) && IN_RANGE_EXC (ev.y, 0, vt_height)) // inside window?
-              selection_request (ev.time, Sel_Clipboard);
+            selection_make (ev.time);
+
+            if (selection.len > 0 
+             && selection.end.col > 0 
+             && selection.text[0] == 'h' 
+             && selection.text[1] == 't'
+             && selection.text[2] == 't'
+             && selection.text[3] == 'p') { 
+
+              char * url = rxvt_wcstombs(selection.text);
+              open_url(url, selection.len);
+              delete(url);
+
+            } else {
+              if (IN_RANGE_EXC (ev.x, 0, vt_width) && IN_RANGE_EXC (ev.y, 0, vt_height)) // inside window?
+                selection_request (ev.time, Sel_Clipboard);
+            }
+
             break;
 
 #ifdef MOUSE_WHEEL
@@ -3626,65 +3882,13 @@ rxvt_term::process_xterm_seq (int op, char *str, char resp)
         {
           bool changed = false;
 
-          if (ISSET_PIXCOLOR (Color_tint))
-            changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
+          // if (ISSET_PIXCOLOR (Color_tint))
+          //   changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
 
           if (changed)
-            update_background ();
+            update_background (4);
         }
 
-        break;
-#endif
-
-#if BG_IMAGE_FROM_FILE
-      case Rxvt_Pixmap:
-        if (!strcmp (str, "?"))
-          {
-            char str[256];
-            int h_scale = fimage.h_scale;
-            int v_scale = fimage.v_scale;
-            int h_align = fimage.h_align;
-            int v_align = fimage.v_align;
-
-            sprintf (str, "[%dx%d+%d+%d]",
-                     h_scale, v_scale,
-                     h_align, v_align);
-            process_xterm_seq (XTerm_title, str, CHAR_ST);
-          }
-        else
-          {
-            bool changed = false;
-
-            if (*str != ';')
-              {
-                try
-                  {
-                    fimage.set_file_geometry (this, str);
-                    changed = true;
-                  }
-                catch (const class rxvt_failure_exception &e)
-                  {
-                  }
-              }
-            else
-              {
-                str++;
-                if (fimage.set_geometry (str, true))
-                  changed = true;
-              }
-
-            if (changed)
-              {
-                if (bg_window_position_sensitive ())
-                  {
-                    int x, y;
-                    get_window_origin (x, y);
-                    parent_x = x;
-                    parent_y = y;
-                  }
-                update_background ();
-              }
-          }
         break;
 #endif
 

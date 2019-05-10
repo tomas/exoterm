@@ -194,6 +194,8 @@ rxvt_term::rxvt_term ()
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 
   termlist.push_back (this);
+  tab_index = termlist.size()-1;
+  printf("pushed new term instance. current term count: %d!\n", tab_index);
 
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;
@@ -214,7 +216,9 @@ rxvt_term::emergency_cleanup ()
 
 rxvt_term::~rxvt_term ()
 {
+
   termlist.erase (find (termlist.begin (), termlist.end(), this));
+  printf("destroying term instance. current term count: %d!\n", termlist.size());
 
   emergency_cleanup ();
 
@@ -236,6 +240,8 @@ rxvt_term::~rxvt_term ()
 
 #if HAVE_IMG
   delete bg_img;
+  // delete winbg;
+  if (winbg != None) XFreePixmap(dpy, winbg);
 #endif
 
   if (display)
@@ -248,14 +254,14 @@ rxvt_term::~rxvt_term ()
 #endif
       scrollBar.destroy ();
 
-      if (gc)
-        XFreeGC (dpy, gc);
-
+      if (gc) XFreeGC (dpy, gc);
       delete drawable;
 
       // destroy all windows
-      if (parent)
+      if (parent) {
+        printf("destroying parent window\n");
         XDestroyWindow (dpy, parent);
+      }
 
       for (int i = 0; i < TOTAL_COLORS; i++)
         if (ISSET_PIXCOLOR (i))
@@ -267,8 +273,8 @@ rxvt_term::~rxvt_term ()
 #endif
           }
 
+      printf("clear/flush\n");
       clear ();
-
       display->flush (); /* ideally .put should do this */
       displays.put (display);
     }
@@ -290,17 +296,18 @@ rxvt_term::~rxvt_term ()
     rxvt_warn ("env has been modified, probably as a result of a lib calling setenv.\n");
 
   delete [] env;
-
   delete envv;
   delete argv;
 
 #ifdef KEYSYM_RESOURCE
   delete keyboard;
 #endif
+
 #ifndef NO_RESOURCES
   XrmDestroyDatabase (option_db);
 #endif
 
+  printf("SET_R!\n");
   SET_R ((rxvt_term *)0);
 }
 
@@ -308,6 +315,8 @@ rxvt_term::~rxvt_term ()
 void
 rxvt_term::child_cb (ev::child &w, int status)
 {
+
+  printf("Child exit db!\n");
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -319,6 +328,9 @@ rxvt_term::child_cb (ev::child &w, int status)
 void
 rxvt_term::destroy ()
 {
+
+  printf("Destroying!\n");
+
   if (destroy_ev.is_active ())
     return;
 
@@ -363,7 +375,13 @@ rxvt_term::destroy ()
 void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
+
+  printf("destroy_cb called!\n");
   make_current ();
+
+  if (termlist.size() > 1) {
+    prev_tab();
+  }
 
   delete this;
 }
@@ -616,6 +634,8 @@ char **rxvt_environ; // startup environment
 void
 rxvt_init ()
 {
+  printf("main rxvt_init()\n");
+
   assert (("fontMask must not overlap other RS masks",
            0 == (RS_fontMask & (RS_Sel | RS_baseattrMask | RS_customMask | RS_bgMask | RS_fgMask))));
 
@@ -929,10 +949,10 @@ rxvt_term::set_utf8_property (Atom prop, const char *str, int len)
 void
 rxvt_term::set_title (const char *str)
 {
-  set_mbstring_property (XA_WM_NAME, str);
-#if ENABLE_EWMH
-  set_utf8_property (xa[XA_NET_WM_NAME], str);
-#endif
+   set_mbstring_property (XA_WM_NAME, str);
+ #if ENABLE_EWMH
+   set_utf8_property (xa[XA_NET_WM_NAME], str);
+ #endif
 }
 
 void
@@ -1165,8 +1185,10 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
 #ifdef HAVE_BG_PIXMAP
-      if (bg_window_size_sensitive ())
-        update_background ();
+      if (bg_window_size_sensitive ()) {
+        int enlarged = newwidth > old_width || newheight > old_height ? 1 : 0;
+        update_background (enlarged ? 3 : 2);
+      }
 #endif
     }
 
@@ -1713,24 +1735,39 @@ rxvt_term::get_window_origin (int &x, int &y)
 #ifdef HAVE_BG_PIXMAP
 
 void
-rxvt_term::update_background ()
+rxvt_term::update_background (int ev_type)
 {
-  if (update_background_ev.is_active ())
-    return;
 
-  ev_tstamp to_wait = 0.5 - (ev::now () - bg_valid_since);
+  // ev_type = 0 -> initializing window
+  // ev_type = 1 -> window moved
+  // ev_type = 2 -> window resized, shrinked
+  // ev_type = 3 -> window resized, enlarged
+  // ev_type = 4 -> tint color changed
+  // printf("update background: %d\n", ev_type);
 
-  if (to_wait <= 0.)
+  if (update_background_ev.is_active ()) {
+    if (ev_type == 3) {
+      update_background_ev.stop();
+    } else {
+      return;
+    }
+  }
+
+  double expiration = ev_type == 3 ? 0.05 : 0.5;
+  ev_tstamp to_wait = (expiration - (ev::now () - bg_valid_since));
+
+  if (to_wait <= 0.) {
     bg_render ();
-  else
+  } else {
     update_background_ev.start (to_wait);
+  }
 }
 
 void
 rxvt_term::update_background_cb (ev::timer &w, int revents)
 {
-  make_current ();
 
+  make_current ();
   update_background_ev.stop ();
   bg_render ();
   refresh_check ();

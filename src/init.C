@@ -274,12 +274,36 @@ static const char *const def_colorName[] =
     "rgb:66/ef/e8",    // 6/14: bright cyan    (Cyan)
     "rgb:cf/d0/c2",    // 7/15: bright white   (White)
 
+#elif ANOTHER_SET
+
+    "rgb:93/a1/a1", // foreground
+    "rgb:14/1c/21", // background
+
+    "rgb:26/36/40", // color0
+    "rgb:d1/2f/2c", // color1
+    "rgb:81/94/00", // color2
+    "rgb:b0/85/00", // color3
+    "rgb:25/87/cc", // color4
+    "rgb:69/6e/bf", // color5
+    "rgb:28/9c/93", // color6
+    "rgb:bf/ba/ac", // color7
+    "rgb:4a/69/7d", // color8
+    "rgb:fa/39/35", // color9
+    "rgb:a4/bd/00", // color10
+    "rgb:d9/a4/00", // color11
+    "rgb:2c/a2/f5", // color12
+    "rgb:80/86/e8", // color13
+    "rgb:33/c5/ba", // color14
+    "rgb:fd/f6/e3", // color15
+
 #else // if CHALK_MODIFIED_COLORS
+
+    // another red: ed/71/79
 
     "rgb:ee/ee/ee",    // foreground
     "rgb:15/15/15",    // background
     "rgb:15/15/15",    // 0: black             (Black)  
-    "rgb:ff/86/c7",    // 1: red               (Red3) 
+    "rgb:ff/86/b7",    // 1: red               (Red3) 
     "rgb:1b/f0/c2",    // 2: green             (Green3)
     "rgb:dd/c1/6f",    // 3: yellow            (Yellow3)
     "rgb:6e/cc/ff",    // 4: blue              (Blue3)
@@ -666,14 +690,13 @@ rxvt_term::init_vars ()
   MEvent.button = AnyButton;
   want_refresh = 1;
   priv_modes = SavedModes = PrivMode_Default;
-  ncol = 80;
+  ncol = 100;
   nrow = 24;
   int_bwidth = INTERNALBORDERWIDTH;
   ext_bwidth = EXTERNALBORDERWIDTH;
   lineSpace = LINESPACE;
   letterSpace = LETTERSPACE;
   saveLines = SAVELINES;
-
   refresh_type = SLOW_REFRESH;
 
   oldcursor.row = oldcursor.col = -1;
@@ -730,7 +753,11 @@ rxvt_term::init_resources (int argc, const char *const *argv)
   if (rs[Rs_visual])
     select_visual (strtol (rs[Rs_visual], 0, 0));
   else if (rs[Rs_depth])
-    select_depth (strtol (rs[Rs_depth], 0, 0));
+    #if XFT
+      select_depth (strtol (rs[Rs_depth], 0, 0));
+    #else
+      printf("Built without XFT support. Depth not supported.\n");
+    #endif
 #endif
 
   for (int i = NUM_RESOURCES; i--; )
@@ -881,6 +908,7 @@ rxvt_term::init_resources (int argc, const char *const *argv)
 void
 rxvt_term::init (stringvec *argv, stringvec *envv)
 {
+
   argv->push_back (0);
   envv->push_back (0);
 
@@ -897,8 +925,7 @@ rxvt_term::init (stringvec *argv, stringvec *envv)
 void
 rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
 {
-#if ENABLE_PERL
-  // perl might want to access the stringvecs later, so we need to copy them
+
   stringvec *args = new stringvec;
   for (int i = 0; i < argc; i++)
     args->push_back (strdup (argv [i]));
@@ -908,18 +935,17 @@ rxvt_term::init (int argc, const char *const *argv, const char *const *envv)
     envs->push_back (strdup (*var));
 
   init (args, envs);
-#else
-  init2 (argc, argv);
-#endif
 }
 
 void
 rxvt_term::init2 (int argc, const char *const *argv)
 {
+
   SET_R (this);
   set_locale ("");
   set_environ (env); // a few things in X do not call setlocale :(
 
+  // printf("init vars\n");
   init_vars ();
 
   const char **cmd_argv = init_resources (argc, argv);
@@ -941,12 +967,13 @@ rxvt_term::init2 (int argc, const char *const *argv)
   if (option (Opt_scrollBar))
     scrollBar.state = SB_STATE_IDLE;    /* set existence for size calculations */
 
+  // printf("ptty create\n");
   pty = ptytty::create ();
 
+  // printf("create windows\n");
   create_windows (argc, argv);
 
   init_xlocale ();
-
   scr_poweron (); // initialize screen
 
 #if 0
@@ -996,7 +1023,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   XMapWindow (dpy, vt);
-  XMapWindow (dpy, parent);
+  // if (termlist.size() == 1) {
+    XMapWindow (dpy, parent);
+  // }
 
 #if HAVE_STARTUP_NOTIFICATION
   if (snContext)
@@ -1010,7 +1039,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
   sn_display_unref (snDisplay);
 #endif
 
+  printf("calling refresh_check.\n");
   refresh_check ();
+  printf("init2 complete\n");
 }
 
 /*----------------------------------------------------------------------*/
@@ -1515,8 +1546,13 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 
   this->parent = top;
 
-  set_title     (rs [Rs_title]);
+  char title[24];
+  sprintf(title, "%s (%d tabs)", rs [Rs_title], termlist.size());
+
+  set_title(title);
   set_icon_name (rs [Rs_iconName]);
+
+  // free(title);
 
   classHint.res_name  = (char *)rs[Rs_name];
   classHint.res_class = (char *)RESCLASS;
@@ -1600,6 +1636,17 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   TermWin_arrow = XCreateFontCursor (dpy, XC_arrow);
 
   /* the vt window */
+
+/*
+  vt = XCreateWindow (dpy, top,
+                       window_vt_x, window_vt_y,
+                       vt_width, vt_height,
+                       0,
+                       CopyFromParent, InputOutput, CopyFromParent,
+                       CWColormap | CWBackPixel | CWBorderPixel | CWOverrideRedirect,
+                       &attributes);
+*/
+
   vt = XCreateSimpleWindow (dpy, top,
                             window_vt_x, window_vt_y,
                             vt_width, vt_height,

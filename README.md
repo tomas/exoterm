@@ -19,7 +19,7 @@ See `README.configure` for more details and configuration options.
 
 # Configuration
 
-Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/X.defaults` after you update it.
+Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/.Xdefaults` after you update it.
 
 Here's an example:
 
