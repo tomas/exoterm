@@ -712,6 +712,12 @@ rxvt_term::key_press (XKeyEvent &ev)
       len++;
     }
 
+  if (meta && keysym == 120)  {
+    return prev_tab();
+  } else if (meta && keysym == 122)  {
+    return next_tab();
+  }
+
   if (HOOK_INVOKE ((this, HOOK_KEY_PRESS, DT_XEVENT, &ev, DT_INT, keysym, DT_STR_LEN, kbuf, len, DT_END)))
     return;
 
