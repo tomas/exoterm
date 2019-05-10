@@ -374,5 +374,8 @@
  */
 #define SAVELINES   10000
 
+
+//#define SMART_RESIZE 1
+
 #endif
 
