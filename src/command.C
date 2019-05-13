@@ -1235,6 +1235,7 @@ void rxvt_term::switch_to_tab(unsigned int index) {
   copy_position(dpy, parent, tab->parent, 0, 0);
 
   // unmap current, map new one, and flush
+  tab->update_tab_title();
   XMapWindow(dpy, tab->parent);
   XUnmapWindow(dpy, parent);
   XFlush(dpy);
@@ -1259,6 +1260,11 @@ void rxvt_term::next_tab() {
 void rxvt_term::close_tab () {
   printf("closing tab!\n");
   destroy(); // calls prev_tab
+}
+
+void rxvt_term::update_tab_title() {
+  sprintf(title, "%s (tab %d/%d)", rs [Rs_title], tab_index+1, termlist.size());
+  set_title(title);
 }
 
 #ifdef CURSOR_BLINK

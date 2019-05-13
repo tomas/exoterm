@@ -1545,11 +1545,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
                        &attributes);
 
   this->parent = top;
-
-  char title[24];
-  sprintf(title, "%s (%d tabs)", rs [Rs_title], termlist.size());
-
-  set_title(title);
+  update_tab_title();
   set_icon_name (rs [Rs_iconName]);
 
   // free(title);

@@ -1080,6 +1080,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   // rxvt_term * prev_tab;
   // rxvt_term * next_tab;
   unsigned int tab_index;
+  char title[24];
 
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
@@ -1127,6 +1128,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   int             num_scr;              /* screen: number of lines scrolled */
   int             prev_ncol,            /* screen: previous number of columns */
                   prev_nrow;            /* screen: previous number of rows */
+
 /* ---------- */
   rend_t          rstyle;
 /* ---------- */
@@ -1299,6 +1301,7 @@ Pixmap icon_mask; //  = None;
   void next_tab ();
   void switch_to_tab(unsigned int index);
   void close_tab ();
+  void update_tab_title ();
 
   void cmdbuf_reify ();
   void cmdbuf_append (const char *str, size_t count);
