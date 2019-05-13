@@ -1004,7 +1004,7 @@ int parse_links(line_t * l, int in_link) {
       l->r[i-1] |= RS_Uline; // s
       l->r[i-2] |= RS_Uline; // p
       l->r[i-3] |= RS_Uline; // p
-      l->r[i-4] |= RS_Uline; // t
+      if (l->t[i-4] != ' ') l->r[i-4] |= RS_Uline; // t, might be blank if protocol is shorter (ssh://)
       if (l->t[i-5] == 'h') l->r[i-5] |= RS_Uline; // h or something else, if this was simply http:
     }
   }
@@ -1057,6 +1057,7 @@ rxvt_term::flush ()
                       l->f |= LINE_FILTERED;
                     }
 
+                    in_link = 0;
                     HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
                     break;
                   }
