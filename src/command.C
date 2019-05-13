@@ -547,7 +547,7 @@ rxvt_term::key_press (XKeyEvent &ev)
 
                 if (meta) {
                   if (keysym == XK_Left) {
-                    return prev_tab();
+                    return prev_tab(0);
                   } else if (keysym == XK_Right) {
                     return next_tab();
                   }
@@ -713,7 +713,7 @@ rxvt_term::key_press (XKeyEvent &ev)
     }
 
   if (meta && keysym == 122)  {
-    return prev_tab();
+    return prev_tab(0);
   } else if (meta && keysym == 120)  {
     return next_tab();
   }
@@ -1215,7 +1215,7 @@ rxvt_term::new_tab () {
   return;
 }
 
-void rxvt_term::switch_to_tab(unsigned int index) {
+void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   rxvt_term * tab = termlist.at(index);
   if (tab == NULL)  {
     printf("tab not found at index %d\n", index);
@@ -1233,11 +1233,16 @@ void rxvt_term::switch_to_tab(unsigned int index) {
 
   // want_refresh = 1;
   copy_position(dpy, parent, tab->parent, 0, 0);
-
-  // unmap current, map new one, and flush
   tab->update_tab_title();
-  XMapWindow(dpy, tab->parent);
-  XUnmapWindow(dpy, parent);
+
+  if (closing) { // map new before removing current
+    XMapWindow(dpy, tab->parent);
+    XUnmapWindow(dpy, parent);
+  } else { // unmap current before displaying new
+    XUnmapWindow(dpy, parent);
+    XMapWindow(dpy, tab->parent);
+  }
+
   XFlush(dpy);
 
   tab->want_refresh = 1;
@@ -1245,16 +1250,16 @@ void rxvt_term::switch_to_tab(unsigned int index) {
   tab->focus_in();
 }
 
-void rxvt_term::prev_tab() {
+void rxvt_term::prev_tab(unsigned int closing) {
   printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx != tab_index) switch_to_tab(idx);
+  if (idx != tab_index) switch_to_tab(idx, closing);
 }
 
 void rxvt_term::next_tab() {
   printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
-  if (idx != tab_index) switch_to_tab(idx);
+  if (idx != tab_index) switch_to_tab(idx, 0);
 }
 
 void rxvt_term::close_tab () {

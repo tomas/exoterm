@@ -380,7 +380,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
   make_current ();
 
   if (termlist.size() > 1) {
-    prev_tab();
+    prev_tab(1);
   }
 
   delete this;
