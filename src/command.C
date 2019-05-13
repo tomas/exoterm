@@ -1092,6 +1092,8 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
 {
   make_current ();
 
+  printf("flush_cb: refresh_count is %d\n", refresh_count);
+
   refresh_count = 0;
   flush ();
 }
@@ -1235,14 +1237,9 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   copy_position(dpy, parent, tab->parent, 0, 0);
   tab->update_tab_title();
 
-  if (closing) { // map new before removing current
-    XMapWindow(dpy, tab->parent);
-    XUnmapWindow(dpy, parent);
-  } else { // unmap current before displaying new
-    XUnmapWindow(dpy, parent);
-    XMapWindow(dpy, tab->parent);
-  }
-
+  // map new before removing current
+  XMapWindow(dpy, tab->parent);
+  XUnmapWindow(dpy, parent);
   XFlush(dpy);
 
   tab->want_refresh = 1;
@@ -1253,7 +1250,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
 void rxvt_term::prev_tab(unsigned int closing) {
   printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx != tab_index) switch_to_tab(idx, closing);
+  if (idx != tab_index) switch_to_tab(idx, 1); 
 }
 
 void rxvt_term::next_tab() {

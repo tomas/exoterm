@@ -1022,6 +1022,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
     sn_launchee_context_setup_window (snContext, parent);
 #endif
 
+  printf(" -----> mapping window: %d\n", termlist.size());
   XMapWindow (dpy, vt);
   // if (termlist.size() == 1) {
     XMapWindow (dpy, parent);
@@ -1039,7 +1040,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
   sn_display_unref (snDisplay);
 #endif
 
-  printf("calling refresh_check.\n");
   refresh_check ();
   printf("init2 complete\n");
 }
