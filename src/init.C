@@ -1548,8 +1548,6 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   update_tab_title();
   set_icon_name (rs [Rs_iconName]);
 
-  // free(title);
-
   classHint.res_name  = (char *)rs[Rs_name];
   classHint.res_class = (char *)RESCLASS;
 
