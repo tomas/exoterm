@@ -1344,7 +1344,6 @@ Pixmap icon_mask; //  = None;
 
   void make_current () const // make this the "currently active" urxvt instance
   {
-    printf("making current!\n");
     SET_R (this);
     set_environ (env);
     rxvt_set_locale (locale);
