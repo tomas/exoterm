@@ -1001,10 +1001,10 @@ rxvt_term::init2 (int argc, const char *const *argv)
   HOOK_INVOKE ((this, HOOK_START, DT_END));
 
 #if ENABLE_XEMBED
-  if (rs[Rs_embed])
-    {
-      long info[2] = { 0, XEMBED_MAPPED };
+  if (rs[Rs_embed]) {
+      printf("rs_embed!\n");
 
+      long info[2] = { 0, XEMBED_MAPPED };
       XChangeProperty (dpy, parent, xa[XA_XEMBED_INFO], xa[XA_XEMBED_INFO],
                        32, PropModeReplace, (unsigned char *)&info, 2);
     }
@@ -1516,17 +1516,23 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 #endif
 
 #if ENABLE_XEMBED
-  if (rs[Rs_embed])
-    {
+  if (rs[Rs_embed]) {
       XWindowAttributes wattr;
-
       parent = strtol (rs[Rs_embed], 0, 0);
 
       if (!XGetWindowAttributes (dpy, parent, &wattr))
         rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
 
       window_calc (wattr.width, wattr.height);
+    } else if (tab_index > 0) {
+
+      rxvt_term * root = termlist.at(0);
+      if (root != NULL) {
+        rs[Rs_embed] = "1"; // so other embed logic is run
+        parent = root->parent;  
+      }
     }
+
 #endif
 
   window_calc (0, 0);

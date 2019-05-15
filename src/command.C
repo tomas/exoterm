@@ -1234,17 +1234,24 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
 
   // want_refresh = 1;
-  copy_position(dpy, parent, tab->parent, 0, 0);
+  // copy_position(dpy, parent, tab->parent, 0, 0);
   tab->update_tab_title();
 
   // map new before removing current
-  XMapWindow(dpy, tab->parent);
-  XUnmapWindow(dpy, parent);
-  XFlush(dpy);
+  if (tab_index > 1) XUnmapWindow(dpy, parent);
 
   tab->want_refresh = 1;
   tab->make_current();
   tab->focus_in();
+
+  XMapWindow(dpy, tab->parent);
+
+  // XWindowAttributes attr;
+  // XGetWindowAttributes (dpy, tab->parent, &attr);
+  // XSelectInput (dpy, tab->parent, PropertyChangeMask);
+
+  XFlush(dpy);
+
 }
 
 void rxvt_term::prev_tab(unsigned int closing) {
