@@ -811,8 +811,8 @@ rxvt_term::key_press (XKeyEvent &ev)
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
 
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1); 
-              scr_overlay_set (0, 0, "Copied to clipboard");  
+              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
+              scr_overlay_set (0, 0, "Copied to clipboard");
             }
 
           return;
@@ -1092,7 +1092,7 @@ rxvt_term::flush_cb (ev::timer &w, int revents)
 {
   make_current ();
 
-  printf("flush_cb: refresh_count is %d\n", refresh_count);
+  // printf("flush_cb: refresh_count is %d\n", refresh_count);
 
   refresh_count = 0;
   flush ();
@@ -1207,7 +1207,7 @@ rxvt_term::new_tab () {
     // newterm->display->flush();
     // newterm->refresh_check();
     // refresh_check();
-    printf("tab initialized!\n");
+    // printf("tab initialized!\n");
 
   } catch (const class rxvt_failure_exception &e) {
     printf("error while initializing new terminal instance!\n");
@@ -1225,6 +1225,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   }
 
   printf("switching to tab at index: %d\n", index);
+  printf("current tab index is %d\n", tab_index);
 
   // TODO
   // int tabheight = 24;
@@ -1235,16 +1236,19 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
 
   // want_refresh = 1;
   // copy_position(dpy, parent, tab->parent, 0, 0);
-  tab->update_tab_title();
+  rxvt_term * root = termlist.at(0);
+  if (root != NULL) root->update_tab_title(index+1);
 
   // map new before removing current
-  if (tab_index > 1) XUnmapWindow(dpy, parent);
+  if (tab_index > 0) XUnmapWindow(dpy, parent);
 
   tab->want_refresh = 1;
   tab->make_current();
   tab->focus_in();
 
   XMapWindow(dpy, tab->parent);
+
+  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
 
   // XWindowAttributes attr;
   // XGetWindowAttributes (dpy, tab->parent, &attr);
@@ -1257,7 +1261,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
 void rxvt_term::prev_tab(unsigned int closing) {
   printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx != tab_index) switch_to_tab(idx, 1); 
+  if (idx != tab_index) switch_to_tab(idx, 1);
 }
 
 void rxvt_term::next_tab() {
@@ -1271,8 +1275,8 @@ void rxvt_term::close_tab () {
   destroy(); // calls prev_tab
 }
 
-void rxvt_term::update_tab_title() {
-  sprintf(title, "%s (tab %d/%d)", rs [Rs_title], tab_index+1, termlist.size());
+void rxvt_term::update_tab_title(int index) {
+  sprintf(title, "%s (tab %d/%d)", rs [Rs_title], index, termlist.size());
   set_title(title);
 }
 
@@ -2425,7 +2429,7 @@ void rxvt_term::open_url(char * link, int len) {
   printf("opening url: %s\n", link);
 
 /*
-  char * args [] = { "xdg-open", link, NULL}; 
+  char * args [] = { "xdg-open", link, NULL};
   // run_command(args);
 
   int pid = fork();
@@ -2512,27 +2516,27 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button3:
             selection_make (ev.time);
 
-            if (selection.len > 0 && selection.end.col > 0) { 
-              free (selection.clip_text); 
-              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);  
-              selection.clip_len = selection.len; 
-              selection_grab (CurrentTime, true); 
+            if (selection.len > 0 && selection.end.col > 0) {
+              free (selection.clip_text);
+              selection.clip_text = rxvt_wcsdup (selection.text, selection.len);
+              selection.clip_len = selection.len;
+              selection_grab (CurrentTime, true);
 
-              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1); 
-              scr_overlay_set (0, 0, "Copied to clipboard");  
-            } 
+              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1);
+              scr_overlay_set (0, 0, "Copied to clipboard");
+            }
 
             break;
 
           case Button2:
             selection_make (ev.time);
 
-            if (selection.len > 0 
-             && selection.end.col > 0 
-             && selection.text[0] == 'h' 
+            if (selection.len > 0
+             && selection.end.col > 0
+             && selection.text[0] == 'h'
              && selection.text[1] == 't'
              && selection.text[2] == 't'
-             && selection.text[3] == 'p') { 
+             && selection.text[3] == 'p') {
 
               char * url = rxvt_wcstombs(selection.text);
               open_url(url, selection.len);

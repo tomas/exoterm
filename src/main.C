@@ -60,6 +60,15 @@ rxvt_t rxvt_current_term;
 
 static char curlocale[128], savelocale[128];
 
+static void
+rxvt_reassign_tab_indexes ()
+{
+  int index = 0;
+  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++) {
+    (*t)->tab_index = index++;
+  }
+}
+
 bool
 rxvt_set_locale (const char *locale) NOTHROW
 {
@@ -218,8 +227,8 @@ rxvt_term::~rxvt_term ()
 {
 
   termlist.erase (find (termlist.begin (), termlist.end(), this));
+  rxvt_reassign_tab_indexes();
   printf("destroying term instance. current term count: %d!\n", termlist.size());
-
   emergency_cleanup ();
 
 #if HAVE_XPM
@@ -307,7 +316,7 @@ rxvt_term::~rxvt_term ()
   XrmDestroyDatabase (option_db);
 #endif
 
-  printf("SET_R!\n");
+  // printf("SET_R!\n");
   SET_R ((rxvt_term *)0);
 }
 
@@ -316,7 +325,7 @@ void
 rxvt_term::child_cb (ev::child &w, int status)
 {
 
-  printf("Child exit db!\n");
+  // printf("Child exit db!\n");
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -329,7 +338,10 @@ void
 rxvt_term::destroy ()
 {
 
-  printf("Destroying!\n");
+  if (tab_index == 0 && termlist.size() > 1)  {
+    printf("First tab, cannot destroy!\n");
+    return;
+  }
 
   if (destroy_ev.is_active ())
     return;
@@ -376,7 +388,7 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
-  printf("destroy_cb called!\n");
+  // printf("destroy_cb called!\n");
   make_current ();
 
   if (termlist.size() > 1) {
@@ -407,8 +419,9 @@ static XErrorHandler old_xerror_handler;
 static void
 rxvt_emergency_cleanup ()
 {
-  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++)
+  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++) {
     (*t)->emergency_cleanup ();
+  }
 }
 
 #if !ENABLE_MINIMAL

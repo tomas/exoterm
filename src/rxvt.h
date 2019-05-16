@@ -1301,7 +1301,7 @@ Pixmap icon_mask; //  = None;
   void next_tab ();
   void switch_to_tab(unsigned int index, unsigned int closing);
   void close_tab ();
-  void update_tab_title ();
+  void update_tab_title (int index);
 
   void cmdbuf_reify ();
   void cmdbuf_append (const char *str, size_t count);

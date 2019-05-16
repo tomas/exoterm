@@ -302,8 +302,8 @@ static const char *const def_colorName[] =
 
     "rgb:ee/ee/ee",    // foreground
     "rgb:15/15/15",    // background
-    "rgb:15/15/15",    // 0: black             (Black)  
-    "rgb:ff/86/b7",    // 1: red               (Red3) 
+    "rgb:15/15/15",    // 0: black             (Black)
+    "rgb:ff/86/b7",    // 1: red               (Red3)
     "rgb:1b/f0/c2",    // 2: green             (Green3)
     "rgb:dd/c1/6f",    // 3: yellow            (Yellow3)
     "rgb:6e/cc/ff",    // 4: blue              (Blue3)
@@ -1002,8 +1002,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
 
 #if ENABLE_XEMBED
   if (rs[Rs_embed]) {
-      printf("rs_embed!\n");
-
       long info[2] = { 0, XEMBED_MAPPED };
       XChangeProperty (dpy, parent, xa[XA_XEMBED_INFO], xa[XA_XEMBED_INFO],
                        32, PropModeReplace, (unsigned char *)&info, 2);
@@ -1022,11 +1020,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
     sn_launchee_context_setup_window (snContext, parent);
 #endif
 
-  printf(" -----> mapping window: %d\n", termlist.size());
+  // printf(" -----> mapping window: %d\n", termlist.size());
   XMapWindow (dpy, vt);
-  // if (termlist.size() == 1) {
-    XMapWindow (dpy, parent);
-  // }
+  XMapWindow (dpy, parent);
 
 #if HAVE_STARTUP_NOTIFICATION
   if (snContext)
@@ -1041,7 +1037,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   refresh_check ();
-  printf("init2 complete\n");
 }
 
 /*----------------------------------------------------------------------*/
@@ -1524,14 +1519,13 @@ rxvt_term::create_windows (int argc, const char *const *argv)
         rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
 
       window_calc (wattr.width, wattr.height);
-    } else if (tab_index > 0) {
-
+  } else if (tab_index > 0) {
       rxvt_term * root = termlist.at(0);
       if (root != NULL) {
         rs[Rs_embed] = "1"; // so other embed logic is run
-        parent = root->parent;  
+        parent = root->parent;
       }
-    }
+  }
 
 #endif
 
@@ -1551,7 +1545,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
                        &attributes);
 
   this->parent = top;
-  update_tab_title();
+  update_tab_title(1);
   set_icon_name (rs [Rs_iconName]);
 
   classHint.res_name  = (char *)rs[Rs_name];
