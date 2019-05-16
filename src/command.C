@@ -1224,8 +1224,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     return;
   }
 
-  printf("switching to tab at index: %d\n", index);
-  printf("current tab index is %d\n", tab_index);
+  printf("switching from tab %d to tab %d\n", tab_index, index);
 
   // TODO
   // int tabheight = 24;

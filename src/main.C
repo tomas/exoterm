@@ -268,7 +268,7 @@ rxvt_term::~rxvt_term ()
 
       // destroy all windows
       if (parent) {
-        printf("destroying parent window\n");
+        // printf("destroying parent window\n");
         XDestroyWindow (dpy, parent);
       }
 
@@ -282,7 +282,7 @@ rxvt_term::~rxvt_term ()
 #endif
           }
 
-      printf("clear/flush\n");
+      // printf("clear/flush\n");
       clear ();
       display->flush (); /* ideally .put should do this */
       displays.put (display);
