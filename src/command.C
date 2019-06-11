@@ -1115,6 +1115,7 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
 
   // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
   // status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
+  // status = XResizeWindow(dpy, target, xwa.width, xwa.height);
   status = XMoveResizeWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y, xwa.width, xwa.height);
   // printf("move window status: %d\n", status);
 }
@@ -1124,7 +1125,7 @@ void copy_hints(Display * dpy, Window src, Window target) {
   // change input, from tab_start in perl script
   // XWindowAttributes attr;
   // XGetWindowAttributes(dpy, win, &attr);
-  // XSelectInput(dpy, win, attr.your_event_mask | PropertyChangeMask);
+  // XSelectInput(dpy, win, PropertyChangeMask);
 
   // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
   // my $current = delete $root->{current_properties};
@@ -1162,8 +1163,7 @@ void copy_hints(Display * dpy, Window src, Window target) {
 /*
     my $cur = delete $current->{$atom};
 
-    # update if changed, we assume empty items and zero type and
-    # format will not happen
+    # update if changed, we assume empty items and zero type and format will not happen
     $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
        if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
 
@@ -1235,6 +1235,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
 
   // want_refresh = 1;
   // copy_position(dpy, parent, tab->parent, 0, 0);
+
   rxvt_term * root = termlist.at(0);
   if (root != NULL) root->update_tab_title(index+1);
 
@@ -1245,16 +1246,13 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   tab->make_current();
   tab->focus_in();
 
-  XMapWindow(dpy, tab->parent);
-
-  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
-
   // XWindowAttributes attr;
   // XGetWindowAttributes (dpy, tab->parent, &attr);
   // XSelectInput (dpy, tab->parent, PropertyChangeMask);
 
+  XMapWindow(dpy, tab->parent);
+  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
-
 }
 
 void rxvt_term::prev_tab(unsigned int closing) {

@@ -1186,8 +1186,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 
   fix_screen = ncol != prev_ncol || nrow != prev_nrow;
 
-  if (fix_screen || newwidth != old_width || newheight != old_height)
-    {
+  if (fix_screen || newwidth != old_width || newheight != old_height) {
       if (scrollBar.state)
         scrollBar.resize ();
 
@@ -1205,8 +1204,10 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 #endif
     }
 
-  if (fix_screen || old_height == 0)
+  if (fix_screen || old_height == 0) {
+    printf("scr_reset on resizing\n");
     scr_reset ();
+  }
 
 #if USE_XIM
   im_set_position ();

@@ -1510,26 +1510,29 @@ rxvt_term::create_windows (int argc, const char *const *argv)
     }
 #endif
 
+  window_calc (0, 0);
+
 #if ENABLE_XEMBED
-  if (rs[Rs_embed]) {
-      XWindowAttributes wattr;
-      parent = strtol (rs[Rs_embed], 0, 0);
-
-      if (!XGetWindowAttributes (dpy, parent, &wattr))
-        rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
-
-      window_calc (wattr.width, wattr.height);
-  } else if (tab_index > 0) {
+  if (tab_index > 0) {
       rxvt_term * root = termlist.at(0);
       if (root != NULL) {
-        rs[Rs_embed] = "1"; // so other embed logic is run
+        rs[Rs_embed] = "x"; // so other embed logic is run
         parent = root->parent;
       }
   }
 
-#endif
+  if (rs[Rs_embed]) {
+      XWindowAttributes wattr;
+      if (strcmp(rs[Rs_embed], "x") != 0)
+        parent = strtol (rs[Rs_embed], 0, 0);
 
-  window_calc (0, 0);
+      if (!XGetWindowAttributes (dpy, parent, &wattr))
+        rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
+
+      // printf("w/h: %d/%d\n", wattr.width, wattr.height);
+      window_calc (wattr.width, wattr.height);
+  }
+#endif
 
   /* sub-window placement & size in rxvt_term::resize_all_windows () */
   attributes.background_pixel = lookup_color(Color_border, pix_colors_focused);
