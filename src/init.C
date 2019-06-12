@@ -1023,6 +1023,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   // printf(" -----> mapping window: %d\n", termlist.size());
   XMapWindow (dpy, vt);
   XMapWindow (dpy, parent);
+  // XSetInputFocus(dpy, parent, RevertToPointerRoot, CurrentTime);
 
 #if HAVE_STARTUP_NOTIFICATION
   if (snContext)

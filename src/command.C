@@ -1198,16 +1198,7 @@ rxvt_term::new_tab () {
 
   try {
     newterm->init(args, envs);
-    // copy_hints(dpy, parent, tab);
-
-    next_tab(0);
-    // want_refresh = 1;
-    // newterm->scr_reset();
-    // newterm->display->flush();
-    // newterm->refresh_check();
-    // refresh_check();
-    // printf("tab initialized!\n");
-
+    switch_to_tab(termlist.size()-1, 0);
   } catch (const class rxvt_failure_exception &e) {
     printf("error while initializing new terminal instance!\n");
     newterm->destroy ();
@@ -1245,15 +1236,17 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   }
 
   // tab->want_refresh = 1;
-  tab->make_current();
-  tab->focus_in();
 
   // XWindowAttributes attr;
   // XGetWindowAttributes (dpy, tab->parent, &attr);
   // XSelectInput (dpy, tab->parent, PropertyChangeMask);
 
+  // tab->want_refresh = 1;
+  // tab->make_current();
+  // tab->focus_in();
+
   XMapWindow(dpy, tab->parent);
-  // XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
+  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
 }
 
@@ -1739,12 +1732,12 @@ rxvt_term::x_cb (XEvent &ev)
           focus_in ();
         break;
 
-      case FocusOut:
-        if (ev.xfocus.detail != NotifyInferior
-            && ev.xfocus.detail != NotifyPointer
-            && ev.xfocus.mode != NotifyGrab)
-          focus_out ();
-        break;
+      // case FocusOut:
+      //   if (ev.xfocus.detail != NotifyInferior
+      //       && ev.xfocus.detail != NotifyPointer
+      //       && ev.xfocus.mode != NotifyGrab)
+      //     focus_out ();
+      //   break;
 
       case ConfigureNotify:
         if (ev.xconfigure.window == parent)
