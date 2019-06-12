@@ -60,12 +60,20 @@ rxvt_t rxvt_current_term;
 
 static char curlocale[128], savelocale[128];
 
-static void
+static int
 rxvt_reassign_tab_indexes ()
 {
   int index = 0;
-  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++) {
+  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
     (*t)->tab_index = index++;
+  }
+  return index;
+}
+
+static void
+rxvt_set_as_main_parent (Window new_parent, int from_index) {
+  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+    if ((*t)->tab_index > from_index) (*t)->set_parent_window(new_parent, 0, 0);
   }
 }
 
@@ -204,7 +212,7 @@ rxvt_term::rxvt_term ()
 
   termlist.push_back (this);
   tab_index = termlist.size()-1;
-  printf("pushed new term instance. current term count: %d!\n", tab_index);
+  printf("pushed new term instance. current term count: %d\n", tab_index);
 
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;
@@ -226,9 +234,10 @@ rxvt_term::emergency_cleanup ()
 rxvt_term::~rxvt_term ()
 {
 
-  termlist.erase (find (termlist.begin (), termlist.end(), this));
-  rxvt_reassign_tab_indexes();
-  printf("destroying term instance. current term count: %d!\n", termlist.size());
+  termlist.erase (find (termlist.begin(), termlist.end(), this));
+  printf("destroying term instance. current term count: %d\n", termlist.size());
+
+  int count = rxvt_reassign_tab_indexes();
   emergency_cleanup ();
 
 #if HAVE_XPM
@@ -253,8 +262,7 @@ rxvt_term::~rxvt_term ()
   if (winbg != None) XFreePixmap(dpy, winbg);
 #endif
 
-  if (display)
-    {
+  if (display) {
       selection_clear ();
       selection_clear (true);
 
@@ -338,14 +346,10 @@ void
 rxvt_term::destroy ()
 {
 
-  if (tab_index == 0 && termlist.size() > 1)  {
-    printf("First tab, cannot destroy!\n");
-    return;
-  }
-
   if (destroy_ev.is_active ())
     return;
 
+  printf("calling destroy hook!\n");
   HOOK_INVOKE ((this, HOOK_DESTROY, DT_END));
 
   scr_overlay_off ();
@@ -381,6 +385,7 @@ rxvt_term::destroy ()
   pointer_ev.stop ();
 #endif
 
+  printf("stopped callbacks!\n");
   destroy_ev.start ();
 }
 
@@ -388,13 +393,27 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
-  // printf("destroy_cb called!\n");
+  printf("destroy_cb called!\n");
   make_current ();
 
   if (termlist.size() > 1) {
-    prev_tab(1);
+
+    if (tab_index == 0)  {
+      printf("First tab!\n");
+
+      rxvt_term * tab = termlist.at(1);
+      // printf("setting root as parent window of tab 1\n");
+      tab->set_parent_window(display->root, 10, 10);
+      // printf("setting tab 1 parent as parent of everyone else\n");
+      rxvt_set_as_main_parent(tab->parent, 1);
+      // return;
+    }
+
+    // prev_tab(1);
+    next_tab(1);
   }
 
+  printf("deleting term\n");
   delete this;
 }
 

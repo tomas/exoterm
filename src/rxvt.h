@@ -1298,8 +1298,9 @@ Pixmap icon_mask; //  = None;
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
   void new_tab ();
   void prev_tab (unsigned int closing);
-  void next_tab ();
+  void next_tab (unsigned int closing);
   void switch_to_tab(unsigned int index, unsigned int closing);
+  void set_parent_window(Window new_parent, int x, int y);
   void close_tab ();
   void update_tab_title (int index);
 

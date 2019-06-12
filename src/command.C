@@ -549,7 +549,7 @@ rxvt_term::key_press (XKeyEvent &ev)
                   if (keysym == XK_Left) {
                     return prev_tab(0);
                   } else if (keysym == XK_Right) {
-                    return next_tab();
+                    return next_tab(0);
                   }
                 }
 
@@ -715,7 +715,7 @@ rxvt_term::key_press (XKeyEvent &ev)
   if (meta && keysym == 122)  {
     return prev_tab(0);
   } else if (meta && keysym == 120)  {
-    return next_tab();
+    return next_tab(0);
   }
 
   if (HOOK_INVOKE ((this, HOOK_KEY_PRESS, DT_XEVENT, &ev, DT_INT, keysym, DT_STR_LEN, kbuf, len, DT_END)))
@@ -1091,7 +1091,6 @@ void
 rxvt_term::flush_cb (ev::timer &w, int revents)
 {
   make_current ();
-
   // printf("flush_cb: refresh_count is %d\n", refresh_count);
 
   refresh_count = 0;
@@ -1201,7 +1200,7 @@ rxvt_term::new_tab () {
     newterm->init(args, envs);
     // copy_hints(dpy, parent, tab);
 
-    next_tab();
+    next_tab(0);
     // want_refresh = 1;
     // newterm->scr_reset();
     // newterm->display->flush();
@@ -1215,6 +1214,11 @@ rxvt_term::new_tab () {
   }
 
   return;
+}
+
+void rxvt_term::set_parent_window(Window new_parent, int x, int y) {
+  printf(" --> setting new parent window of tab at %d\n", tab_index);
+  XReparentWindow(dpy, parent, new_parent, x, y);
 }
 
 void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
@@ -1233,17 +1237,24 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
   // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
 
-  // want_refresh = 1;
-  // copy_position(dpy, parent, tab->parent, 0, 0);
+  if (closing && tab_index == 0) {
+    // want_refresh = 1;
+    copy_position(dpy, parent, tab->parent, 0, 0);
+  }
 
   rxvt_term * root = termlist.at(0);
-  if (root != NULL) root->update_tab_title(index+1);
+  if (root != NULL) {
+    root->update_tab_title(index+1);
+  }
 
   // map new before removing current
-  if (tab_index > 0) XUnmapWindow(dpy, parent);
+  if (tab_index > 0) {
+    // printf("unmapping parent win\n");
+    XUnmapWindow(dpy, parent);
+  }
 
-  tab->want_refresh = 1;
-  tab->make_current();
+  // tab->want_refresh = 1;
+  // tab->make_current();
   tab->focus_in();
 
   // XWindowAttributes attr;
@@ -1251,25 +1262,25 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // XSelectInput (dpy, tab->parent, PropertyChangeMask);
 
   XMapWindow(dpy, tab->parent);
-  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
+  // XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
 }
 
 void rxvt_term::prev_tab(unsigned int closing) {
-  printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+  // printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx != tab_index) switch_to_tab(idx, 1);
+  if (idx != tab_index) switch_to_tab(idx, closing);
 }
 
-void rxvt_term::next_tab() {
-  printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
+void rxvt_term::next_tab(unsigned int closing) {
+  // printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
   unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
-  if (idx != tab_index) switch_to_tab(idx, 0);
+  if (idx != tab_index) switch_to_tab(idx, closing);
 }
 
 void rxvt_term::close_tab () {
-  printf("closing tab!\n");
-  destroy(); // calls prev_tab
+  printf("close_tab, calling destroy()!\n");
+  destroy();
 }
 
 void rxvt_term::update_tab_title(int index) {
