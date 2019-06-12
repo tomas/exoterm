@@ -1138,6 +1138,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   int old_width  = szHint.width;
   int old_height = szHint.height;
 
+  printf("resize with ignoreparent: %d all windows for term %d\n", ignoreparent, tab_index);
   window_calc (newwidth, newheight);
 
   bool set_hint = !HOOK_INVOKE ((this, HOOK_RESIZE_ALL_WINDOWS, DT_INT, newwidth, DT_INT, newheight, DT_END));
@@ -1193,11 +1194,20 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       else if (y == y1)       /* exact center */
         dy /= 2;
 
+      printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
+
       XMoveResizeWindow (dpy, parent, x + dx, y + dy,
                          szHint.width, szHint.height);
 #else
+      printf("resizing window to %dx%d\n", szHint.width, szHint.height);
       XResizeWindow (dpy, parent, szHint.width, szHint.height);
 #endif
+    } else {
+
+      for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+        XResizeWindow((*t)->dpy, (*t)->parent, szHint.width, szHint.height);
+      }
+
     }
 
   if (set_hint)
@@ -1206,12 +1216,14 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   fix_screen = ncol != prev_ncol || nrow != prev_nrow;
 
   if (fix_screen || newwidth != old_width || newheight != old_height) {
-      if (scrollBar.state)
-        scrollBar.resize ();
+      if (scrollBar.state) scrollBar.resize();
 
-      XMoveResizeWindow (dpy, vt,
-                         window_vt_x, window_vt_y,
-                         vt_width, vt_height);
+      printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
+      // XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
+
+      for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+        XMoveResizeWindow((*t)->dpy, (*t)->vt, window_vt_x, window_vt_y, vt_width, vt_height);
+      }
 
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 

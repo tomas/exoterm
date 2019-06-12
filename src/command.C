@@ -1230,13 +1230,6 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
 
   printf("switching from tab %d to tab %d\n", tab_index, index);
 
-  // TODO
-  // int tabheight = 24;
-  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight} + 1, $root->width, $root->height - $root->{tabheight});
-  // $tab->XMoveResizeWindow($tab->parent, 0, $root->{tabheight}, $root->width, $root->height - $root->{tabheight});
-  // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
-  // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
-
   rxvt_term * root = termlist.at(0);
   if (root != NULL) {
     root->update_tab_title(index+1);
@@ -1646,6 +1639,7 @@ rxvt_term::mouse_report (XButtonEvent &ev)
 void ecb_hot
 rxvt_term::x_cb (XEvent &ev)
 {
+
   make_current ();
 
   dLocal (Display *, dpy);
