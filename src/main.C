@@ -399,14 +399,10 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
   if (termlist.size() > 1) {
 
     if (tab_index == 0)  {
-      printf("First tab!\n");
-
       rxvt_term * tab = termlist.at(1);
-      // printf("setting root as parent window of tab 1\n");
-      tab->set_parent_window(display->root, 10, 10);
-      // printf("setting tab 1 parent as parent of everyone else\n");
+      tab->set_parent_window(display->root, 0, 0);
       rxvt_set_as_main_parent(tab->parent, 1);
-      // return;
+      XMapWindow(dpy, tab->parent);
     }
 
     // prev_tab(1);

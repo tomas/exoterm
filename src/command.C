@@ -1235,15 +1235,13 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     copy_position(dpy, parent, tab->parent, 0, 0);
   }
 
-  // tab->want_refresh = 1;
-
   // XWindowAttributes attr;
   // XGetWindowAttributes (dpy, tab->parent, &attr);
   // XSelectInput (dpy, tab->parent, PropertyChangeMask);
 
-  // tab->want_refresh = 1;
-  // tab->make_current();
-  // tab->focus_in();
+  focus_out();
+  tab->make_current(); // set as currently active (rxvt_current_term)
+  tab->focus_in(); // sets want_refresh
 
   XMapWindow(dpy, tab->parent);
   XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
