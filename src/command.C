@@ -1237,11 +1237,6 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // XMoveResizeWindow(dpy, tab, 0, tabheight + 1, vt_width, vt_height - tabheight);
   // XMoveResizeWindow(dpy, tab, 0, tabheight, vt_width, vt_height - tabheight);
 
-  if (closing && tab_index == 0) {
-    // want_refresh = 1;
-    copy_position(dpy, parent, tab->parent, 0, 0);
-  }
-
   rxvt_term * root = termlist.at(0);
   if (root != NULL) {
     root->update_tab_title(index+1);
@@ -1251,10 +1246,13 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   if (tab_index > 0) {
     // printf("unmapping parent win\n");
     XUnmapWindow(dpy, parent);
+  } else if (closing) {
+    // want_refresh = 1;
+    copy_position(dpy, parent, tab->parent, 0, 0);
   }
 
   // tab->want_refresh = 1;
-  // tab->make_current();
+  tab->make_current();
   tab->focus_in();
 
   // XWindowAttributes attr;
