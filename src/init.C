@@ -1036,6 +1036,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
   sn_display_unref (snDisplay);
 #endif
 
+  make_current();
   refresh_check ();
 }
 

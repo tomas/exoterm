@@ -788,15 +788,20 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
         }
 
-        // Ctrl + Shift + T
+        // Ctrl + T
         if (ctrl && (keysym == 116)) {
           new_tab();
           return;
         }
 
-        // Ctrl + Shift + R
+        // Ctrl + Q
         if (ctrl && (keysym == 113)) {
           close_tab();
+          return;
+        }
+
+        if (ctrl && (keysym == XK_Up)) {
+          detach_tab();
           return;
         }
 
@@ -1090,7 +1095,7 @@ rxvt_term::refresh_check ()
 void
 rxvt_term::flush_cb (ev::timer &w, int revents)
 {
-  make_current ();
+  // make_current ();
   // printf("flush_cb: refresh_count is %d\n", refresh_count);
 
   refresh_count = 0;
@@ -1113,8 +1118,6 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   XSetNormalHints(dpy, target, &my_hints);
 
   // printf("coords: %d/%d\n", x - xwa.x, y - xwa.y);
-  // status = XMoveWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y);
-  // status = XResizeWindow(dpy, target, xwa.width, xwa.height);
   status = XMoveResizeWindow(dpy, target, (x - xwa.x) + offset_x, (y - xwa.y) + offset_y, xwa.width, xwa.height);
   // printf("move window status: %d\n", status);
 }
@@ -1146,28 +1149,24 @@ void copy_hints(Display * dpy, Window src, Window target) {
   for (i = 0; i < n_prop; i++) {
     status = XGetWindowProperty(dpy, src, proplist[i], 0, 1<<24, 0, AnyPropertyType, &type, &format, &items, &bytes_after, &data);
 
-/*
-    fix up size hints
-    if ($atom == $wm_normal_hints) {
-      my (@hints) = unpack "l!*", $items;
-      $hints[$_] += $root->{tabheight} for (4, 6, 16);
-      $items = pack "l!*", @hints;
-    }
-*/
+    // fix up size hints
+    // if ($atom == $wm_normal_hints) {
+    //   my (@hints) = unpack "l!*", $items;
+    //   $hints[$_] += $root->{tabheight} for (4, 6, 16);
+    //   $items = pack "l!*", @hints;
+    // }
 
     if (proplist[i] == normal_hints) {
       printf("got normal hints\n");
     }
 
-/*
-    my $cur = delete $current->{$atom};
-
-    # update if changed, we assume empty items and zero type and format will not happen
-    $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
-       if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
-
-    $root->{current_properties}{$atom} = [$type, $format, $items];
-*/
+//    my $cur = delete $current->{$atom};
+//
+//    # update if changed, we assume empty items and zero type and format will not happen
+//    $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
+//       if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
+//
+//    $root->{current_properties}{$atom} = [$type, $format, $items];
 
     // int len = strlen((const char *)data);
     // int elemsize = format == 16 ? sizeof (short) : format == 32 ? sizeof (long) : 1;
@@ -1207,11 +1206,6 @@ rxvt_term::new_tab () {
   return;
 }
 
-void rxvt_term::set_parent_window(Window new_parent, int x, int y) {
-  printf(" --> setting new parent window of tab at %d\n", tab_index);
-  XReparentWindow(dpy, parent, new_parent, x, y);
-}
-
 void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   rxvt_term * tab = termlist.at(index);
   if (tab == NULL)  {
@@ -1222,16 +1216,17 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   printf("switching from tab %d to tab %d\n", tab_index, index);
 
   rxvt_term * root = termlist.at(0);
-  if (root != NULL) {
-    root->update_tab_title(index+1);
-  }
+  if (root) root->update_tab_title(index+1);
+
+  // ensure tab's size matches root's
+  XResizeWindow (dpy, tab->vt, root->vt_width, root->vt_height);
+  XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
 
   // map new before removing current
   if (tab_index > 0) {
     // printf("unmapping parent win\n");
     XUnmapWindow(dpy, parent);
   } else if (closing) {
-    // want_refresh = 1;
     copy_position(dpy, parent, tab->parent, 0, 0);
   }
 
@@ -1263,6 +1258,25 @@ void rxvt_term::next_tab(unsigned int closing) {
 void rxvt_term::close_tab () {
   printf("close_tab, calling destroy()!\n");
   destroy();
+}
+
+void rxvt_term::set_parent_window(Window new_parent, int x, int y) {
+  printf(" --> setting new parent window of tab at %d\n", tab_index);
+  XReparentWindow(dpy, parent, new_parent, x, y);
+}
+
+void rxvt_term::detach_tab () {
+  if (tab_index == 0) {
+    if (termlist.size() == 1) return; // nothing to do
+
+    rxvt_term * second = termlist.at(1);
+    second->detach_tab();
+    rxvt_set_as_main_parent(second->parent, 1);
+
+  } else {
+    // is_main = 1;
+    set_parent_window(display->root, 0, 0);
+  }
 }
 
 void rxvt_term::update_tab_title(int index) {
@@ -1465,7 +1479,7 @@ rxvt_term::pty_fill ()
 void
 rxvt_term::pty_cb (ev::io &w, int revents)
 {
-  make_current ();
+  // make_current ();
 
   if (revents & ev::READ)
     // loop, but don't allow a single term to monopolize us
@@ -1515,7 +1529,7 @@ rxvt_term::pointer_blank ()
 void ecb_cold
 rxvt_term::pointer_cb (ev::timer &w, int revents)
 {
-  make_current ();
+  // make_current ();
 
   pointer_blank ();
 }
@@ -1631,7 +1645,7 @@ void ecb_hot
 rxvt_term::x_cb (XEvent &ev)
 {
 
-  make_current ();
+  // make_current ();
 
   dLocal (Display *, dpy);
 
@@ -2130,7 +2144,7 @@ rxvt_term::update_fade_color (unsigned int idx, bool first_time)
 void ecb_hot
 rxvt_term::rootwin_cb (XEvent &ev)
 {
-  make_current ();
+  // make_current ();
 
   if (SHOULD_INVOKE (HOOK_ROOT_EVENT)
       && HOOK_INVOKE ((this, HOOK_ROOT_EVENT, DT_XEVENT, &ev, DT_END)))

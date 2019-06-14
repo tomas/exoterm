@@ -1302,6 +1302,7 @@ Pixmap icon_mask; //  = None;
   void switch_to_tab(unsigned int index, unsigned int closing);
   void set_parent_window(Window new_parent, int x, int y);
   void close_tab ();
+  void detach_tab ();
   void update_tab_title (int index);
 
   void cmdbuf_reify ();
@@ -1345,6 +1346,7 @@ Pixmap icon_mask; //  = None;
 
   void make_current () const // make this the "currently active" urxvt instance
   {
+    printf("making current: %d\n", tab_index);
     SET_R (this);
     set_environ (env);
     rxvt_set_locale (locale);
@@ -1593,6 +1595,13 @@ Pixmap icon_mask; //  = None;
   }
   void extract_keysym_resources ();
 };
+
+static void
+rxvt_set_as_main_parent (Window new_parent, int from_index) {
+  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+    if ((*t)->tab_index > from_index) (*t)->set_parent_window(new_parent, 0, 0);
+  }
+}
 
 #endif /* _RXVT_H_ */
 

@@ -61,8 +61,7 @@ rxvt_t rxvt_current_term;
 static char curlocale[128], savelocale[128];
 
 static int
-rxvt_reassign_tab_indexes ()
-{
+rxvt_reassign_tab_indexes () {
   int index = 0;
   for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
     (*t)->tab_index = index++;
@@ -70,12 +69,6 @@ rxvt_reassign_tab_indexes ()
   return index;
 }
 
-static void
-rxvt_set_as_main_parent (Window new_parent, int from_index) {
-  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
-    if ((*t)->tab_index > from_index) (*t)->set_parent_window(new_parent, 0, 0);
-  }
-}
 
 bool
 rxvt_set_locale (const char *locale) NOTHROW
@@ -325,7 +318,7 @@ rxvt_term::~rxvt_term ()
 #endif
 
   // printf("SET_R!\n");
-  SET_R ((rxvt_term *)0);
+  // SET_R ((rxvt_term *)0);
 }
 
 // child has exited, usually destroys
@@ -394,13 +387,13 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
   printf("destroy_cb called!\n");
-  make_current ();
+  // make_current ();
 
   if (termlist.size() > 1) {
 
     if (tab_index == 0)  {
       rxvt_term * tab = termlist.at(1);
-      tab->set_parent_window(display->root, 0, 0);
+      tab->detach_tab();
       rxvt_set_as_main_parent(tab->parent, 1);
       XMapWindow(dpy, tab->parent);
     }
@@ -1200,8 +1193,9 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 #endif
     } else {
 
-      for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
-        XResizeWindow((*t)->dpy, (*t)->parent, szHint.width, szHint.height);
+      // is current tab isn't the one that caught the resize event, update parent size
+      if (GET_R->tab_index != tab_index) {
+        XResizeWindow(GET_R->dpy, GET_R->parent, szHint.width, szHint.height);
       }
 
     }
@@ -1215,11 +1209,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       if (scrollBar.state) scrollBar.resize();
 
       printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
-      // XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
-
-      for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
-        XMoveResizeWindow((*t)->dpy, (*t)->vt, window_vt_x, window_vt_y, vt_width, vt_height);
-      }
+      XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
 
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
@@ -1808,7 +1798,7 @@ void
 rxvt_term::update_background_cb (ev::timer &w, int revents)
 {
 
-  make_current ();
+  // make_current ();
   update_background_ev.stop ();
   bg_render ();
   refresh_check ();
