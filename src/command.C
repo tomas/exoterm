@@ -1180,6 +1180,21 @@ void copy_hints(Display * dpy, Window src, Window target) {
   // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
 }
 
+size_t rxvt_term::get_current_path (char * buf, int size) {
+  // char *buf = NULL;
+  // int size = 256; // PATH_MAX
+
+  char proc_path[64];
+  sprintf(proc_path, "/proc/%d/cwd", cmd_pid);
+
+  // buf = (char *)malloc(size);
+  // size_t len = readlink(proc_path, buf, sizeof(buf)-1);
+  size_t len = readlink(proc_path, buf, size);
+
+  if (len > 0) buf[len] = '\0';
+  return len;
+}
+
 void
 rxvt_term::new_tab () {
   printf("Opening new tab\n");
@@ -1195,14 +1210,22 @@ rxvt_term::new_tab () {
   for (int v = 0; v < envv->size()-1; v++)
     envs->push_back (strdup(this->envv->at(v)));
 
+  // init path var to fetch current path
+  char * path;
+  int path_len = 128;
+  path = (char *) malloc(path_len);
+
   try {
+    get_current_path(path, path_len);
+    newterm->rs[Rs_chdir] = path;
     newterm->init(args, envs);
     switch_to_tab(termlist.size()-1, 0);
   } catch (const class rxvt_failure_exception &e) {
     printf("error while initializing new terminal instance!\n");
-    newterm->destroy ();
+    newterm->destroy();
   }
 
+  free(path);
   return;
 }
 

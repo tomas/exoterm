@@ -1296,6 +1296,7 @@ Pixmap icon_mask; //  = None;
   void refresh_check ();
   void flush ();
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
+  size_t get_current_path(char * buf, int size);
   void new_tab ();
   void prev_tab (unsigned int closing);
   void next_tab (unsigned int closing);
@@ -1346,7 +1347,7 @@ Pixmap icon_mask; //  = None;
 
   void make_current () const // make this the "currently active" urxvt instance
   {
-    printf("making current: %d\n", tab_index);
+    // printf("making current: %d\n", tab_index);
     SET_R (this);
     set_environ (env);
     rxvt_set_locale (locale);
