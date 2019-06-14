@@ -942,10 +942,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 {
 
   SET_R (this);
-  set_locale ("");
-  set_environ (env); // a few things in X do not call setlocale :(
-
-  // printf("init vars\n");
+  set_locale (""); // calls set_environ
   init_vars ();
 
   const char **cmd_argv = init_resources (argc, argv);
@@ -955,22 +952,20 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   if (const char *path = rs[Rs_chdir])
-    if (*path) // ignored if empty
-      {
+    if (*path) {
+        printf("changing to path: %s\n", path);
+
         if (*path != '/')
           rxvt_fatal ("specified shell working directory must start with a slash, aborting.\n");
 
-        if (chdir (path))
+        if (chdir(path))
           rxvt_fatal ("unable to change into specified shell working directory, aborting.\n");
       }
 
   if (option (Opt_scrollBar))
     scrollBar.state = SB_STATE_IDLE;    /* set existence for size calculations */
 
-  // printf("ptty create\n");
   pty = ptytty::create ();
-
-  // printf("create windows\n");
   create_windows (argc, argv);
 
   init_xlocale ();
@@ -1036,7 +1031,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
   sn_display_unref (snDisplay);
 #endif
 
-  make_current();
   refresh_check ();
 }
 
@@ -1142,7 +1136,7 @@ rxvt_term::set_locale (const char *locale)
 
 
   this->locale = strdup (this->locale);
-  SET_LOCALE (this->locale);
+  rxvt_set_locale (this->locale);
   mbstate.reset ();
 
 #if HAVE_NL_LANGINFO
