@@ -1530,7 +1530,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
       if (!XGetWindowAttributes (dpy, parent, &wattr))
         rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
 
-      printf("w/h: %d/%d\n", wattr.width, wattr.height);
+      // printf("w/h: %d/%d\n", wattr.width, wattr.height);
       window_calc (wattr.width, wattr.height);
   }
 #endif

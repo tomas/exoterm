@@ -783,8 +783,10 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
 
   szHint.width_inc  = fwidth;
   szHint.height_inc = fheight;
-  szHint.min_width  = szHint.base_width + szHint.width_inc;
-  szHint.min_height = szHint.base_height + szHint.height_inc;
+  // szHint.min_width  = szHint.base_width + szHint.width_inc;
+  szHint.min_width = fwidth * MIN_COLS + szHint.width_inc;
+  // szHint.min_height = szHint.base_height + szHint.height_inc;
+  szHint.min_height = fheight * MIN_ROWS + szHint.height_inc;
 
   if (newwidth && newwidth - szHint.base_width < max_width)
     {
