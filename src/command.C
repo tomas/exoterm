@@ -1669,7 +1669,6 @@ rxvt_term::x_cb (XEvent &ev)
 {
 
   // make_current ();
-
   dLocal (Display *, dpy);
 
   if (ev.xany.window == vt
@@ -1682,8 +1681,7 @@ rxvt_term::x_cb (XEvent &ev)
   int unused_root_x, unused_root_y;
   unsigned int unused_mask;
 
-  switch (ev.type)
-    {
+  switch (ev.type) {
       case KeyPress:
         scr_overlay_off();
         key_press (ev.xkey);
@@ -1763,16 +1761,19 @@ rxvt_term::x_cb (XEvent &ev)
       case FocusIn:
         if (ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
-            && ev.xfocus.mode != NotifyGrab)
-          focus_in ();
+            && ev.xfocus.mode != NotifyGrab) {
+          // focus_in ();
+          XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+          GET_R->focus_in ();
+        }
         break;
 
-      // case FocusOut:
-      //   if (ev.xfocus.detail != NotifyInferior
-      //       && ev.xfocus.detail != NotifyPointer
-      //       && ev.xfocus.mode != NotifyGrab)
-      //     focus_out ();
-      //   break;
+      case FocusOut:
+        if (ev.xfocus.detail != NotifyInferior
+            && ev.xfocus.detail != NotifyPointer
+            && ev.xfocus.mode != NotifyGrab)
+          GET_R->focus_out ();
+        break;
 
       case ConfigureNotify:
         if (ev.xconfigure.window == parent)
