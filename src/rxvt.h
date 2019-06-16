@@ -1504,6 +1504,7 @@ Pixmap icon_mask; //  = None;
   void scr_reset ();
   void scr_release () NOTHROW;
   void scr_clear (bool really = false) NOTHROW;
+  void scr_draw_bar() NOTHROW;
   void scr_refresh () NOTHROW;
   bool scr_refresh_rend (rend_t mask, rend_t value) NOTHROW;
   void scr_erase_screen (int mode) NOTHROW;

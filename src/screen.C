@@ -2128,6 +2128,17 @@ rxvt_term::scr_printscreen (int fullhist) NOTHROW
 #endif
 }
 
+void rxvt_term::scr_draw_bar() NOTHROW {
+  int bar_height = 3;
+  int bar_pos = vt_height-bar_height; // 0
+  XColor red;
+  Colormap colormap = DefaultColormap(dpy, 0);
+  XParseColor(dpy, colormap, "#FF0000", &red);
+  XAllocColor(dpy, colormap, &red);
+  XSetForeground(dpy, gc, red.pixel);
+  XFillRectangle (dpy, vt, gc, 0, bar_pos, vt_width, bar_height);
+}
+
 /* ------------------------------------------------------------------------- */
 /*
  * Refresh the screen
@@ -2322,7 +2333,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  // printf("ncol: %d, nrow: %d\n", ncol, nrow); 
+  // printf("ncol: %d, nrow: %d\n", ncol, nrow);
 
   /*
    * E: main pass across every character
@@ -2578,6 +2589,8 @@ rxvt_term::scr_refresh () NOTHROW
                           (unsigned int) (Height2Pixel (1) - 1));
         }
     }
+
+  // scr_draw_bar();
 
   /*
    * H: cleanup selection
