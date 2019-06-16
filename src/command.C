@@ -446,6 +446,7 @@ rxvt_term::key_press (XKeyEvent &ev)
 #endif
         {
           wchar_t wkbuf[KBUFSZ + 1];
+          memset(wkbuf, 0, KBUFSZ + 1);
 
           // the XOpenIM manpage lies about hardcoding the locale
           // at the point of XOpenIM, so temporarily switch locales
