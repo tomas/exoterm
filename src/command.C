@@ -1236,7 +1236,7 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     return;
   }
 
-  printf("switching from tab %d to tab %d\n", tab_index, index);
+  printf("switching from tab %d to tab %d (total: %d)\n", tab_index, index, termlist.size());
 
   rxvt_term * root = termlist.at(0);
   if (root) root->update_tab_title(index+1);

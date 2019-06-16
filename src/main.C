@@ -231,6 +231,11 @@ rxvt_term::~rxvt_term ()
   printf("destroying term instance. current term count: %d\n", termlist.size());
 
   int count = rxvt_reassign_tab_indexes();
+
+  // update tab title, since termlist.size() changed
+  rxvt_term * root = termlist.at(0);
+  root->update_tab_title(GET_R->tab_index+1);
+
   emergency_cleanup ();
 
 #if HAVE_XPM
