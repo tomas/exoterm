@@ -1019,8 +1019,7 @@ int parse_links(line_t * l, int in_link) {
 }
 
 void
-rxvt_term::flush ()
-{
+rxvt_term::flush () {
   flush_ev.stop ();
 
 #ifdef HAVE_IMG
@@ -1031,8 +1030,7 @@ rxvt_term::flush ()
     }
 #endif
 
-  if (want_refresh)
-    {
+  if (want_refresh) {
       if (1) // (SHOULD_INVOKE (HOOK_LINE_UPDATE))
         {
           int row = view_start;
@@ -1085,8 +1083,7 @@ rxvt_term::flush ()
 
 /* checks whether a refresh is requested and starts the refresh timer */
 void
-rxvt_term::refresh_check ()
-{
+rxvt_term::refresh_check () {
   if (want_refresh && !flush_ev.is_active ())
     flush_ev.start (1. / 60.); // refresh at max. 60 Hz normally
 
@@ -1759,25 +1756,43 @@ rxvt_term::x_cb (XEvent &ev)
           }
         break;
 
+      // notify modes
+      // NotifyNormal = 0;
+      // NotifyGrab = 1;
+      // NotifyUngrab = 2;
+      // NotifyWhileGrabbed = 3;
+
+      // notify detail
+      // NotifyAncestor = 0;
+      // NotifyVirtual = 1;
+      // NotifyInferior = 2;
+      // NotifyNonlinear = 3;
+      // NotifyNonlinearVirtual = 4;
+      // NotifyPointer = 5;
+      // NotifyPointerRoot = 6;
+      // NotifyDetailNone = 7;
+
       case FocusIn:
+        // printf("focus in, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
+
         if (tab_index == 0 && ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
             && ev.xfocus.mode != NotifyGrab
             && ev.xfocus.mode != NotifyUngrab) {
-              // focus_in ();
-              // printf("focus in, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
+              // printf("calling focus in, %d\n", GET_R->tab_index);
               XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
               GET_R->focus_in ();
             }
         break;
 
       case FocusOut:
+        // printf("focus out, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
+
         if (tab_index == 0 && ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
             && ev.xfocus.mode != NotifyGrab
             && ev.xfocus.mode != NotifyUngrab) {
-              // printf("focus out, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
-              focus_out ();
+              // printf("calling focus out, %d\n", GET_R->tab_index);
               GET_R->focus_out ();
             }
         break;
@@ -2051,7 +2066,7 @@ rxvt_term::x_cb (XEvent &ev)
 #endif
 
   // printf("loop done, refresh check\n");
-  refresh_check ();
+  GET_R->refresh_check ();
 }
 
 #if ENABLE_FRILLS
@@ -2112,8 +2127,8 @@ rxvt_term::focus_in ()
 void ecb_cold
 rxvt_term::focus_out ()
 {
-  if (focus)
-    {
+
+  if (focus) {
       focus = 0;
       want_refresh = 1;
 

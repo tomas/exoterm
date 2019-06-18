@@ -2158,8 +2158,7 @@ rxvt_term::scr_refresh () NOTHROW
   int cursorwidth;
 
   want_refresh = 0;        /* screen is current */
-
-  // printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
+  // printf("refreshing screen: %d %d (%d)\n", tab_index, refresh_type, mapped);
 
   if (refresh_type == NO_REFRESH || !mapped)
     return;
