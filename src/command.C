@@ -1759,20 +1759,26 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case FocusIn:
-        if (ev.xfocus.detail != NotifyInferior
+        if (tab_index == 0 && ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
-            && ev.xfocus.mode != NotifyGrab) {
-          // focus_in ();
-          XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
-          GET_R->focus_in ();
-        }
+            && ev.xfocus.mode != NotifyGrab
+            && ev.xfocus.mode != NotifyUngrab) {
+              // focus_in ();
+              // printf("focus in, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
+              XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+              GET_R->focus_in ();
+            }
         break;
 
       case FocusOut:
-        if (ev.xfocus.detail != NotifyInferior
+        if (tab_index == 0 && ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
-            && ev.xfocus.mode != NotifyGrab)
-          GET_R->focus_out ();
+            && ev.xfocus.mode != NotifyGrab
+            && ev.xfocus.mode != NotifyUngrab) {
+              // printf("focus out, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
+              focus_out ();
+              GET_R->focus_out ();
+            }
         break;
 
       case ConfigureNotify:
