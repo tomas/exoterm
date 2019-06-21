@@ -2582,7 +2582,8 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button2:
             selection_make (ev.time);
 
-            if (selection.len > 0
+            if (CHAR_AT(ev.x, ev.y) != ' '
+             && selection.len > 0
              && selection.end.col > 0
              && selection.text[0] == 'h'
              && selection.text[1] == 't'
