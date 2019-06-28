@@ -4770,7 +4770,7 @@ support_combining=yes
 support_8bitctrls=no
 support_iso14755=no
 support_styles=yes
-support_perl=yes
+support_perl=no
 codesets=all
 
 
