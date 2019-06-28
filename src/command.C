@@ -1120,64 +1120,6 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   // printf("move window status: %d\n", status);
 }
 
-void copy_hints(Display * dpy, Window src, Window target) {
-
-  // change input, from tab_start in perl script
-  // XWindowAttributes attr;
-  // XGetWindowAttributes(dpy, win, &attr);
-  // XSelectInput(dpy, win, PropertyChangeMask);
-
-  // my $wm_normal_hints = $root->XInternAtom ("WM_NORMAL_HINTS");
-  // my $current = delete $root->{current_properties};
-  Atom normal_hints = XInternAtom(dpy, "WM_NORMAL_HINTS", 1);
-
-  // pass 1: copy over properties different or nonexisting
-  // for my $atom ($tab->XListProperties ($tab->parent)) {
-  //   my ($type, $format, $items) = $root->XGetWindowProperty ($tab->parent, $atom);
-
-  Atom *proplist;
-  int i, n_prop = 0;
-  proplist = XListProperties(dpy, src, &n_prop);
-
-  Atom prop, type;
-  int status, format;
-  unsigned long items, bytes_after;
-  unsigned char *data = NULL;
-
-  for (i = 0; i < n_prop; i++) {
-    status = XGetWindowProperty(dpy, src, proplist[i], 0, 1<<24, 0, AnyPropertyType, &type, &format, &items, &bytes_after, &data);
-
-    // fix up size hints
-    // if ($atom == $wm_normal_hints) {
-    //   my (@hints) = unpack "l!*", $items;
-    //   $hints[$_] += $root->{tabheight} for (4, 6, 16);
-    //   $items = pack "l!*", @hints;
-    // }
-
-    if (proplist[i] == normal_hints) {
-      printf("got normal hints\n");
-    }
-
-//    my $cur = delete $current->{$atom};
-//
-//    # update if changed, we assume empty items and zero type and format will not happen
-//    $root->XChangeProperty ($root->parent, $atom, $type, $format, $items)
-//       if $cur->[0] != $type or $cur->[1] != $format or $cur->[2] ne $items;
-//
-//    $root->{current_properties}{$atom} = [$type, $format, $items];
-
-    // int len = strlen((const char *)data);
-    // int elemsize = format == 16 ? sizeof (short) : format == 32 ? sizeof (long) : 1;
-    // printf("len: %d, elemsize: %d\n", len, elemsize);
-    // int success = XChangeProperty(dpy, target, proplist[i], type, format, PropModeReplace, data, len / elemsize);
-  }
-
-  XFree(proplist);
-
-  // pass 2, delete all extraneous properties
-  // $root->XDeleteProperty ($root->parent, $_) for keys %$current;
-}
-
 size_t rxvt_term::get_current_path (char * buf, int size) {
   // char *buf = NULL;
   // int size = 256; // PATH_MAX
@@ -1195,7 +1137,7 @@ size_t rxvt_term::get_current_path (char * buf, int size) {
 
 void
 rxvt_term::new_tab () {
-  printf("Opening new tab\n");
+  // printf("Opening new tab\n");
   rxvt_term *newterm = new rxvt_term();
 
   // make a copy of args and envs from current tab
@@ -1277,7 +1219,7 @@ void rxvt_term::next_tab(unsigned int closing) {
 }
 
 void rxvt_term::close_tab () {
-  printf("close_tab, calling destroy()!\n");
+  // printf("close_tab, calling destroy()!\n");
   destroy();
 }
 

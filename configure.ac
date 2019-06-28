@@ -845,12 +845,12 @@ if test x$RESFALLBACK != x; then
 fi
 
 echo
-echo "  embedded perl:              $support_perl"
+echo "  embedded perl:              $support_perl (for extensions)"
 echo "  pixbuf support:             $image_lib (for background images)"
-echo "  XPM support:                $support_xpm"
+echo "  XPM support:                $support_xpm (for icon)"
 echo "  XFT support:                $support_xft (required for real transparency)"
 echo "  Inherit pixmap:             $support_inheritpixmap"
-echo "  Xrender support:            $rxvt_have_xrender"
+echo "  Xrender support:            $rxvt_have_xrender (for bgimg, effects and real transparency)"
 echo
 if test x$support_xim = xyes -a x$rxvt_cv_func_xlocale = xno; then
   echo ".----------------------------------------------------------------."

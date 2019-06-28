@@ -347,7 +347,7 @@ rxvt_term::destroy ()
   if (destroy_ev.is_active ())
     return;
 
-  printf("calling destroy hook!\n");
+  // printf("calling destroy hook!\n");
   HOOK_INVOKE ((this, HOOK_DESTROY, DT_END));
 
   scr_overlay_off ();
@@ -383,7 +383,7 @@ rxvt_term::destroy ()
   pointer_ev.stop ();
 #endif
 
-  printf("stopped callbacks!\n");
+  // printf("stopped callbacks!\n");
   destroy_ev.start ();
 }
 
@@ -391,7 +391,7 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
-  printf("destroy_cb called!\n");
+  // printf("destroy_cb called!\n");
   // make_current ();
 
   if (termlist.size() > 1) {
@@ -407,7 +407,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
     next_tab(1);
   }
 
-  printf("deleting term\n");
+  // printf("deleting term\n");
   delete this;
 }
 
@@ -658,10 +658,9 @@ rxvt_get_ttymode (struct termios *tio)
 char **rxvt_environ; // startup environment
 
 void
-rxvt_init ()
-{
-  printf("main rxvt_init()\n");
+rxvt_init () {
 
+  // printf("main rxvt_init()\n");
   assert (("fontMask must not overlap other RS masks",
            0 == (RS_fontMask & (RS_Sel | RS_baseattrMask | RS_customMask | RS_bgMask | RS_fgMask))));
 
@@ -1229,7 +1228,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
     }
 
   if (fix_screen || old_height == 0) {
-    printf("scr_reset on resizing\n");
+    // printf("scr_reset on resizing\n");
     scr_reset ();
   }
 
