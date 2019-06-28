@@ -3218,7 +3218,7 @@ rxvt_term::selection_delimit_word (enum page_dirn dirn, const row_col_t *mark, r
 void ecb_cold
 rxvt_term::selection_extend (int x, int y, int flag) NOTHROW
 {
-  int col = clamp (Pixel2Col (x), 0, ncol);
+  int col = clamp (Pixel2Col (x + (fwidth/2)), 0, ncol);
   int row = clamp (Pixel2Row (y), 0, nrow - 1);
 
   /*
