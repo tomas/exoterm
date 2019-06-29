@@ -772,9 +772,14 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   max_width = MAX_COLS * fwidth;
   max_height = MAX_ROWS * fheight;
 
-  szHint.base_width = szHint.base_height = 2 * int_bwidth;
-
+  szHint.base_width = 2 * int_bwidth;
+  szHint.base_height = 1.7 * int_bwidth;
   window_vt_x = window_vt_y = int_bwidth;
+
+  // only add padding if internal width is zero
+  int padding = int_bwidth == 0 ? 3 : 0;
+  szHint.base_height += TAB_BAR_HEIGHT + padding;
+  window_vt_y += TAB_BAR_HEIGHT + padding;
 
   if (scrollBar.state)
     {
@@ -787,10 +792,13 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
 
   szHint.width_inc  = fwidth;
   szHint.height_inc = fheight;
+
   // szHint.min_width  = szHint.base_width + szHint.width_inc;
   szHint.min_width = fwidth * MIN_COLS + szHint.width_inc;
   // szHint.min_height = szHint.base_height + szHint.height_inc;
   szHint.min_height = fheight * MIN_ROWS + szHint.height_inc;
+
+  // printf("base_height: %d, height inc: %d, height: %d\n", szHint.base_height, szHint.height_inc, height);
 
   if (newwidth && newwidth - szHint.base_width < max_width)
     {
@@ -831,6 +839,8 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   // vt window so as to avoid creating gaps.
   vt_width  = ncol * fwidth;
   vt_height = nrow * fheight;
+
+  printf("vt_height: %d, height: %d, nrow: %d, window_vt_y: %d\n", vt_height, height, nrow, window_vt_y);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1133,7 +1143,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   int old_width  = szHint.width;
   int old_height = szHint.height;
 
-  printf("resize with ignoreparent: %d all windows for term %d\n", ignoreparent, tab_index);
+  // printf("resize with ignoreparent: %d all windows for term %d\n", ignoreparent, tab_index);
   window_calc (newwidth, newheight);
 
   bool set_hint = !HOOK_INVOKE ((this, HOOK_RESIZE_ALL_WINDOWS, DT_INT, newwidth, DT_INT, newheight, DT_END));

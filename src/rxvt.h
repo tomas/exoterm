@@ -49,6 +49,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 
 #include "feature.h"
 
+#define TAB_BAR_HEIGHT 2
+
 #if ENABLE_PERL
 # define ENABLE_FRILLS    1
 # define ENABLE_COMBINING 1

@@ -2129,14 +2129,36 @@ rxvt_term::scr_printscreen (int fullhist) NOTHROW
 }
 
 void rxvt_term::scr_draw_bar() NOTHROW {
-  int bar_height = 3;
-  int bar_pos = vt_height-bar_height; // 0
-  XColor red;
-  Colormap colormap = DefaultColormap(dpy, 0);
-  XParseColor(dpy, colormap, "#FF0000", &red);
-  XAllocColor(dpy, colormap, &red);
-  XSetForeground(dpy, gc, red.pixel);
-  XFillRectangle (dpy, vt, gc, 0, bar_pos, vt_width, bar_height);
+  int bar_height = TAB_BAR_HEIGHT;
+  int bar_pos = 0; // (vt_height-bar_height);
+
+  XVisualInfo vinfo;
+  XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
+  Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
+
+  XColor focused, unfocused;
+  XParseColor(dpy, cm, "#6b77bf", &focused);
+  XAllocColor(dpy, cm, &focused);
+  XParseColor(dpy, cm, "#2f3452", &unfocused);
+  XAllocColor(dpy, cm, &unfocused);
+
+  int i = 0;
+  int tab_width = (width + int_bwidth * 2)/termlist.size();
+  // printf("termlist: %d, tab_width: %d\n", termlist.size(), tab_width);
+
+  for (i = 0; i < termlist.size(); i++) {
+    if (tab_index == i)
+      XSetForeground(dpy, gc, focused.pixel);
+    else
+      XSetForeground(dpy, gc, unfocused.pixel);
+
+    // XSetForeground (dpy, gc, lookup_color(Color_underline, pix_colors));
+    XFillRectangle (dpy, parent, gc, i * tab_width, bar_pos, tab_width, bar_height);
+  }
+
+  XFreeColormap(dpy, cm);
+  // XFreeColors(dpy, colormap, &focused.pixel, 1, 0);
+  // XFreeColors(dpy, colormap, &unfocused.pixel, 1, 0);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2589,7 +2611,7 @@ rxvt_term::scr_refresh () NOTHROW
         }
     }
 
-  // scr_draw_bar();
+  scr_draw_bar();
 
   /*
    * H: cleanup selection
