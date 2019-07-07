@@ -41,7 +41,16 @@ TODO: üpixel droppins idenrasm,ll,scrollup
 TODO: cuu/cud and probably others default to 1 when arg is 0, not just missing, in xterm/vt102, but not in rxvt
 TODO: implement xterms nih 1006 mouse mode because the fud campaign against urxvt's 1015 mode works.
 
-TODO: fix ESC G reply forever, or simply completely disable it?
+TODO: confirm-pastes should check for any ctl
+TODO: confirm-paste should be the default
+TODO: bracketed paste mode pastes ^[[200~ etc. into incremental-search inputs
+	- drop ISO 2022 locale support. ISO 2022 encodings are not supported in
+          POSIX locales and clash with vt100 charset emulation.
+        - ESC G (query rxvt graphics mode) has been disabled due to security
+          implications. The rxvt graphics mode was removed in rxvt-unicode 1.5,
+          and no programs relying on being able to query the mode are known.
+	- work around API change breakage in perl 5.28, based on a patch by
+          Roman Bogorodskiy.
 	- improved security: rob nation's (obsolete) graphics mode queries
           no longer reply with linefeed in secure/default mode.
 	- ISO 8613-3 direct colour SGR sequences (patch by Fengguang Wu).
@@ -63,6 +72,10 @@ TODO: fix ESC G reply forever, or simply completely disable it?
 	  switch to the new bg image interface (see man urxvt-background).
         - expose priv_modes member and constants to perl extensions
           (patch by Rastislav Barlik).
+        - fix a whole slew of const sillyness, unfortunately forced upon
+          us by ISO C++.
+        - update to libecb 0x00010006.
+        - disable all thread support in ecb.h as we presumably don't need it.
 
 9.22 Sat Jan 23 21:07:33 CET 2016
 	- NOTICE: this release updates terminfo.
