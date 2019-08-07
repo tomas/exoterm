@@ -1184,7 +1184,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   // rxvt_img *root_img;
   // image_effects root_effects;
   Pixmap root_img;
-  Pixmap winbg = None;
+  Pixmap winbg; // = None;
 
   void render_root_image ();
 # endif
