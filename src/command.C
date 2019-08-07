@@ -1120,18 +1120,24 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   // printf("move window status: %d\n", status);
 }
 
-size_t rxvt_term::get_current_path (char * buf, int size) {
-  // char *buf = NULL;
+size_t rxvt_term::get_current_path(char * buf, int size) {
   // int size = 256; // PATH_MAX
 
   char proc_path[64];
   sprintf(proc_path, "/proc/%d/cwd", cmd_pid);
-
-  // buf = (char *)malloc(size);
-  // size_t len = readlink(proc_path, buf, sizeof(buf)-1);
   size_t len = readlink(proc_path, buf, size);
 
-  if (len > 0) buf[len] = '\0';
+  if (len == -1) { // permission error, fall back to getcwd
+    char * res = getcwd(buf, size);
+    if (res == NULL) {
+      return -1;
+    }
+
+    len = strlen(buf);
+  } else if (len > 0) {
+    buf[len] = '\0';
+  }
+
   return len;
 }
 
@@ -1157,6 +1163,7 @@ rxvt_term::new_tab () {
 
   try {
     get_current_path(path, path_len);
+    // printf("current path is %s (%d)\n", path, path_len);
     newterm->rs[Rs_chdir] = path;
     newterm->init(args, envs);
     switch_to_tab(termlist.size()-1, 0);
