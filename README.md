@@ -69,6 +69,7 @@ Here's an example:
     URxvt.scrollstyle: plain
     URxvt.internalBorder: 0
     URxvt.externalBorder: 0
+    URxvt.borderLess: false
 
     ! more scrolling
     URxvt.jumpScroll: true                                                   
@@ -90,3 +91,12 @@ Here's an example:
     ! prev/next tab for tabbedex
     URxvt.keysym.Meta-z: tabbedex:prev_tab
     URxvt.keysym.Meta-x: tabbedex:next_tab
+
+To remove borders if using JWM, add this to your jwmrc:
+
+    <Group>
+      <Class>URxvt</Class>
+      <Option>noborder</Option>
+      <Option>notitle</Option>
+    </Group>
+
