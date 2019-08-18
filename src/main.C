@@ -779,7 +779,7 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   // only add padding if internal width is zero
   int padding = int_bwidth == 0 ? 3 : 0;
   szHint.base_height += TAB_BAR_HEIGHT + padding;
-  window_vt_y += TAB_BAR_HEIGHT + padding;
+  window_vt_y += TAB_BAR_HEIGHT + padding - 1;
 
   if (scrollBar.state)
     {
