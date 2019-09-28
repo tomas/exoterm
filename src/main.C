@@ -840,7 +840,8 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   vt_width  = ncol * fwidth;
   vt_height = nrow * fheight;
 
-  printf("vt_height: %d, height: %d, nrow: %d, window_vt_y: %d\n", vt_height, height, nrow, window_vt_y);
+  // printf("vt_width: %d, width: %d, ncol: %d, window_vt_x: %d\n", vt_width, width, ncol, window_vt_x);
+  // printf("vt_height: %d, height: %d, nrow: %d, window_vt_y: %d\n", vt_height, height, nrow, window_vt_y);
 }
 
 /*----------------------------------------------------------------------*/
