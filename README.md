@@ -42,6 +42,9 @@ Here's an example:
     URxvt.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
     URxvt.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
+    ! URxvt.locale: true
+    ! URxvt.skipBuiltinGlyphs: true
+
     ! to disable iso14755 mode
     URxvt.iso14755: false
     URxvt.iso14755_52: false
@@ -87,10 +90,6 @@ Here's an example:
 
     ! scroll back to the bottom on keypress
     URxvt.scrollTtyKeypress: true
-
-    ! prev/next tab for tabbedex
-    URxvt.keysym.Meta-z: tabbedex:prev_tab
-    URxvt.keysym.Meta-x: tabbedex:next_tab
 
 To remove borders if using JWM, add this to your jwmrc:
 
