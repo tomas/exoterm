@@ -2,9 +2,12 @@
 
 Install the following if on Ubuntu or use equivalent on other OSes:
 
-    sudo apt install libperl-dev libxft-dev
+    sudo apt install libperl-dev libxft-dev libxrender-dev
 
-Clone libev (Or libevent) and libptytty into working directory of this repo.
+Initialize submodules:
+
+    git submodule init
+    git submodule update
 
 Configure with:
 
