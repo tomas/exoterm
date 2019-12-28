@@ -6513,6 +6513,8 @@ $as_echo "#define HAVE_XPM 1" >>confdefs.h
 
 
   else
+    support_xpm=no
+
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
     :
