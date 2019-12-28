@@ -75,7 +75,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 #include <X11/Xatom.h>
 
 #if HAVE_XPM
-#include "icon.h"
+// #include "icon_16.h"
+#include "icon_256.h"
 #include <X11/xpm.h>
 #endif
 
