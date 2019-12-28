@@ -1466,6 +1466,24 @@ done:
 
 /*----------------------------------------------------------------------*/
 /* Open and map the window */
+
+/*
+void set_wm_name(Display * display, Window win, char * name) {
+  XTextProperty tp;
+  char *props[1];
+
+  props[0] = name;
+
+  if (!XStringListToTextProperty (props, 1, &tp)) {
+    printf("Failed to convert text property\n");
+    return;
+  }
+
+  XSetWMName (display, win, &tp);
+  XFree (tp.value);
+}
+*/
+
 void
 rxvt_term::create_windows (int argc, const char *const *argv)
 {
@@ -1534,6 +1552,15 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   attributes.border_pixel     = lookup_color(Color_border, pix_colors_focused);
   attributes.colormap         = cmap;
 
+  classHint.res_name  = (char *)rs[Rs_name];
+  classHint.res_class = (char *)RESCLASS;
+
+  wmHint.flags         = InputHint | StateHint | WindowGroupHint;
+  wmHint.input         = True;
+  wmHint.initial_state = option (Opt_iconic) ? IconicState
+                         : option (Opt_dockapp) ? WithdrawnState
+                         : NormalState;
+
   top = XCreateWindow (dpy, parent,
                        szHint.x, szHint.y,
                        szHint.width, szHint.height,
@@ -1543,29 +1570,19 @@ rxvt_term::create_windows (int argc, const char *const *argv)
                        &attributes);
 
   this->parent = top;
-  update_tab_title(1);
-  set_icon_name (rs [Rs_iconName]);
-
-  classHint.res_name  = (char *)rs[Rs_name];
-  classHint.res_class = (char *)RESCLASS;
-
-  wmHint.flags         = InputHint | StateHint | WindowGroupHint;
-  wmHint.input         = True;
-  wmHint.initial_state = option (Opt_iconic) ? IconicState
-                         : option (Opt_dockapp) ? WithdrawnState
-                         : NormalState;
   wmHint.window_group  = top;
 
   XmbSetWMProperties (dpy, top, NULL, NULL, (char **)argv, argc,
                       &szHint, &wmHint, &classHint);
-#if ENABLE_EWMH
-  /*
-   * set up icon hint
-   * rs [Rs_iconfile] is path to icon
-   */
 
+  update_tab_title(1);
+  set_icon_name (rs [Rs_iconName]);
+  // set_wm_name(dpy, top, "test");
+  // XSetIconName(dpy, top, "test");
+
+#if ENABLE_EWMH
   if (rs [Rs_iconfile])
-    set_icon (rs [Rs_iconfile]);
+    set_icon (rs [Rs_iconfile]); // rs [Rs_iconfile] is path to icon
   else
     set_default_icon();
 #else
