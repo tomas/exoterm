@@ -2,7 +2,7 @@
 
 Install the following if on Ubuntu or use equivalent on other OSes:
 
-    sudo apt install libperl-dev libxft-dev libxrender-dev
+    sudo apt install libperl-dev libxpm-dev libxft-dev libxrender-dev
 
 Initialize submodules:
 
