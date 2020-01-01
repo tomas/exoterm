@@ -478,8 +478,8 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
               break;
 
             default:
-              XDrawRectangle (disp, d, gc, x + 2, y + 2,
-                              fwidth - 4, term->fheight - 4);
+              XDrawRectangle (disp, d, gc, x + 1, y + 2,
+                              fwidth - 3, term->fheight - 9);
           }
 
       x += fwidth;
