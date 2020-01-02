@@ -337,7 +337,7 @@ AC_ARG_ENABLE(8bitctrls,
     support_8bitctrls=$enableval
   fi])
 
-RESFALLBACK=Rxvt
+RESFALLBACK=URxvt
 AC_ARG_ENABLE(fallback,
   [  --enable-fallback@<:@=CLASS@:>@ fall back on CLASS resources in addition to URxvt ones (default: Rxvt)],
   [
@@ -350,13 +350,13 @@ if test x$RESFALLBACK != x; then
    AC_DEFINE_UNQUOTED(RESFALLBACK, "$RESFALLBACK", [Fallback resource class])
 fi
 
-RESNAME=urxvt
+RESNAME=exoterm
 AC_ARG_WITH(res-name,
   [  --with-res-name=NAME    use this as default resource name (default: urxvt)],
   [RESNAME="$withval"])
 AC_DEFINE_UNQUOTED(RESNAME,"$RESNAME", [Default resource name])
 
-RESCLASS=URxvt
+RESCLASS=Exoterm
 AC_ARG_WITH(res-class,
   [  --with-res-class=CLASS  use this as the resource class (default: URxvt)],
   [RESCLASS="$withval"])

@@ -5082,7 +5082,7 @@ if test "${enable_8bitctrls+set}" = set; then :
 fi
 
 
-RESFALLBACK=Rxvt
+RESFALLBACK=URxvt
 # Check whether --enable-fallback was given.
 if test "${enable_fallback+set}" = set; then :
   enableval=$enable_fallback;
@@ -5101,7 +5101,7 @@ _ACEOF
 
 fi
 
-RESNAME=urxvt
+RESNAME=exoterm
 
 # Check whether --with-res-name was given.
 if test "${with_res_name+set}" = set; then :
@@ -5114,7 +5114,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-RESCLASS=URxvt
+RESCLASS=Exoterm
 
 # Check whether --with-res-class was given.
 if test "${with_res_class+set}" = set; then :
@@ -5127,7 +5127,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-RXVTNAME=urxvt
+RXVTNAME=exoterm
 
 # Check whether --with-name was given.
 if test "${with_name+set}" = set; then :
