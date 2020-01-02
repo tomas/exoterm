@@ -2,9 +2,12 @@
 
 Install the following if on Ubuntu or use equivalent on other OSes:
 
-    sudo apt install libperl-dev libxft-dev
+    sudo apt install libperl-dev libxpm-dev libxft-dev libxrender-dev
 
-Clone libev (Or libevent) and libptytty into working directory of this repo.
+Initialize submodules:
+
+    git submodule init
+    git submodule update
 
 Configure with:
 
@@ -27,12 +30,14 @@ Here's an example:
     ! URxvt.display: :0
     ! URxvt.termName: rxvt-unicode
     ! URxvt.chdir: /home/tomas 
+    ! URxvt.locale: true
     URxvt.loginShell: true
 
     ! geometry and cursor
     URxvt.foreground: #fff
     URxvt.geometry: 100x25
     URxvt.cursorColor: #ff6600
+    ! URxvt.skipBuiltinGlyphs: true
 
     ! font: tamzen 8x16
     URxvt.font: -misc-tamzen-medium-r-normal--16-116-100-100-c-80-iso8859-1
@@ -42,9 +47,9 @@ Here's an example:
     URxvt.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
     URxvt.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
-    ! to disable iso14755 mode
-    URxvt.iso14755: false
-    URxvt.iso14755_52: false
+    ! or terminus 8x16 powerline
+    URxvt.font: -xos4-terminesspowerline-medium-r-normal--16-160-72-72-c-80-iso10646-1
+    URxvt.boldFont: -xos4-terminesspowerline-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
     ! fake transparent background    
     URxvt.inheritPixmap: true
@@ -58,23 +63,18 @@ Here's an example:
     URxvt.depth: 32
     URxvt.background: rgba:0000/0000/0800/c800
 
-    ! enable URL highlight plugin 
-    URxvt.perl-ext-common: default,matcher
-    URxvt.urlLauncher: xdg-open
-    URxvt.colorUL: #ff6600
+    ! borders
+    URxvt.internalBorder: 0
+    URxvt.externalBorder: 0
+    URxvt.borderLess: false
 
     ! scrolling 
     URxvt.saveLines: 10000
     URxvt.scrollBar: false
     URxvt.scrollstyle: plain
-    URxvt.internalBorder: 0
-    URxvt.externalBorder: 0
-
-    ! more scrolling
     URxvt.jumpScroll: true                                                   
     URxvt.skipScroll: true
     URxvt.mouseWheelScrollPage: false
-
     URxvt.secondaryScroll: true
     URxvt.secondaryScreen: false
 
@@ -87,6 +87,27 @@ Here's an example:
     ! scroll back to the bottom on keypress
     URxvt.scrollTtyKeypress: true
 
-    ! prev/next tab for tabbedex
-    URxvt.keysym.Meta-z: tabbedex:prev_tab
-    URxvt.keysym.Meta-x: tabbedex:next_tab
+## Misc
+
+To fetch Terminus Powerline fonts:
+
+    wget https://github.com/powerline/fonts/raw/master/Terminus/PCF/ter-powerline-x16b.pcf.gz
+    wget https://github.com/powerline/fonts/raw/master/Terminus/PCF/ter-powerline-x16n.pcf.gz
+
+To install them:
+
+    fonts_dir=/usr/share/fonts/X11/misc
+    sudo cp ter-powerline-x16b.pcf.gz ter-powerline-x16n.pcf.gz $fonts_dir
+    sudo mkfontdir $fonts_dir
+    xset +fp $fonts_dir
+
+And make sure that $fonts_dir is in /etc/X11/xorg.conf in the FontPath section.
+
+To remove borders if using JWM, add this to your jwmrc:
+
+    <Group>
+      <Class>URxvt</Class>
+      <Option>noborder</Option>
+      <Option>notitle</Option>
+    </Group>
+

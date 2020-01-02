@@ -98,7 +98,7 @@ support_combining=yes
 support_8bitctrls=no
 support_iso14755=no
 support_styles=yes
-support_perl=yes
+support_perl=no
 codesets=all
 
 dnl# --------------------------------------------------------------------------
@@ -845,12 +845,12 @@ if test x$RESFALLBACK != x; then
 fi
 
 echo
-echo "  embedded perl:              $support_perl"
-echo "  image library:              $image_lib"
-echo "  XPM support:                $support_xpm"
-echo "  XFT support:                $support_xft (required for real transparency)"
+echo "  embedded perl:              $support_perl (required for extensions)"
+echo "  pixbuf support:             $image_lib (required for background images)"
+echo "  XPM support:                $support_xpm (required for icon)"
+echo "  XFT support:                $support_xft (for antialiased fonts and real transparency)"
 echo "  Inherit pixmap:             $support_inheritpixmap"
-echo "  Xrender support:            $rxvt_have_xrender"
+echo "  Xrender support:            $rxvt_have_xrender (for bgimg, effects and real transparency)"
 echo
 if test x$support_xim = xyes -a x$rxvt_cv_func_xlocale = xno; then
   echo ".----------------------------------------------------------------."

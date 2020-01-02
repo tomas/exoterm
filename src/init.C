@@ -302,8 +302,8 @@ static const char *const def_colorName[] =
 
     "rgb:ee/ee/ee",    // foreground
     "rgb:15/15/15",    // background
-    "rgb:15/15/15",    // 0: black             (Black)  
-    "rgb:ff/86/b7",    // 1: red               (Red3) 
+    "rgb:15/15/15",    // 0: black             (Black)
+    "rgb:ff/86/b7",    // 1: red               (Red3)
     "rgb:1b/f0/c2",    // 2: green             (Green3)
     "rgb:dd/c1/6f",    // 3: yellow            (Yellow3)
     "rgb:6e/cc/ff",    // 4: blue              (Blue3)
@@ -942,10 +942,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 {
 
   SET_R (this);
-  set_locale ("");
-  set_environ (env); // a few things in X do not call setlocale :(
-
-  // printf("init vars\n");
+  set_locale (""); // calls set_environ
   init_vars ();
 
   const char **cmd_argv = init_resources (argc, argv);
@@ -955,22 +952,20 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   if (const char *path = rs[Rs_chdir])
-    if (*path) // ignored if empty
-      {
+    if (*path) {
+        printf("changing to path: %s\n", path);
+
         if (*path != '/')
           rxvt_fatal ("specified shell working directory must start with a slash, aborting.\n");
 
-        if (chdir (path))
+        if (chdir(path))
           rxvt_fatal ("unable to change into specified shell working directory, aborting.\n");
       }
 
   if (option (Opt_scrollBar))
     scrollBar.state = SB_STATE_IDLE;    /* set existence for size calculations */
 
-  // printf("ptty create\n");
   pty = ptytty::create ();
-
-  // printf("create windows\n");
   create_windows (argc, argv);
 
   init_xlocale ();
@@ -1001,10 +996,8 @@ rxvt_term::init2 (int argc, const char *const *argv)
   HOOK_INVOKE ((this, HOOK_START, DT_END));
 
 #if ENABLE_XEMBED
-  if (rs[Rs_embed])
-    {
+  if (rs[Rs_embed]) {
       long info[2] = { 0, XEMBED_MAPPED };
-
       XChangeProperty (dpy, parent, xa[XA_XEMBED_INFO], xa[XA_XEMBED_INFO],
                        32, PropModeReplace, (unsigned char *)&info, 2);
     }
@@ -1022,11 +1015,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
     sn_launchee_context_setup_window (snContext, parent);
 #endif
 
-  printf(" -----> mapping window: %d\n", termlist.size());
+  // printf(" -----> mapping window: %d\n", termlist.size());
   XMapWindow (dpy, vt);
-  // if (termlist.size() == 1) {
-    XMapWindow (dpy, parent);
-  // }
+  XMapWindow (dpy, parent);
 
 #if HAVE_STARTUP_NOTIFICATION
   if (snContext)
@@ -1041,7 +1032,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   refresh_check ();
-  printf("init2 complete\n");
 }
 
 /*----------------------------------------------------------------------*/
@@ -1146,7 +1136,7 @@ rxvt_term::set_locale (const char *locale)
 
 
   this->locale = strdup (this->locale);
-  SET_LOCALE (this->locale);
+  rxvt_set_locale (this->locale);
   mbstate.reset ();
 
 #if HAVE_NL_LANGINFO
@@ -1476,6 +1466,24 @@ done:
 
 /*----------------------------------------------------------------------*/
 /* Open and map the window */
+
+/*
+void set_wm_name(Display * display, Window win, char * name) {
+  XTextProperty tp;
+  char *props[1];
+
+  props[0] = name;
+
+  if (!XStringListToTextProperty (props, 1, &tp)) {
+    printf("Failed to convert text property\n");
+    return;
+  }
+
+  XSetWMName (display, win, &tp);
+  XFree (tp.value);
+}
+*/
+
 void
 rxvt_term::create_windows (int argc, const char *const *argv)
 {
@@ -1515,26 +1523,43 @@ rxvt_term::create_windows (int argc, const char *const *argv)
     }
 #endif
 
-#if ENABLE_XEMBED
-  if (rs[Rs_embed])
-    {
-      XWindowAttributes wattr;
+  window_calc (0, 0);
 
-      parent = strtol (rs[Rs_embed], 0, 0);
+#if ENABLE_XEMBED
+  if (tab_index > 0) {
+      rxvt_term * root = termlist.at(0);
+      if (root != NULL) {
+        rs[Rs_embed] = "x"; // so other embed logic is run
+        parent = root->parent;
+      }
+  }
+
+  if (rs[Rs_embed]) {
+      XWindowAttributes wattr;
+      if (strcmp(rs[Rs_embed], "x") != 0)
+        parent = strtol (rs[Rs_embed], 0, 0);
 
       if (!XGetWindowAttributes (dpy, parent, &wattr))
         rxvt_fatal ("invalid window-id specified with -embed, aborting.\n");
 
+      // printf("w/h: %d/%d\n", wattr.width, wattr.height);
       window_calc (wattr.width, wattr.height);
-    }
+  }
 #endif
-
-  window_calc (0, 0);
 
   /* sub-window placement & size in rxvt_term::resize_all_windows () */
   attributes.background_pixel = lookup_color(Color_border, pix_colors_focused);
   attributes.border_pixel     = lookup_color(Color_border, pix_colors_focused);
   attributes.colormap         = cmap;
+
+  classHint.res_name  = (char *)rs[Rs_name];
+  classHint.res_class = (char *)RESCLASS;
+
+  wmHint.flags         = InputHint | StateHint | WindowGroupHint;
+  wmHint.input         = True;
+  wmHint.initial_state = option (Opt_iconic) ? IconicState
+                         : option (Opt_dockapp) ? WithdrawnState
+                         : NormalState;
 
   top = XCreateWindow (dpy, parent,
                        szHint.x, szHint.y,
@@ -1545,29 +1570,19 @@ rxvt_term::create_windows (int argc, const char *const *argv)
                        &attributes);
 
   this->parent = top;
-  update_tab_title();
-  set_icon_name (rs [Rs_iconName]);
-
-  classHint.res_name  = (char *)rs[Rs_name];
-  classHint.res_class = (char *)RESCLASS;
-
-  wmHint.flags         = InputHint | StateHint | WindowGroupHint;
-  wmHint.input         = True;
-  wmHint.initial_state = option (Opt_iconic) ? IconicState
-                         : option (Opt_dockapp) ? WithdrawnState
-                         : NormalState;
   wmHint.window_group  = top;
 
   XmbSetWMProperties (dpy, top, NULL, NULL, (char **)argv, argc,
                       &szHint, &wmHint, &classHint);
-#if ENABLE_EWMH
-  /*
-   * set up icon hint
-   * rs [Rs_iconfile] is path to icon
-   */
 
+  update_tab_title(1);
+  set_icon_name (rs [Rs_iconName]);
+  // set_wm_name(dpy, top, "test");
+  // XSetIconName(dpy, top, "test");
+
+#if ENABLE_EWMH
   if (rs [Rs_iconfile])
-    set_icon (rs [Rs_iconfile]);
+    set_icon (rs [Rs_iconfile]); // rs [Rs_iconfile] is path to icon
   else
     set_default_icon();
 #else

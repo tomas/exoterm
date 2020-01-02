@@ -49,6 +49,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 
 #include "feature.h"
 
+#define TAB_BAR_HEIGHT 2
+
 #if ENABLE_PERL
 # define ENABLE_FRILLS    1
 # define ENABLE_COMBINING 1
@@ -73,7 +75,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 #include <X11/Xatom.h>
 
 #if HAVE_XPM
-#include "icon.h"
+// #include "icon_16.h"
+#include "icon_256.h"
 #include <X11/xpm.h>
 #endif
 
@@ -1182,7 +1185,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   // rxvt_img *root_img;
   // image_effects root_effects;
   Pixmap root_img;
-  Pixmap winbg = None;
+  Pixmap winbg; // = None;
 
   void render_root_image ();
 # endif
@@ -1296,12 +1299,15 @@ Pixmap icon_mask; //  = None;
   void refresh_check ();
   void flush ();
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
+  size_t get_current_path(char * buf, int size);
   void new_tab ();
   void prev_tab (unsigned int closing);
-  void next_tab ();
+  void next_tab (unsigned int closing);
   void switch_to_tab(unsigned int index, unsigned int closing);
+  void set_parent_window(Window new_parent, int x, int y);
   void close_tab ();
-  void update_tab_title ();
+  void detach_tab ();
+  void update_tab_title (int index);
 
   void cmdbuf_reify ();
   void cmdbuf_append (const char *str, size_t count);
@@ -1344,6 +1350,7 @@ Pixmap icon_mask; //  = None;
 
   void make_current () const // make this the "currently active" urxvt instance
   {
+    printf("making current: %d\n", tab_index);
     SET_R (this);
     set_environ (env);
     rxvt_set_locale (locale);
@@ -1500,6 +1507,7 @@ Pixmap icon_mask; //  = None;
   void scr_reset ();
   void scr_release () NOTHROW;
   void scr_clear (bool really = false) NOTHROW;
+  void scr_draw_bar() NOTHROW;
   void scr_refresh () NOTHROW;
   bool scr_refresh_rend (rend_t mask, rend_t value) NOTHROW;
   void scr_erase_screen (int mode) NOTHROW;
@@ -1592,6 +1600,13 @@ Pixmap icon_mask; //  = None;
   }
   void extract_keysym_resources ();
 };
+
+static void
+rxvt_set_as_main_parent (Window new_parent, int from_index) {
+  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+    if ((*t)->tab_index > from_index) (*t)->set_parent_window(new_parent, 0, 0);
+  }
+}
 
 #endif /* _RXVT_H_ */
 

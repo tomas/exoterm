@@ -461,8 +461,8 @@ Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out)
   // shade it
   ShadingInfo shade;
   shade.shading = 20;
-  shade.tintColor.red   = 0x0000; 
-  shade.tintColor.green = 0xFFFF; 
+  shade.tintColor.red   = 0x0000;
+  shade.tintColor.green = 0xFFFF;
   shade.tintColor.blue  = 0xFFFF;
   Pixmap pix = ShadePixmap(dpy, win, bg, 0, 0, w, h, gc, &shade, depth);
 
@@ -497,7 +497,9 @@ rxvt_term::bg_render ()
       int x, y;
       getCoords(dpy, vt, &x, &y);
       // printf("Copying area: %d/%d - %d/%d\n", x, y, width, height);
-      XCopyArea(dpy, root_img, winbg, gc, x, y, width, height, 0, 0);
+      int x_padding = window_vt_x * 2;
+      int y_padding = window_vt_y * 2;
+      XCopyArea(dpy, root_img, winbg, gc, x, y, width + x_padding, height + y_padding, 0, 0);
       bg_flags |= BG_IS_TRANSPARENT;
     }
 # endif
@@ -513,7 +515,7 @@ rxvt_term::bg_init ()
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
 
-      // when initializing a new term, if this is a second tab 
+      // when initializing a new term, if this is a second tab
       // then the root image with windows would return the existing tab
       // already rendered. so we just get the ESETROOT bg, which is simply
       // the background with no windows

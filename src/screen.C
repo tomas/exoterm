@@ -2128,6 +2128,39 @@ rxvt_term::scr_printscreen (int fullhist) NOTHROW
 #endif
 }
 
+void rxvt_term::scr_draw_bar() NOTHROW {
+  int bar_height = TAB_BAR_HEIGHT;
+  int bar_pos = 0; // (vt_height-bar_height);
+
+  XVisualInfo vinfo;
+  XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
+  Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
+
+  XColor focused, unfocused;
+  XParseColor(dpy, cm, "#6b77bf", &focused);
+  XAllocColor(dpy, cm, &focused);
+  XParseColor(dpy, cm, "#2f3452", &unfocused);
+  XAllocColor(dpy, cm, &unfocused);
+
+  int i = 0;
+  int tab_width = (width + int_bwidth * 2)/termlist.size();
+  // printf("termlist: %d, tab_width: %d\n", termlist.size(), tab_width);
+
+  for (i = 0; i < termlist.size(); i++) {
+    if (tab_index == i)
+      XSetForeground(dpy, gc, focused.pixel);
+    else
+      XSetForeground(dpy, gc, unfocused.pixel);
+
+    // XSetForeground (dpy, gc, lookup_color(Color_underline, pix_colors));
+    XFillRectangle (dpy, parent, gc, i * tab_width, bar_pos, tab_width, bar_height);
+  }
+
+  XFreeColormap(dpy, cm);
+  // XFreeColors(dpy, colormap, &focused.pixel, 1, 0);
+  // XFreeColors(dpy, colormap, &unfocused.pixel, 1, 0);
+}
+
 /* ------------------------------------------------------------------------- */
 /*
  * Refresh the screen
@@ -2147,8 +2180,7 @@ rxvt_term::scr_refresh () NOTHROW
   int cursorwidth;
 
   want_refresh = 0;        /* screen is current */
-
-  // printf("refreshing screen: %d (%d)\n", refresh_type, mapped);
+  // printf("refreshing screen: %d %d (%d)\n", tab_index, refresh_type, mapped);
 
   if (refresh_type == NO_REFRESH || !mapped)
     return;
@@ -2322,7 +2354,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  // printf("ncol: %d, nrow: %d\n", ncol, nrow); 
+  // printf("ncol: %d, nrow: %d\n", ncol, nrow);
 
   /*
    * E: main pass across every character
@@ -2578,6 +2610,8 @@ rxvt_term::scr_refresh () NOTHROW
                           (unsigned int) (Height2Pixel (1) - 1));
         }
     }
+
+  scr_draw_bar();
 
   /*
    * H: cleanup selection
@@ -3206,7 +3240,7 @@ rxvt_term::selection_delimit_word (enum page_dirn dirn, const row_col_t *mark, r
 void ecb_cold
 rxvt_term::selection_extend (int x, int y, int flag) NOTHROW
 {
-  int col = clamp (Pixel2Col (x), 0, ncol);
+  int col = clamp (Pixel2Col (x + (fwidth/2)), 0, ncol);
   int row = clamp (Pixel2Row (y), 0, nrow - 1);
 
   /*

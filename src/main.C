@@ -60,6 +60,16 @@ rxvt_t rxvt_current_term;
 
 static char curlocale[128], savelocale[128];
 
+static int
+rxvt_reassign_tab_indexes () {
+  int index = 0;
+  for (rxvt_term **t = rxvt_term::termlist.begin(); t < rxvt_term::termlist.end (); t++) {
+    (*t)->tab_index = index++;
+  }
+  return index;
+}
+
+
 bool
 rxvt_set_locale (const char *locale) NOTHROW
 {
@@ -195,7 +205,7 @@ rxvt_term::rxvt_term ()
 
   termlist.push_back (this);
   tab_index = termlist.size()-1;
-  printf("pushed new term instance. current term count: %d!\n", tab_index);
+  printf("pushed new term instance. current term count: %d\n", tab_index);
 
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;
@@ -217,8 +227,14 @@ rxvt_term::emergency_cleanup ()
 rxvt_term::~rxvt_term ()
 {
 
-  termlist.erase (find (termlist.begin (), termlist.end(), this));
-  printf("destroying term instance. current term count: %d!\n", termlist.size());
+  termlist.erase (find (termlist.begin(), termlist.end(), this));
+  printf("destroying term instance. current term count: %d\n", termlist.size());
+
+  int count = rxvt_reassign_tab_indexes();
+
+  // update tab title, since termlist.size() changed
+  rxvt_term * root = termlist.at(0);
+  root->update_tab_title(GET_R->tab_index+1);
 
   emergency_cleanup ();
 
@@ -244,8 +260,7 @@ rxvt_term::~rxvt_term ()
   if (winbg != None) XFreePixmap(dpy, winbg);
 #endif
 
-  if (display)
-    {
+  if (display) {
       selection_clear ();
       selection_clear (true);
 
@@ -259,7 +274,7 @@ rxvt_term::~rxvt_term ()
 
       // destroy all windows
       if (parent) {
-        printf("destroying parent window\n");
+        // printf("destroying parent window\n");
         XDestroyWindow (dpy, parent);
       }
 
@@ -273,7 +288,7 @@ rxvt_term::~rxvt_term ()
 #endif
           }
 
-      printf("clear/flush\n");
+      // printf("clear/flush\n");
       clear ();
       display->flush (); /* ideally .put should do this */
       displays.put (display);
@@ -307,8 +322,8 @@ rxvt_term::~rxvt_term ()
   XrmDestroyDatabase (option_db);
 #endif
 
-  printf("SET_R!\n");
-  SET_R ((rxvt_term *)0);
+  // printf("SET_R!\n");
+  // SET_R ((rxvt_term *)0);
 }
 
 // child has exited, usually destroys
@@ -316,7 +331,7 @@ void
 rxvt_term::child_cb (ev::child &w, int status)
 {
 
-  printf("Child exit db!\n");
+  // printf("Child exit db!\n");
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -329,11 +344,10 @@ void
 rxvt_term::destroy ()
 {
 
-  printf("Destroying!\n");
-
   if (destroy_ev.is_active ())
     return;
 
+  // printf("calling destroy hook!\n");
   HOOK_INVOKE ((this, HOOK_DESTROY, DT_END));
 
   scr_overlay_off ();
@@ -369,6 +383,7 @@ rxvt_term::destroy ()
   pointer_ev.stop ();
 #endif
 
+  // printf("stopped callbacks!\n");
   destroy_ev.start ();
 }
 
@@ -376,13 +391,23 @@ void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
 
-  printf("destroy_cb called!\n");
-  make_current ();
+  // printf("destroy_cb called!\n");
+  // make_current ();
 
   if (termlist.size() > 1) {
-    prev_tab(1);
+
+    if (tab_index == 0)  {
+      rxvt_term * tab = termlist.at(1);
+      tab->detach_tab();
+      rxvt_set_as_main_parent(tab->parent, 1);
+      XMapWindow(dpy, tab->parent);
+    }
+
+    // prev_tab(1);
+    next_tab(1);
   }
 
+  // printf("deleting term\n");
   delete this;
 }
 
@@ -407,8 +432,9 @@ static XErrorHandler old_xerror_handler;
 static void
 rxvt_emergency_cleanup ()
 {
-  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++)
+  for (rxvt_term **t = rxvt_term::termlist.begin (); t < rxvt_term::termlist.end (); t++) {
     (*t)->emergency_cleanup ();
+  }
 }
 
 #if !ENABLE_MINIMAL
@@ -632,10 +658,9 @@ rxvt_get_ttymode (struct termios *tio)
 char **rxvt_environ; // startup environment
 
 void
-rxvt_init ()
-{
-  printf("main rxvt_init()\n");
+rxvt_init () {
 
+  // printf("main rxvt_init()\n");
   assert (("fontMask must not overlap other RS masks",
            0 == (RS_fontMask & (RS_Sel | RS_baseattrMask | RS_customMask | RS_bgMask | RS_fgMask))));
 
@@ -747,9 +772,14 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   max_width = MAX_COLS * fwidth;
   max_height = MAX_ROWS * fheight;
 
-  szHint.base_width = szHint.base_height = 2 * int_bwidth;
-
+  szHint.base_width = 2 * int_bwidth;
+  szHint.base_height = 1.7 * int_bwidth;
   window_vt_x = window_vt_y = int_bwidth;
+
+  // only add padding if internal width is zero
+  int padding = int_bwidth == 0 ? 3 : 0;
+  szHint.base_height += TAB_BAR_HEIGHT + padding;
+  window_vt_y += TAB_BAR_HEIGHT + padding - 1;
 
   if (scrollBar.state)
     {
@@ -762,8 +792,13 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
 
   szHint.width_inc  = fwidth;
   szHint.height_inc = fheight;
-  szHint.min_width  = szHint.base_width + szHint.width_inc;
-  szHint.min_height = szHint.base_height + szHint.height_inc;
+
+  // szHint.min_width  = szHint.base_width + szHint.width_inc;
+  szHint.min_width = fwidth * MIN_COLS + szHint.width_inc;
+  // szHint.min_height = szHint.base_height + szHint.height_inc;
+  szHint.min_height = fheight * MIN_ROWS + szHint.height_inc;
+
+  // printf("base_height: %d, height inc: %d, height: %d\n", szHint.base_height, szHint.height_inc, height);
 
   if (newwidth && newwidth - szHint.base_width < max_width)
     {
@@ -804,6 +839,9 @@ rxvt_term::window_calc (unsigned int newwidth, unsigned int newheight)
   // vt window so as to avoid creating gaps.
   vt_width  = ncol * fwidth;
   vt_height = nrow * fheight;
+
+  // printf("vt_width: %d, width: %d, ncol: %d, window_vt_x: %d\n", vt_width, width, ncol, window_vt_x);
+  // printf("vt_height: %d, height: %d, nrow: %d, window_vt_y: %d\n", vt_height, height, nrow, window_vt_y);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1106,6 +1144,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   int old_width  = szHint.width;
   int old_height = szHint.height;
 
+  // printf("resize with ignoreparent: %d all windows for term %d\n", ignoreparent, tab_index);
   window_calc (newwidth, newheight);
 
   bool set_hint = !HOOK_INVOKE ((this, HOOK_RESIZE_ALL_WINDOWS, DT_INT, newwidth, DT_INT, newheight, DT_END));
@@ -1161,11 +1200,21 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       else if (y == y1)       /* exact center */
         dy /= 2;
 
+      printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
+
       XMoveResizeWindow (dpy, parent, x + dx, y + dy,
                          szHint.width, szHint.height);
 #else
+      printf("resizing window to %dx%d\n", szHint.width, szHint.height);
       XResizeWindow (dpy, parent, szHint.width, szHint.height);
 #endif
+    } else {
+
+      // is current tab isn't the one that caught the resize event, update parent size
+      if (GET_R->tab_index != tab_index) {
+        XResizeWindow(GET_R->dpy, GET_R->parent, szHint.width, szHint.height);
+      }
+
     }
 
   if (set_hint)
@@ -1173,14 +1222,11 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 
   fix_screen = ncol != prev_ncol || nrow != prev_nrow;
 
-  if (fix_screen || newwidth != old_width || newheight != old_height)
-    {
-      if (scrollBar.state)
-        scrollBar.resize ();
+  if (fix_screen || newwidth != old_width || newheight != old_height) {
+      if (scrollBar.state) scrollBar.resize();
 
-      XMoveResizeWindow (dpy, vt,
-                         window_vt_x, window_vt_y,
-                         vt_width, vt_height);
+      printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
+      XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
 
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
@@ -1192,8 +1238,10 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 #endif
     }
 
-  if (fix_screen || old_height == 0)
+  if (fix_screen || old_height == 0) {
+    // printf("scr_reset on resizing\n");
     scr_reset ();
+  }
 
 #if USE_XIM
   im_set_position ();
@@ -1767,7 +1815,7 @@ void
 rxvt_term::update_background_cb (ev::timer &w, int revents)
 {
 
-  make_current ();
+  // make_current ();
   update_background_ev.stop ();
   bg_render ();
   refresh_check ();

@@ -76,6 +76,9 @@
 #define MAX_COLS    10000
 #define MAX_ROWS    10000
 
+#define MIN_ROWS    2
+#define MIN_COLS    4
+
 /*
  * Define maximum possible savelines
  */
