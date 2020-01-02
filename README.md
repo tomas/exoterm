@@ -1,4 +1,8 @@
-# Build Instructions
+# Exoterm
+
+An up-to-date fork of rxvt-unicode. In progress but usable.
+
+## Build Instructions
 
 Install the following if on Ubuntu or use equivalent on other OSes:
 
@@ -20,7 +24,7 @@ Compile with
 
 See `README.configure` for more details and configuration options.
 
-# Configuration
+## Configuration
 
 Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/.Xdefaults` after you update it.
 
@@ -87,7 +91,9 @@ Here's an example:
     ! scroll back to the bottom on keypress
     URxvt.scrollTtyKeypress: true
 
-## Misc
+## Misc tweaks
+
+### Installing fonts
 
 To fetch Terminus Powerline fonts:
 
@@ -103,6 +109,8 @@ To install them:
 
 And make sure that $fonts_dir is in /etc/X11/xorg.conf in the FontPath section.
 
+### Borderless in JWM
+
 To remove borders if using JWM, add this to your jwmrc:
 
     <Group>
@@ -110,4 +118,3 @@ To remove borders if using JWM, add this to your jwmrc:
       <Option>noborder</Option>
       <Option>notitle</Option>
     </Group>
-
