@@ -16,11 +16,15 @@ Initialize submodules:
 Configure with:
 
     ./configure
+    
+To see all configure options, run:
+
+    ./configure -h
 
 Compile with
 
     make
-    sudo make install
+    (sudo) make install
 
 See `README.configure` for more details and configuration options.
 
