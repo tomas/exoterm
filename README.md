@@ -122,3 +122,9 @@ To remove borders if using JWM, add this to your jwmrc:
       <Option>noborder</Option>
       <Option>notitle</Option>
     </Group>
+
+## Interesting forks to follow
+
+ - https://github.com/theKlanc/rxvt-unicode-fa-patched
+ - https://github.com/rayburgemeestre/rxvt-unicode
+ - https://github.com/RauliL/raxvt
