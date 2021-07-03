@@ -6065,7 +6065,9 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
                  // 1048 save and restore cursor, implemented in code
                   { 1049, PrivMode_Screen }, /* xterm extension, clear screen on ti rather than te */
                  // 1051, 1052, 1060, 1061 keyboard emulation NYI
+#if ENABLE_FRILLS
                   { 2004, PrivMode_BracketPaste },
+#endif
                  // 7730 sixel-scrolls-left mode, originally proposed by mintty
                   { 7730, PrivMode_SixelScrsLeft },
                  // 8452 sixel-scrolls-right mode, originally proposed by RLogin

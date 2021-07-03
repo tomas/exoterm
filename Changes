@@ -41,12 +41,19 @@ TODO: üpixel droppins idenrasm,ll,scrollup
 TODO: cuu/cud and probably others default to 1 when arg is 0, not just missing, in xterm/vt102, but not in rxvt
 TODO: clean up the resource vs. long option mess, especially in the manpage.
 
+TODO: xterm-osc does not autoload background
 TODO: think about daemon delaying urxvt client exit.
 IDEA: use harfbuzz to render combining sequences, maybe also complex scripts
 TODO: https://github.com/bbidulock/icewm/issues/492 urxvt wrongfully(?) needa configurenotify after mapwindow? also, black border?
 
-TODO: match default regex does not match https://猫.移动/tmp/ => document special encoding and possibly rewrite the regex.
-	- libptytty is now an external dependency.
+TODO: https://github.com/bbidulock/icewm/issues/492 urxvt wrongfully(?) needa configurenotify after mapwindow? also, black border?
+TODO: fontset caching per display?
+TODO: xOff caching. for ascii only? fr basefont only?
+TODO: image loading osc does not autoload background ext
+TODO: clean up the resource vs. long option mess, especially in the manpage.
+	- allow URxvt*keysym to match again. The fact that it was ignored
+          is considered a regression due in the way we checked for keysym
+          resources.
 	- enable confirm-paste extension by default, can be disabled by e.g.
           URxvt.perl-ext: -confirm-paste
         - Key bindings specified with the -keysym option or with resources of
@@ -80,21 +87,6 @@ TODO: match default regex does not match https://猫.移动/tmp/ => document spe
           combining characters. urxvt tries to compensate to some extent,
           but diacritics will be slightly off in many cases, and far off in
           some cases (e.g. input mono).
-        - when checking for overlap/careful handling, take non-basefont
-          character shifts into account.
-        - extensions can now request autoloading on OSC and Perl OSC sequences,
-          implement this for the background, clipboard-osc and overlay-osc
-          extensions.
-        - the background extension will now be autoloaded when the OSC 20 or 705
-          sequence is received.
-        - added OSC 776 sequence to return character cell width, height and font
-          ascent, which is useful when using urxvt as slave to calculate window
-          size form or to row/column count.
-	- The view_start perl method now scrolls to the bottom also when the
-	  argument is greater than 0.
-	- eval scroll actions now scroll to the bottom when scrolling down and
-	  there are less lines to scroll than the ones requested (reported by
-	  Stephen Talley).
 	- allow perl-ext and perl-ext-common to override autoloaded extensions.
           this allows tabbed to disable itself in subtabs, avoiding recursive
           loading.
@@ -105,22 +97,6 @@ TODO: match default regex does not match https://猫.移动/tmp/ => document spe
           font rendering.
         - replace bitstream vera by dejavu sans, as it has replaced the former
           almost everywhere.
-        - urxvt will now try tic -x first and only fall back to tic without -x
-          when tic -x fails.
-        - fix urclock not erasing the old date on the clock face, causing
-          overdraw, plus a host of other small fixes and improvements.
-        - shave off over 1K of code size from urclock by replacing the sine table
-          with a slightly less accurate fixed point approximation.
-        - do not specify indentation with =over in pod, this is no longer
-          needed with semi-modern pod tools and gives the formatter more
-          stylistic freedom.
-        - background extension did not set the "size-sensitive" flag
-          when repeat mode wasn't normal.
-        - extensions are now subjected to "use strict 'subs'".
-        - avoid crashing when xft successfully opens a font but then somehow
-          can't lock the face.
-        - locale_decode/encode api methods now pass through undef unchanged.
-        - fix undefined behaviour in the perl hook function, as diagnosed by clang.
 
 9.26 Fri May 14 19:14:14 CEST 2021
 	- ev_iouring.c was wrongly required during compilation, and wrongly

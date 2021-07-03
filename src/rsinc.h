@@ -94,7 +94,10 @@
   def (cutchars)
   def (modifier)
   def (answerbackstring)
+#if ENABLE_FRILLS
   def (tripleclickwords)
+  def (disablePasteBrackets)
+#endif
   def (insecure)
   def (pointerBlank)
   def (pointerBlankDelay)
@@ -105,6 +108,9 @@
 #ifndef NO_SECONDARY_SCREEN
   def (secondaryScreen)
   def (secondaryScroll)
+#endif
+#if ENABLE_FRILLS
+  def (rewrapMode)
 #endif
 #if OFF_FOCUS_FADING
   def (fade)
