@@ -997,6 +997,8 @@ int parse_links(line_t * l, int in_link) {
   if (!in_link && len < 10) return 0;
 
   int i = in_link ? 0 : 4;
+  int e;
+
   for (i; i < len; i++) {
     if (in_link) {
       if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'') {
@@ -1007,12 +1009,17 @@ int parse_links(line_t * l, int in_link) {
     } else if (l->t[i] == ':' && l->t[i+1] == '/' && l->t[i+2] == '/') { // ://
       in_link = 1;
       l->r[i]   |= RS_Uline; // :
-      l->r[i-1] |= RS_Uline; // s
-      l->r[i-2] |= RS_Uline; // p
-      l->r[i-3] |= RS_Uline; // p
-      if (l->t[i-4] != ' ' && l->t[i-4] != '"' && l->t[i-4] != '\'') {
-        l->r[i-4] |= RS_Uline; // t, might be blank if protocol is shorter (ssh://)
-        if (l->t[i-5] == 'h') l->r[i-5] |= RS_Uline; // h or something else, if this was simply http:
+      l->r[i-1] |= RS_Uline; // last
+      l->r[i-2] |= RS_Uline; // last-1
+      l->r[i-3] |= RS_Uline; // last-2
+
+      // check if protocol is longer than three chars, up to 8 (eg. postgres://)
+      for (e = 4; e <= 8; e++) {
+        if (l->t[i-e] != ' ' && l->t[i-e] != '"' && l->t[i-e] != '\'' && l->t[i-e] != '=') {
+          l->r[i-e] |= RS_Uline;
+        } else {
+          break;
+        }
       }
     }
   }
