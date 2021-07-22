@@ -1001,7 +1001,7 @@ int parse_links(line_t * l, int in_link) {
 
   for (i; i < len; i++) {
     if (in_link) {
-      if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'') {
+      if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'' || l->t[i] == '>') {
         in_link = 0;
       } else {
         l->r[i] |= RS_Uline; // l->r[i] |= Color_Yellow << RS_fgShift;
