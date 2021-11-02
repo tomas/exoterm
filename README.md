@@ -97,23 +97,26 @@ Here's an example:
 
 ## Colors
 
-Also are defined in `.Xdefaults`. Here's the Dracula theme
+Also are defined in `.Xdefaults`. Here's a custom version of the Dracula theme:
 
     ! Dracula Xresources palette
-    URxvt.foreground: #F8F8F2
-    URxvt.background: #282A36
+    !URxvt.foreground: #F8F8F2
+    !URxvt.background: #282A36
     URxvt.color0:     #000000
     URxvt.color8:     #4D4D4D
     URxvt.color1:     #FF5555
-    URxvt.color9:     #FF6E67
-    URxvt.color2:     #50FA7B
+    ! URxvt.color9:     #FF6E67
+    URxvt.color9:     #FF798C
+    ! URxvt.color2:     #50FA7B
+    URxvt.color2:     #50FAB2
     URxvt.color10:    #5AF78E
     URxvt.color3:     #F1FA8C
     URxvt.color11:    #F4F99D
     URxvt.color4:     #BD93F9
     URxvt.color12:    #CAA9FA
     URxvt.color5:     #FF79C6
-    URxvt.color13:    #FF92D0
+    ! URxvt.color13:    #FF92D0
+    URxvt.color13:    #FF9AF4
     URxvt.color6:     #8BE9FD
     URxvt.color14:    #9AEDFE
     URxvt.color7:     #BFBFBF
