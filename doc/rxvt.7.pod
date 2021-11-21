@@ -31,7 +31,7 @@ L<http://pod.tst.eu/http://cvs.schmorp.de/rxvt-unicode/doc/rxvt.1.pod>.
 
 =head3 My question isn't answered here, can I ask a human?
 
-Before sending me mail, you could go to IRC: C<irc.freenode.net>,
+Before sending me mail, you could go to IRC: C<irc.libera.chat>,
 channel C<#rxvt-unicode> has some rxvt-unicode enthusiasts that might be
 interested in learning about new and exciting problems (but not FAQs :).
 
@@ -105,6 +105,34 @@ This tries to create a new terminal, and if fails with exit status 2,
 meaning it couldn't connect to the daemon, it will start the daemon and
 re-run the command. Subsequent invocations of the script will re-use the
 existing daemon.
+
+Another option is to use systemd socket-based activation (see
+systemd.socket(5)). Here is an example of a service unit file and of a
+socket unit file for the default socket path:
+
+=over
+
+=item urxvtd.service
+
+  [Unit]
+  Description=urxvt terminal daemon
+  Requires=urxvtd.socket
+
+  [Service]
+  ExecStart=/usr/bin/urxvtd -o
+
+=item urxvtd.socket
+
+  [Unit]
+  Description=urxvt terminal daemon socket
+
+  [Socket]
+  ListenStream=%h/.urxvt/urxvtd-%H
+
+  [Install]
+  WantedBy=sockets.target
+
+=back
 
 =head3 How do I distinguish whether I'm running rxvt-unicode or a regular
 xterm? I need this to decide about setting colours etc.
@@ -234,7 +262,7 @@ of passage: ... and you failed.
 Here are four ways to get transparency. B<Do> read the manpage and option
 descriptions for the programs mentioned and rxvt-unicode. Really, do it!
 
-1. Use transparent mode:
+1. Use pseudo-transparency:
 
    Esetroot wallpaper.jpg
    @@URXVT_NAME@@ -tr -tint red -sh 40
@@ -260,10 +288,8 @@ are unable to read.
    @@URXVT_NAME@@ -depth 32 -fg grey90 -bg rgba:0000/0000/4444/cccc
 
 This requires XFT support, and the support of your X-server. If that
-doesn't work for you, blame Xorg and Keith Packard. ARGB visuals aren't
-there yet, no matter what they claim. Rxvt-Unicode contains the necessary
-bugfixes and workarounds for Xft and Xlib to make it work, but that
-doesn't mean that your WM has the required kludges in place.
+doesn't work for you, find a working composite manager or window manager,
+both are required to support ARGB visuals for client windows.
 
 4. Use xcompmgr and let it do the job:
 
@@ -691,7 +717,7 @@ author's .Xdefaults entries, with comments on what they do. It's certainly
 not I<typical>, but what's typical...
 
    URxvt.cutchars: "()*,<>[]{}|'
-   URxvt.print-pipe: cat >/tmp/xxx
+   URxvt.print-pipe: cat >/some/path
 
 These are just for testing stuff.
 
@@ -1055,7 +1081,7 @@ Try a search engine, as this is slightly different for every input method server
 
 Here is a checklist:
 
-=over 4
+=over
 
 =item - Make sure your locale I<and> the imLocale are supported on your OS.
 
@@ -1206,9 +1232,15 @@ B<rxvt-unicode>. First the description of supported command sequences,
 followed by pixmap support and last by a description of all features
 selectable at C<configure> time.
 
+When some functionality is marked as (insecure mode), then it requires
+insecure mode to be enabled to work fully, e.g. by using the B<insecure>
+resource or command line switch. As that name implies, a terminal running
+in insecure mode might not be secure against attackers that can output
+arbitrary sequences to the terminal.
+
 =head2 Definitions
 
-=over 4
+=over
 
 =item B<< C<c> >>
 
@@ -1236,7 +1268,7 @@ A text parameter composed of printable characters.
 
 =head2 Values
 
-=over 4
+=over
 
 =item B<< C<ENQ> >>
 
@@ -1289,7 +1321,7 @@ Space Character
 
 =head2 Escape Sequences
 
-=over 4
+=over
 
 =item B<< C<ESC # 8> >>
 
@@ -1397,7 +1429,7 @@ X<CSI>
 
 =head2 CSI (Command Sequence Introducer) Sequences
 
-=over 4
+=over
 
 =item B<< C<ESC [ Ps @> >>
 
@@ -1560,7 +1592,7 @@ Printing. See also the C<print-pipe> resource.
 
 Reset Mode (RM)
 
-=over 4
+=over
 
 =item B<< C<Ps = 4> >>
 
@@ -1628,7 +1660,7 @@ Device Status Report (DSR)
 
 	B<< C<Ps = 5> >>	Status Report B<< C<ESC [ 0 n> >> (``OK'')
 	B<< C<Ps = 6> >>	Report Cursor Position (CPR) [row;column] as B<< C<ESC [ r ; c R> >>
-	B<< C<Ps = 7> >>	Request Display Name
+	B<< C<Ps = 7> >>	Request Display Name (insecure mode)
 	B<< C<Ps = 8> >>	Request Version Number (place in window title)
 
 =end table
@@ -1677,8 +1709,8 @@ Window Operations
 	B<< C<Ps = 14> >>	Report window pixel size (responds with C<Ps = 4>)
 	B<< C<Ps = 18> >>	Report window text size (responds with C<Ps = 7>)
 	B<< C<Ps = 19> >>	Currently the same as C<Ps = 18>, but responds with C<Ps = 9>
-	B<< C<Ps = 20> >>	Reports icon label (B<< C<ESC ] L NAME \234> >>)
-	B<< C<Ps = 21> >>	Reports window title (B<< C<ESC ] l NAME \234> >>)
+	B<< C<Ps = 20> >>	Reports icon label (B<< C<ESC ] L NAME \234> >>) (insecure mode)
+	B<< C<Ps = 21> >>	Reports window title (B<< C<ESC ] l NAME \234> >>) (insecure mode)
 	B<< C<Ps = 24..> >>	Set window height to C<Ps> rows
 
 =end table
@@ -1697,7 +1729,7 @@ X<PrivateModes>
 
 =head2 DEC Private Modes
 
-=over 4
+=over
 
 =item B<< C<ESC [ ? Pm h> >>
 
@@ -1706,6 +1738,10 @@ DEC Private Mode Set (DECSET)
 =item B<< C<ESC [ ? Pm l> >>
 
 DEC Private Mode Reset (DECRST)
+
+=item B<< C<ESC [ ? Pm $ p> >>
+
+DEC Private Mode Request (DECRQM)
 
 =item B<< C<ESC [ ? Pm r> >>
 
@@ -1717,9 +1753,13 @@ Save DEC Private Mode Values.
 
 =item B<< C<ESC [ ? Pm t> >>
 
-Toggle DEC Private Mode Values (rxvt extension). I<where>
+Toggle DEC Private Mode Values (rxvt extension).
 
-=over 4
+=back
+
+where
+
+=over
 
 =item B<< C<Pm = 1> >> (DECCKM)
 
@@ -2042,13 +2082,11 @@ Unlike XTerm, coordinates larger than 2015 will work fine.
 
 =back
 
-=back
-
 X<XTerm>
 
 =head2 XTerm Operating System Commands
 
-=over 4
+=over
 
 =item B<< C<ESC ] Ps;Pt ST> >>
 
@@ -2056,12 +2094,15 @@ Set XTerm Parameters. 8-bit ST: 0x9c, 7-bit ST sequence: ESC \ (0x1b,
 0x5c), backwards compatible terminator BEL (0x07) is also accepted. any
 B<octet> can be escaped by prefixing it with SYN (0x16, ^V).
 
+Many of these settings can be queried by specifying C<?> as parameter, but
+this requires insecure mode to be enabled for most of these.
+
 =begin table
 
 	B<< C<Ps = 0> >>	Change Icon Name and Window Title to B<< C<Pt> >>
 	B<< C<Ps = 1> >>	Change Icon Name to B<< C<Pt> >>
 	B<< C<Ps = 2> >>	Change Window Title to B<< C<Pt> >>
-	B<< C<Ps = 3> >>	If B<< C<Pt> >> starts with a B<< C<?> >>, query the (STRING) property of the window and return it. If B<< C<Pt> >> contains a B<< C<=> >>, set the named property to the given value, else delete the specified property.
+	B<< C<Ps = 3> >>	If B<< C<Pt> >> starts with a B<< C<?> >>, query the (STRING) property of the window and return it (insecure mode). If B<< C<Pt> >> contains a B<< C<=> >>, set the named property to the given value, else delete the specified property.
 	B<< C<Ps = 4> >>	B<< C<Pt> >> is a semi-colon separated sequence of one or more semi-colon separated B<number>/B<name> pairs, where B<number> is an index to a colour and B<name> is the name of a colour. Each pair causes the B<number>ed colour to be changed to B<name>. Numbers 0-7 corresponds to low-intensity (normal) colours and 8-15 corresponds to high-intensity colours. 0=black, 1=red, 2=green, 3=yellow, 4=blue, 5=magenta, 6=cyan, 7=white
 	B<< C<Ps = 10> >>	Change colour of text foreground to B<< C<Pt> >>
 	B<< C<Ps = 11> >>	Change colour of text background to B<< C<Pt> >>
@@ -2069,16 +2110,16 @@ B<octet> can be escaped by prefixing it with SYN (0x16, ^V).
 	B<< C<Ps = 13> >>	Change colour of mouse foreground to B<< C<Pt> >>
 	B<< C<Ps = 17> >>	Change background colour of highlight characters to B<< C<Pt> >>
 	B<< C<Ps = 19> >>	Change foreground colour of highlight characters to B<< C<Pt> >>
-	B<< C<Ps = 20> >>	Change background pixmap parameters (see section BACKGROUND IMAGE) (Compile pixbuf).
+	B<< C<Ps = 20> >>	Change background image to B<< C<Pt> >> (see the L<urxvt-background> extension documentation)
 	B<< C<Ps = 39> >>	Change default foreground colour to B<< C<Pt> >>. [deprecated, use 10]
 	B<< C<Ps = 46> >>	Change Log File to B<< C<Pt> >> I<unimplemented>
 	B<< C<Ps = 49> >>	Change default background colour to B<< C<Pt> >>. [deprecated, use 11]
 	B<< C<Ps = 50> >>	Set fontset to B<< C<Pt> >>, with the following special values of B<< C<Pt> >> (B<rxvt>) B<< C<#+n> >> change up B<< C<n> >> B<< C<#-n> >> change down B<< C<n> >> if B<< C<n> >> is missing of 0, a value of 1 is used I<empty> change to font0 B<< C<n> >> change to font B<< C<n> >>
 	B<< C<Ps = 55> >>	Log all scrollback buffer and all of screen to B<< C<Pt> >> [disabled]
-	B<< C<Ps = 701> >>	Change current locale to B<< C<Pt> >>, or, if B<< C<Pt> >> is B<< C<?> >>, return the current locale (Compile frills).
+	B<< C<Ps = 701> >>	Change current locale to B<< C<Pt> >>, or, if B<< C<Pt> >> is B<< C<?> >>, return the current locale (insecure mode, Compile frills).
 	B<< C<Ps = 702> >>	Request version if B<< C<Pt> >> is B<< C<?> >>, returning C<rxvt-unicode>, the resource name, the major and minor version numbers, e.g. C<ESC ] 702 ; rxvt-unicode ; urxvt ; 7 ; 4 ST>.
 	B<< C<Ps = 704> >>	Change colour of italic characters to B<< C<Pt> >>
-	B<< C<Ps = 705> >>	Change background pixmap tint colour to B<< C<Pt> >> (Compile transparency).
+	B<< C<Ps = 705> >>	Change background tint color to B<< C<Pt> >> (see the L<urxvt-background> extension documentation)
 	B<< C<Ps = 706> >>	Change colour of bold characters to B<< C<Pt> >>
 	B<< C<Ps = 707> >>	Change colour of underlined characters to B<< C<Pt> >>
 	B<< C<Ps = 708> >>	Change colour of the border to B<< C<Pt> >>
@@ -2088,30 +2129,9 @@ B<octet> can be escaped by prefixing it with SYN (0x16, ^V).
 	B<< C<Ps = 713> >>	Set bold-italic fontset to B<< C<Pt> >>. Similar to C<Ps = 50> (Compile styles).
 	B<< C<Ps = 720> >>	Move viewing window up by B<< C<Pt> >> lines, or clear scrollback buffer if C<Pt = 0> (Compile frills).
 	B<< C<Ps = 721> >>	Move viewing window down by B<< C<Pt> >> lines, or clear scrollback buffer if C<Pt = 0> (Compile frills).
-	B<< C<Ps = 777> >>	Call the perl extension with the given string, which should be of the form C<extension:parameters> (Compile perl).
+	B<< C<Ps = 777> >>	Call the perl extension with the given string, which should be of the form C<extension;parameters> (Compile perl).
 
 =end table
-
-=back
-
-=head1 BACKGROUND IMAGE
-
-For the BACKGROUND IMAGE XTerm escape sequence B<< C<ESC ] 20 ; Pt ST> >> the value
-of B<< C<Pt> >> can be one of the following commands:
-
-=over 4
-
-=item B<< C<?> >>
-
-display scale and position in the title
-
-=item B<< C<;WxH+X+Y> >>
-
-change scale and/or position
-
-=item B<< C<FILE;WxH+X+Y> >>
-
-change background image
 
 =back
 
@@ -2119,11 +2139,11 @@ X<Mouse>
 
 =head1 Mouse Reporting
 
-When mouse reporting is enabled and none of the extended modes 1005,
-1006, 1015 is active, urxvt sends the following sequence on a mouse
-event:
+When mouse reporting is enabled and none of the extended mouse modes
+(1005, 1006, 1015) is active, urxvt sends the following sequence on a
+mouse event:
 
-=over 4
+=over
 
 =item B<< C<< ESC [ M <b> <x> <y> >> >>
 
@@ -2131,7 +2151,7 @@ event:
 
 The lower 2 bits of B<< C<< <b> >> >> indicate the button:
 
-=over 4
+=over
 
 =item Button = B<< C<< (<b> - SPACE) & 3 >> >>
 
@@ -2149,7 +2169,7 @@ The lower 2 bits of B<< C<< <b> >> >> indicate the button:
 The upper bits of B<< C<< <b> >> >> indicate the modifiers when the
 button was pressed and are added together (X11 mouse report only):
 
-=over 4
+=over
 
 =item State = B<< C<< (<b> - SPACE) & ~3 >> >>
 
@@ -2166,73 +2186,34 @@ button was pressed and are added together (X11 mouse report only):
 
 =back
 
-Col = B<< C<< <x> - SPACE >> >>
+C<x> and C<y> encode the coordinates (1|1 is the upper left corner,
+just as with cursor positioning):
 
-Row = B<< C<< <y> - SPACE >> >>
+=over
 
-=head2 Mode 1015
+=item Col = B<< C<< <x> - SPACE >> >>
 
-If mode 1015 is active, urxvt instead sends the sequence
-
-=over 4
-
-=item B<< C<< ESC [ Pm M >> >>
+=item Row = B<< C<< <y> - SPACE >> >>
 
 =back
 
-where the mouse reporting codes are provided as decimal parameters
-instead of octets.
-
-This mode should be enabled I<before> actually enabling mouse reporting,
-for semi-obvious reasons.
-
-The first three parameters are C<code>, C<x> and C<y>. C<code> is the numeric
-code as for the other modes (but encoded as a decimal number, including
-the additional offset of 32, so you have to subtract 32 first), C<x> and
-C<y> are the coordinates (1|1 is the upper left corner, just as with
-cursor positioning).
+The parameters include an offset of 32 to ensure that they are
+printable characters.
 
 Example: Shift-Button-1 press at top row, column 80.
 
-   ESC [ 37 ; 80 ; 1 M
+   ESC [ M $ p !
 
-One can use this feature by simply enabling it and then looking for
-parameters to the C<ESC [ M> reply - if there are any, this mode is
-active, otherwise one of the old reporting styles is used.
-
-Other (to be implemented) reply sequences will use a similar encoding.
-
-In the future, more parameters might get added (pixel coordinates for
-example - anybody out there who needs this?).
-
-=head2 Mode 1006
-
-If mode 1015 is not active but mode 1006 is, urxvt sends the following
-sequences:
-
-=over 4
-
-=item B<< C<< ESC [ < <code>;<x>;<y> M >> >> button press and motion
-
-=item B<< C<< ESC [ < <code>;<x>;<y> m >> >> button release
-
-=back
-
-C<code> is the numeric code as for the other modes, encoded as a
-decimal number, with two modifications. The offset of 32 is not
-included and the lower 2 bits encodes the button number also on button
-release (instead of the value C<3>). The type of event (press or
-release) is encoded in the final character of the sequence (M or m).
-
-C<x> and C<y> are the coordinates (1|1 is the upper left corner, just
-as with cursor positioning).
+The largest coordinate that can be represented in this encoding is
+223. The range can be extended by using one of the extended mouse
+modes, which should be enabled I<before> enabling mouse reporting, for
+semi-obvious reasons.
 
 =head2 Mode 1005
 
-If modes 1006 and 1015 are not active but mode 1005 is, urxvt sends
-the sequence
+If mode 1005 is active, urxvt sends the sequence
 
-=over 4
+=over
 
 =item B<< C<< ESC [ M <b> <x> <y> >> >>
 
@@ -2241,6 +2222,50 @@ the sequence
 with the coordinates provided as characters in locale-encoding instead
 of 1 byte octets. This mode does not work sensibly in non-UTF-8
 locales and should therefore be avoided.
+
+=head2 Mode 1006
+
+If mode 1006 is active, urxvt sends the following sequences:
+
+=over
+
+=item B<< C<< ESC [ < <b>;<x>;<y> M >> >>
+
+button press and motion
+
+=item B<< C<< ESC [ < <b>;<x>;<y> m >> >>
+
+button release
+
+=back
+
+where the parameters are provided as decimal numbers instead of
+octets and do not include an offset of 32.
+
+The lower 2 bits of C<b> encode the button number also on button
+release (instead of the value C<3>). The final character of the
+sequence (M or m) specifies the event type (press/motion or release).
+
+Example: Shift-Button-1 press at top row, column 80.
+
+   ESC [ < 4 ; 80 ; 1 M
+
+=head2 Mode 1015
+
+If mode 1015 is active, urxvt sends the sequence
+
+=over
+
+=item B<< C<< ESC [ <b>;<x>;<y> M >> >>
+
+=back
+
+where the parameters are provided as decimal numbers instead of
+octets and only C<b> includes an offset of 32.
+
+Example: Shift-Button-1 press at top row, column 80.
+
+   ESC [ 36 ; 80 ; 1 M
 
 =head1 Key Codes
 
@@ -2327,7 +2352,7 @@ work, so it can be fixed. Marc Lehmann <rxvt@schmorp.de>.
 
 All
 
-=over 4
+=over
 
 =item --enable-everything
 
@@ -2381,18 +2406,18 @@ set up the input for people using dead keys or compose keys.
 
 =item --enable-unicode3 (default: off)
 
-Recommended to stay off unless you really need non-BMP characters.
+Recommended to stay off unless you really need a lot of non-BMP
+characters.
 
-Enable direct support for displaying unicode codepoints above
-65535 (the basic multilingual page). This increases storage
-requirements per character from 2 to 4 bytes. X11 fonts do not yet
-support these extra characters, but Xft does.
+Enable support for direct storage of unicode characters above 65535
+(the basic multilingual page). This increases storage requirements per
+character from 2 to 4 bytes. X11 fonts do not yet support these extra
+characters, but Xft does.
 
-Please note that rxvt-unicode can store unicode code points >65535
-even without this flag, but the number of such characters is
-limited to a few thousand (shared with combining characters,
-see next switch), and right now rxvt-unicode cannot display them
-(input/output and cut&paste still work, though).
+Please note that rxvt-unicode can store and display unicode characters
+above 65535 even without this flag, but the number of such characters is
+limited to a few thousand (shared with combining characters, see next
+switch).
 
 =item --enable-combining (default: on)
 
@@ -2428,23 +2453,6 @@ reading resources. Specify --with-res-name=rxvt to replace rxvt.
 Use the given class as default application class
 when reading resources. Specify --with-res-class=Rxvt to replace
 rxvt.
-
-=item --enable-utmp (default: on)
-
-Write user and tty to utmp file (used by programs like F<w>) at
-start of rxvt execution and delete information when rxvt exits.
-
-=item --enable-wtmp (default: on)
-
-Write user and tty to wtmp file (used by programs like F<last>) at
-start of rxvt execution and write logout when rxvt exits.  This
-option requires --enable-utmp to also be specified.
-
-=item --enable-lastlog (default: on)
-
-Write user and tty to lastlog file (used by programs like
-F<lastlogin>) at start of rxvt execution.  This option requires
---enable-utmp to also be specified.
 
 =item --enable-pixbuf (default: on)
 
@@ -2526,6 +2534,9 @@ in combination with other switches) is:
   focus reporting mode (1004).
   extended mouse reporting modes (1005, 1006 and 1015).
   visual selection via -visual and -depth.
+  systemd socket activation
+  selectable rewrapmode
+  bracketed paste mode
 
 It also enables some non-essential features otherwise disabled, such as:
 
@@ -2618,12 +2629,14 @@ C<rxvt>.
 
 =item --with-term=NAME (default: rxvt-unicode)
 
-Change the environmental variable for the terminal to NAME.
+Sets the default C<TERM> value that @@RXVT_NAME@@ sets. The default is
+either C<rxvt-unicode> or C<rxvt-unicode-256color>, as appropriate.
 
 =item --with-terminfo=PATH
 
-Change the environmental variable for the path to the terminfo tree to
-PATH.
+If set, @@RXVT_NAME@@ will set the environment variable C<TERMINFO> to
+the given PATH, which can be useful as a last resort if installing the
+terminfo entries system-wide is not possible.
 
 =item --with-x
 
