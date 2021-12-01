@@ -309,6 +309,10 @@ rxvt_compose (unicode_t c1, unicode_t c2)
 
 #include "table/category.h"
 
+bool unicode::is_quote (unicode_t c) {
+  return c == 8216 || c == 8217;
+}
+
 bool unicode::is_space (unicode_t c)
 {
   return IS_SPACE (c)

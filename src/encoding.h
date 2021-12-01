@@ -85,6 +85,7 @@ extern unicode_t rxvt_compose (unicode_t c1, unicode_t c2);
 
 struct unicode // namespace für arme
 {
+  static bool is_quote (unicode_t c);
   static bool is_space (unicode_t c);
 };
 

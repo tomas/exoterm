@@ -3150,7 +3150,7 @@ rxvt_term::selection_start_colrow (int col, int row) NOTHROW
 
 /* what do we want: spaces/tabs are delimiters or cutchars or non-cutchars */
 #define DELIMIT_TEXT(x)		\
-    (unicode::is_space (x) ? 2 : (x) <= 0xff && !!strchr (rs[Rs_cutchars], (x)))
+    (unicode::is_space(x) || unicode::is_quote(x) ? 2 : (x) <= 0xff && !!strchr(rs[Rs_cutchars], (x)))
 #define DELIMIT_REND(x)        1
 
 void ecb_cold
