@@ -351,13 +351,13 @@ Pixmap ShadePixmap(Display * dpy, Window win, Pixmap src, int x, int y, int widt
   return target;
 }
 
+const char* pixmap_id_names[] = {
+  "ESETROOT_PMAP_ID", "_XROOTPMAP_ID", NULL
+};
 
 Pixmap getRootPixmap(Display *dpy) {
   Pixmap root_pixmap = None;
   static Atom id = None;
-  const char* pixmap_id_names[] = {
-    "ESETROOT_PMAP_ID", "_XROOTPMAP_ID", NULL
-  };
 
   int i = 0;
   for (i = 0; (pixmap_id_names[i] && (None == root_pixmap)); i++) {
@@ -380,6 +380,8 @@ Pixmap getRootPixmap(Display *dpy) {
 
       if (Success == rc && properties) {
         root_pixmap = *((Pixmap*)properties);
+      } else {
+        printf("Couldn't get %s\n", pixmap_id_names[i]);
       }
     }
   }
@@ -445,8 +447,7 @@ rxvt_term::bg_window_position_sensitive ()
 Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out) {
   Pixmap bg = getRootPixmap(dpy);
   if (bg == None) {
-    printf("unable to get root pixmap\n");
-    // return 1;
+    printf("Unable to get root pixmap\n");
     return NULL;
   }
 
@@ -524,7 +525,7 @@ rxvt_term::bg_init ()
       root_img = load_root_img(dpy, parent, gc, &w, &h);
 
       // printf("creating pixmap: %d/%d, depth: %d\n", w, h, depth);
-      winbg = XCreatePixmap(dpy, parent, w, h, depth);
+      if (root_img) winbg = XCreatePixmap(dpy, parent, w, h, depth);
 
       // if (rs [Rs_blurradius])
       //   root_effects.set_blur (rs [Rs_blurradius]);
