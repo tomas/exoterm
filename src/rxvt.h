@@ -98,6 +98,27 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 # endif
 #endif
 
+#define ENABLE_DND 1
+
+#ifdef ENABLE_DND
+
+static unsigned char dndversion = 3;
+static Atom xdndaware, xdndenter, xdndposition, xdndstatus, xdndleave, xdnddrop, xdndfini;
+static Atom xdndacopy, xdndselection, xdnddata, xdndtypelist;
+
+#define numdndtargets 5
+static char *dndtargetnames[] = {
+  "text/plain",
+  "text/uri-list",
+  "UTF8_STRING",
+  "STRING",
+  "TEXT",
+};
+static Atom dndtargetatoms[numdndtargets];
+static Atom dndtarget;
+
+#endif
+
 #include <ecb.h>
 #include "encoding.h"
 #include "rxvtutil.h"

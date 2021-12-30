@@ -1464,6 +1464,28 @@ done:
 #endif
 }
 
+#ifdef ENABLE_DND
+
+static void
+xdnd_init(Display * dpy, Window win) {
+  xdndaware = XInternAtom(dpy, "XdndAware", False);
+  xdndenter = XInternAtom(dpy, "XdndEnter", False);
+  xdndacopy = XInternAtom(dpy, "XdndActionCopy", False);
+  xdndposition = XInternAtom(dpy, "XdndPosition", False);
+  xdndselection = XInternAtom(dpy, "XdndSelection", False);
+  xdndtypelist = XInternAtom(dpy, "XdndTypeList", False);
+  xdndstatus = XInternAtom(dpy, "XdndStatus", False);
+  xdndleave = XInternAtom(dpy, "XdndLeave", False);
+  xdnddrop = XInternAtom(dpy, "XdndDrop", False);
+  xdndfini = XInternAtom(dpy, "XdndFinished", False);
+  xdnddata = XInternAtom(dpy, "XDND_DATA", False);
+
+  XInternAtoms(dpy, dndtargetnames, numdndtargets, False, dndtargetatoms);
+  XChangeProperty(dpy, win, xdndaware, XA_ATOM, 32, PropModeReplace, &dndversion, 1);
+}
+
+#endif
+
 /*----------------------------------------------------------------------*/
 /* Open and map the window */
 
@@ -1692,6 +1714,10 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   // initially we are in unfocused state
   if (rs[Rs_fade])
     pix_colors = pix_colors_unfocused;
+#endif
+
+#ifdef ENABLE_DND
+  xdnd_init(dpy, display->root);
 #endif
 
   pointer_unblank ();

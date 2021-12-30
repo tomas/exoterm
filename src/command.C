@@ -1619,6 +1619,42 @@ rxvt_term::mouse_report (XButtonEvent &ev)
               32 + y);
 }
 
+
+static void *
+xgetprop(Display * dpy, Window w, Atom prop, Atom *type, int *fmt, size_t *cnt)
+{
+  unsigned long rem;
+  void *ret = NULL;
+  int r, size = 0;
+
+  *type = None;
+  *cnt = 0;
+  do {
+    if (ret != NULL)
+      XFree(ret);
+    r = XGetWindowProperty(dpy, w, prop, 0, size, False, AnyPropertyType, type, fmt, cnt, &rem, (unsigned char**)&ret);
+    if (r != Success)
+      break;
+
+    size += rem;
+  } while (rem != 0);
+
+  return ret;
+}
+
+static Atom
+dndmatchtarget(size_t count, Atom *target)
+{
+  size_t t, i;
+
+  for (t = 0; t < numdndtargets; t++)
+    for (i = 0; i < count; i++)
+      if (target[i] != None && target[i] == dndtargetatoms[t])
+        return target[i];
+
+  return None;
+}
+
 /*{{{ process an X event */
 void ecb_hot
 rxvt_term::x_cb (XEvent &ev)
@@ -1686,6 +1722,63 @@ rxvt_term::x_cb (XEvent &ev)
                   focus_out ();
               }
 #endif
+
+#ifdef ENABLE_DND
+
+
+              else if (ev.xclient.message_type == xdndenter) {
+                Window src = ev.xclient.data.l[0];
+                int version = ev.xclient.data.l[1] >> 24;
+                int typelist = ev.xclient.data.l[1] & 1;
+
+                if (version < dndversion)
+                  fprintf(stderr, "unsupported dnd version %d\n", version);
+                if (typelist) {
+                  Atom type = None;
+                  int fmt;
+                  Atom *data = NULL;
+                  unsigned long n;
+                  data = (Atom *)xgetprop(dpy, src, xdndtypelist, &type, &fmt, &n);
+                  dndtarget = dndmatchtarget(n, data);
+                  XFree(data);
+                } else {
+                  dndtarget = dndmatchtarget(3, (Atom *) &ev.xclient.data.l[2]);
+                }
+              }
+              else if (ev.xclient.message_type == xdndposition) {
+                Window src = ev.xclient.data.l[0];
+                Atom action = ev.xclient.data.l[4];
+                /* accept the drag-n-drop if we matched a target,
+                 * only xdndacopy action is supported */
+                int accept = dndtarget != None && action == xdndacopy;
+                XClientMessageEvent m = {
+                  .type = ClientMessage,
+                  .display = dpy,
+                  .window = src,
+                  .message_type = xdndstatus,
+                  .format = 32,
+                };
+
+                m.data.l[0] = display->root;
+                m.data.l[1] = accept;
+                m.data.l[2] = 0;
+                m.data.l[3] = 0;
+                m.data.l[4] = xdndacopy;
+
+                if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0)
+                  fprintf(stderr, "xsend error\n");
+              }
+              else if (ev.xclient.message_type == xdnddrop) {
+                Time droptimestamp = ev.xclient.data.l[2];
+                if (dndtarget != None)
+                  XConvertSelection(dpy, xdndselection, dndtarget, xdnddata, display->root, droptimestamp);
+              }
+              else if (ev.xclient.message_type == xdndleave) {
+                dndtarget = None;
+              }
+
+#endif
+
           }
         break;
 
