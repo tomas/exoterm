@@ -1642,8 +1642,8 @@ xgetprop(Display * dpy, Window w, Atom prop, Atom *type, int *fmt, size_t *cnt)
   return ret;
 }
 
-static Atom
-dndmatchtarget(size_t count, Atom *target)
+Atom
+rxvt_term::dndmatchtarget(size_t count, Atom *target)
 {
   size_t t, i;
 
@@ -1653,6 +1653,70 @@ dndmatchtarget(size_t count, Atom *target)
         return target[i];
 
   return None;
+}
+
+static unsigned int
+xtoi(char hex)
+{
+  return (isdigit(hex) ? hex - '0' : toupper(hex) - 'A' + 10);
+}
+
+static int
+urldecode(char *str, char *url, size_t len)
+{
+  while (len > 0 && *url != '\0') {
+    if (url[0] != '%') {
+      *str++ = *url++;
+    } else if (len > 2 && isxdigit(url[1]) && isxdigit(url[2])) {
+      *str++ = 16 * xtoi(url[1]) + xtoi(url[2]);
+      url += 3;
+      len -= 3;
+    } else {
+      return 1; /* malformed url */
+    }
+  }
+  if (len > 0)
+    *str++ = '\0';
+
+  return 0;
+}
+
+void rxvt_term::handle_uri(char * uri, uint16_t len) {
+  printf("Got URI: %s\n", uri);
+  paste(uri, len);
+}
+
+void rxvt_term::selnotify(XEvent *e) {
+  unsigned long n;
+  int fmt;
+  char *uri, *data;
+  Atom type, prop = None;
+  uint16_t len;
+
+  if (e->type == SelectionNotify) prop = e->xselection.property;
+  if (prop == None)
+    return;
+
+  dLocal (Display *, dpy);
+  Window win = this->parent;
+
+  data = (char *)xgetprop(dpy, win, prop, &type, &fmt, &n);
+  if (!data)
+    fprintf(stderr, "selection allocation failed\n");
+
+  uri = strtok(data, "\r\n");
+  while (uri != NULL) {
+    if (strncmp(uri, "file://", strlen("file://")) == 0) {
+      uri += strlen("file://");
+      len = strlen(uri) + 1;
+      urldecode(uri, uri, len);
+      handle_uri(uri, len);
+    }
+    uri = strtok(NULL, "\r\n");
+  }
+
+  XFree(data);
+  XDeleteProperty(dpy, win, prop);
 }
 
 /*{{{ process an X event */
@@ -1693,11 +1757,10 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case ClientMessage:
-        if (ev.xclient.format == 32
-            && !HOOK_INVOKE ((this, HOOK_CLIENT_MESSAGE, DT_XEVENT, &ev, DT_END)))
-          {
-            if (ev.xclient.message_type == xa[XA_WM_PROTOCOLS])
-              {
+        if (ev.xclient.format == 32 && !HOOK_INVOKE ((this, HOOK_CLIENT_MESSAGE, DT_XEVENT, &ev, DT_END))) {
+
+            if (ev.xclient.message_type == xa[XA_WM_PROTOCOLS]) {
+
                 if (!HOOK_INVOKE ((this, HOOK_WM_PROTOCOLS, DT_XEVENT, &ev, DT_END)))
                   {
                     if (ev.xclient.data.l[0] == xa[XA_WM_DELETE_WINDOW])
@@ -1714,72 +1777,82 @@ rxvt_term::x_cb (XEvent &ev)
                   }
               }
 #if ENABLE_XEMBED
-            else if (ev.xclient.format == 32 && ev.xclient.message_type == xa[XA_XEMBED])
-              {
-                if (ev.xclient.data.l[1] == XEMBED_FOCUS_IN)
-                  focus_in ();
-                else if (ev.xclient.data.l[1] == XEMBED_FOCUS_OUT)
-                  focus_out ();
-              }
+            else if (ev.xclient.format == 32 && ev.xclient.message_type == xa[XA_XEMBED]) {
+
+              if (ev.xclient.data.l[1] == XEMBED_FOCUS_IN)
+                focus_in ();
+              else if (ev.xclient.data.l[1] == XEMBED_FOCUS_OUT)
+                focus_out ();
+            }
 #endif
 
 #ifdef ENABLE_DND
 
+            else if (ev.xclient.message_type == xdndenter) {
+              Window src = ev.xclient.data.l[0];
+              int version = ev.xclient.data.l[1] >> 24;
+              int typelist = ev.xclient.data.l[1] & 1;
 
-              else if (ev.xclient.message_type == xdndenter) {
-                Window src = ev.xclient.data.l[0];
-                int version = ev.xclient.data.l[1] >> 24;
-                int typelist = ev.xclient.data.l[1] & 1;
+              if (version < dndversion)
+                fprintf(stderr, "unsupported dnd version %d\n", version);
 
-                if (version < dndversion)
-                  fprintf(stderr, "unsupported dnd version %d\n", version);
-                if (typelist) {
-                  Atom type = None;
-                  int fmt;
-                  Atom *data = NULL;
-                  unsigned long n;
-                  data = (Atom *)xgetprop(dpy, src, xdndtypelist, &type, &fmt, &n);
-                  dndtarget = dndmatchtarget(n, data);
-                  XFree(data);
-                } else {
-                  dndtarget = dndmatchtarget(3, (Atom *) &ev.xclient.data.l[2]);
-                }
+              if (typelist) {
+                Atom type = None;
+                int fmt;
+                Atom *data = NULL;
+                unsigned long n;
+                data = (Atom *)xgetprop(dpy, src, xdndtypelist, &type, &fmt, &n);
+                dndtarget = dndmatchtarget(n, data);
+                XFree(data);
+              } else {
+                dndtarget = dndmatchtarget(3, (Atom *) &ev.xclient.data.l[2]);
               }
-              else if (ev.xclient.message_type == xdndposition) {
-                Window src = ev.xclient.data.l[0];
-                Atom action = ev.xclient.data.l[4];
-                /* accept the drag-n-drop if we matched a target,
-                 * only xdndacopy action is supported */
-                int accept = dndtarget != None && action == xdndacopy;
-                XClientMessageEvent m = {
-                  .type = ClientMessage,
-                  .display = dpy,
-                  .window = src,
-                  .message_type = xdndstatus,
-                  .format = 32,
-                };
+            }
 
-                m.data.l[0] = display->root;
-                m.data.l[1] = accept;
-                m.data.l[2] = 0;
-                m.data.l[3] = 0;
-                m.data.l[4] = xdndacopy;
+            else if (ev.xclient.message_type == xdndposition) {
+              Window src = ev.xclient.data.l[0];
+              Atom action = ev.xclient.data.l[4];
+              /* accept the drag-n-drop if we matched a target,
+               * only xdndacopy action is supported */
+              int accept = dndtarget != None && action == xdndacopy;
+              XClientMessageEvent m = {
+                .type = ClientMessage,
+                .display = dpy,
+                .window = src,
+                .message_type = xdndstatus,
+                .format = 32,
+              };
 
-                if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0)
-                  fprintf(stderr, "xsend error\n");
-              }
-              else if (ev.xclient.message_type == xdnddrop) {
-                Time droptimestamp = ev.xclient.data.l[2];
-                if (dndtarget != None)
-                  XConvertSelection(dpy, xdndselection, dndtarget, xdnddata, display->root, droptimestamp);
-              }
-              else if (ev.xclient.message_type == xdndleave) {
-                dndtarget = None;
-              }
+              m.data.l[0] = this->parent;
+              m.data.l[1] = accept;
+              m.data.l[2] = 0;
+              m.data.l[3] = 0;
+              m.data.l[4] = xdndacopy;
 
+              if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0)
+                fprintf(stderr, "xsend error\n");
+            }
+            else if (ev.xclient.message_type == xdnddrop) {
+              Time droptimestamp = ev.xclient.data.l[2];
+              if (dndtarget != None) {
+                XConvertSelection(dpy, xdndselection, dndtarget, xdnddata, this->parent, droptimestamp);
+              }
+            }
+            else if (ev.xclient.message_type == xdndleave) {
+              dndtarget = None;
+            }
 #endif
 
+            // else {
+            //   printf("Unknown message type: %d\n", ev.xclient.message_type);
+            //   printf("xdndenter: %d\n", xdndenter);
+            // }
+
           }
+        break;
+
+      case SelectionNotify:
+        selnotify(&ev); // process dnd
         break;
 
         /*

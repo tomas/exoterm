@@ -1466,8 +1466,12 @@ done:
 
 #ifdef ENABLE_DND
 
-static void
-xdnd_init(Display * dpy, Window win) {
+void
+rxvt_term::xdnd_init(void) {
+  dLocal (Display *, dpy);
+  Window win = this->parent;
+  // Window win = this->vt;
+
   xdndaware = XInternAtom(dpy, "XdndAware", False);
   xdndenter = XInternAtom(dpy, "XdndEnter", False);
   xdndacopy = XInternAtom(dpy, "XdndActionCopy", False);
@@ -1688,7 +1692,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   attributes.bit_gravity = NorthWestGravity;
   XChangeWindowAttributes (dpy, vt, CWBitGravity, &attributes);
 
-  vt_emask = ExposureMask | ButtonPressMask | ButtonReleaseMask | PropertyChangeMask;
+  vt_emask = PointerMotionMask | ExposureMask | ButtonPressMask | ButtonReleaseMask | PropertyChangeMask;
 
   if (option (Opt_pointerBlank))
     vt_emask |= PointerMotionMask;
@@ -1717,7 +1721,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 #endif
 
 #ifdef ENABLE_DND
-  xdnd_init(dpy, display->root);
+  xdnd_init();
 #endif
 
   pointer_unblank ();

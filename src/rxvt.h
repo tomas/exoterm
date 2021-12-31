@@ -102,11 +102,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 
 #ifdef ENABLE_DND
 
-static unsigned char dndversion = 3;
-static Atom xdndaware, xdndenter, xdndposition, xdndstatus, xdndleave, xdnddrop, xdndfini;
-static Atom xdndacopy, xdndselection, xdnddata, xdndtypelist;
-
 #define numdndtargets 5
+static unsigned char dndversion = 3;
 static char *dndtargetnames[] = {
   "text/plain",
   "text/uri-list",
@@ -114,8 +111,6 @@ static char *dndtargetnames[] = {
   "STRING",
   "TEXT",
 };
-static Atom dndtargetatoms[numdndtargets];
-static Atom dndtarget;
 
 #endif
 
@@ -1293,6 +1288,20 @@ Pixmap icon_mask; //  = None;
 # endif
 #endif
 
+#ifdef ENABLE_DND
+
+  Atom xdndaware, xdndenter, xdndposition, xdndstatus, xdndleave, xdnddrop, xdndfini;
+  Atom xdndacopy, xdndselection, xdnddata, xdndtypelist;
+  Atom dndtargetatoms[numdndtargets];
+  Atom dndtarget;
+
+  void xdnd_init(void);
+  Atom dndmatchtarget(size_t count, Atom *target);
+  void selnotify(XEvent * e);
+  void handle_uri(char * uri, uint16_t len);
+
+#endif
+
   long vt_emask, vt_emask_perl, vt_emask_xim, vt_emask_mouse;
 
   void vt_select_input () const NOTHROW
@@ -1371,7 +1380,7 @@ Pixmap icon_mask; //  = None;
 
   void make_current () const // make this the "currently active" urxvt instance
   {
-    printf("making current: %d\n", tab_index);
+    // printf("making current: %d\n", tab_index);
     SET_R (this);
     set_environ (env);
     rxvt_set_locale (locale);
