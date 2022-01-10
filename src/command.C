@@ -1701,8 +1701,10 @@ void rxvt_term::selnotify(XEvent *e) {
   Window win = this->parent;
 
   data = (char *)xgetprop(dpy, win, prop, &type, &fmt, &n);
-  if (!data)
+  if (!data) {
     fprintf(stderr, "selection allocation failed\n");
+    return;
+  }
 
   uri = strtok(data, "\r\n");
   while (uri != NULL) {
@@ -1852,7 +1854,8 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case SelectionNotify:
-        selnotify(&ev); // process dnd
+        if (dndtarget) selnotify(&ev); // process dnd
+        dndtarget = None;
         break;
 
         /*
