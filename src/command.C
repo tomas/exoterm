@@ -801,10 +801,10 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
-        if (ctrl && (keysym == XK_Up)) {
-          detach_tab();
-          return;
-        }
+        // if (ctrl && (keysym == XK_Up)) {
+        //   detach_tab();
+        //   return;
+        // }
 
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
         {
