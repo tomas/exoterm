@@ -571,6 +571,8 @@ rxvt_term::key_press (XKeyEvent &ev)
                     kbuf[3] = ';';
                     kbuf[4] = '5';
                     kbuf[5] = "DACB"[keysym - XK_Left];
+                    kbuf[6] = '\0';
+
                   }
                 else if (priv_modes & PrivMode_aplCUR)
                   kbuf[1] = 'O';
