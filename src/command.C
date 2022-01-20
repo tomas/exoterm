@@ -715,9 +715,10 @@ rxvt_term::key_press (XKeyEvent &ev)
       len++;
     }
 
-  if (meta && keysym == 122)  {
+
+  if (meta && keysym == 122)  { // alt + Z
     return prev_tab(0);
-  } else if (meta && keysym == 120)  {
+  } else if (meta && keysym == 120)  { // alt + X
     return next_tab(0);
   }
 
