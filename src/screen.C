@@ -2354,7 +2354,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  // printf("ncol: %d, nrow: %d\n", ncol, nrow);
+  printf("draw! ncol: %d, nrow: %d\n", ncol, nrow);
 
   /*
    * E: main pass across every character
@@ -2375,7 +2375,7 @@ rxvt_term::scr_refresh () NOTHROW
         {
           /* compare new text with old - if exactly the same then continue */
           if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col])) {
-            // printf("same!\n");
+            // printf("same char at %dx%d!\n", row, col);
             continue;
           }
 
@@ -2391,6 +2391,8 @@ rxvt_term::scr_refresh () NOTHROW
 
           dtp[col] = stp[col];
           drp[col] = rend;
+
+          printf("redrawing char at %dx%d: %c\n", row, col, stp[col]);
 
           int xpixel = Col2Pixel (col);
 
