@@ -1406,6 +1406,14 @@ Pixmap icon_mask; //  = None;
 #endif
 
   // command.C
+  void run_search(const char * str, int len);
+  void update_search(void);
+  void draw_search_bar(void);
+  void show_search_bar(void);
+  void clear_search (bool all);
+  void hide_search_bar(void);
+  void append_to_search (char * buf, int len);
+
   void key_press (XKeyEvent &ev);
   void key_release (XKeyEvent &ev);
 

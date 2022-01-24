@@ -56,6 +56,7 @@
 # include "keyboard.h"
 #endif
 
+#include <string>
 #include <signal.h>
 
 #if LINUX_YIELD_HACK
@@ -407,23 +408,23 @@ rxvt_wcsdup (const wchar_t *str, int len)
 }
 
 static bool search_shown = false;
-std::vector<char> search_chars;
-#define MAX_SEARCH_LENGTH 16
+vector<char> search_chars;
+#define MAX_SEARCH_LENGTH 32
 
 bool find_word_in_line(line_t * l, const char * word, uint8_t word_len) {
   int line_len = l->l;
-  int e;
+  int i, e;
 
   for (i; i < line_len; i++) {
-    if (l->t[0] == word[0]) { // first letter matches
+    if (l->t[i] == word[0]) { // first letter matches
       for (e = 1; e < word_len; e) {
-        if ((i + e) > line_len || l->t[e] != word[e]) {
+        if ((i + e) > line_len || l->t[i + e] != word[e]) {
           break;
         }
       }
-      if (e == len) { // found match!
-        for (o = 1; e < len; e) {
-          l->r[e] |= RS_Uline; // underline
+      if (e == word_len) { // found match!
+        for (e = 0; e < word_len; e) {
+          l->r[i + e] |= RS_Uline; // underline
         }
 
         return true;
@@ -433,10 +434,17 @@ bool find_word_in_line(line_t * l, const char * word, uint8_t word_len) {
   return false;
 }
 
-void update_search(const char * str, int len) {
+void ecb_cold
+rxvt_term::run_search(const char * str, int len) {
   int row = view_start;
   int end_row = row + nrow;
   int found_at = 0;
+
+  // int row = 0;
+  // int end_row = 10;
+  // int top_row = 2;
+
+  printf("row: %d, top_row: %d, nrow: %d, end_row: %d\n", row, top_row, nrow, end_row);
 
   while (row > top_row && ROW (row - 1).is_longer ()) {
     --row;
@@ -474,41 +482,72 @@ void update_search(const char * str, int len) {
   }
 }
 
-void draw_search_bar(const char * str) {
-  search_shown = true;
+void ecb_cold
+rxvt_term::update_search(void) {
 
   char * label = "Search:";
-  if (str != NULL) {
-    strcat(label, ": ");
-    strcat(label, str);
+  if (search_chars.size() == 0) {
+    scr_overlay_new (2, -1, sizeof("Search:") + 1, 1);
+    scr_overlay_set (1, 0, "Search:");
+    return;
   }
 
-  scr_overlay_new (2, -1, sizeof(label) - 1, 1);
-  scr_overlay_set (2, 2, label);
+  char query[search_chars.size()];
+
+  int i;
+  for (i = 0; i < search_chars.size(); i++) {
+    query[i] = search_chars[i];
+  }
+  query[search_chars.size()] = '\0';
+
+  printf("Search is now: %s (%d)\n", query, search_chars.size());
+
+  scr_overlay_new (2, -1, 10 + search_chars.size(), 1);
+  scr_overlay_set (1, 0, "Search: ");
+  scr_overlay_set (9, 0, query);
+
+  run_search(query, search_chars.size());
 }
 
-void clear_search (bool all) {
+void ecb_cold
+rxvt_term::clear_search (bool all) {
   if (all)
     search_chars.clear();
   else if (search_chars.size() > 0)
     search_chars.pop_back();
+
+  update_search();
 }
 
-void hide_search_bar() {
+void ecb_cold
+rxvt_term::hide_search_bar(void) {
   clear_search(true);
   search_shown = false;
   scr_overlay_off();
 }
 
-void append_to_search (char ch) {
-  if (ch != 10)
-    search_chars.push_back(ch);
+void ecb_cold
+rxvt_term::show_search_bar(void) {
+  search_shown = true;
+  update_search();
+}
 
-  if (search_chars.size() > MAX_SEARCH_LENGTH) break;
-  std::string query(search_chars.begin(), search_chars.end());
+void ecb_cold
+rxvt_term::append_to_search (char * buf, int len) {
+  if (search_chars.size() > MAX_SEARCH_LENGTH)
+    return;
 
-  draw_search_bar(query.c_str());
-  update_search(query.c_str(), query.size());
+  if (buf[0] > 30 && buf[0] < 120) {
+    search_chars.push_back(buf[0]);
+  } else {
+    printf("Not appending char %d\n", buf[0]);
+    // close search bar with ctrl-c, enter or escape
+    if (buf[0] == 3 || buf[0] == 13 || buf[0] == 27) hide_search_bar();
+    return;
+  }
+
+  printf("Appending to search: %s (%d) - char %d\n", buf, len, buf[0]);
+  update_search();
 }
 
 void ecb_cold
@@ -943,8 +982,10 @@ rxvt_term::key_press (XKeyEvent &ev)
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
 
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
-              scr_overlay_set (0, 0, "Copied to clipboard");
+              if (!search_shown) {
+                scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
+                scr_overlay_set (0, 0, "Copied to clipboard");
+              }
             }
 
           return;
@@ -1040,6 +1081,7 @@ rxvt_term::key_press (XKeyEvent &ev)
 
   if (search_shown) {
     append_to_search(kbuf, (unsigned int)len);
+    return;
   }
 
   tt_write_user_input (kbuf, (unsigned int)len);
@@ -1870,7 +1912,7 @@ rxvt_term::x_cb (XEvent &ev)
 
   switch (ev.type) {
       case KeyPress:
-        scr_overlay_off();
+        if (!search_shown) scr_overlay_off();
         key_press (ev.xkey);
         break;
 
@@ -1879,7 +1921,7 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case ButtonPress:
-        scr_overlay_off();
+        if (!search_shown) scr_overlay_off();
         button_press (ev.xbutton);
         break;
 
@@ -2829,8 +2871,10 @@ rxvt_term::button_release (XButtonEvent &ev)
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
 
-              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1);
-              scr_overlay_set (0, 0, "Copied to clipboard");
+              if (!search_shown) {
+                scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1);
+                scr_overlay_set (0, 0, "Copied to clipboard");
+              }
             }
 
             break;
@@ -3201,6 +3245,7 @@ rxvt_term::process_nonprinting (unicode_t ch)
         scr_bell ();
         break;
       case C0_BS:		/* backspace */
+        printf("backspace!\n");
         scr_backspace ();
         break;
       case C0_HT:		/* tab */
