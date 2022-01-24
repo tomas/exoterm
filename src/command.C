@@ -415,15 +415,19 @@ bool find_word_in_line(line_t * l, const char * word, uint8_t word_len) {
   int line_len = l->l;
   int i, e;
 
-  for (i; i < line_len; i++) {
+  printf("line len %d\n", line_len);
+  for (i = 0; i < line_len; i++) {
     if (l->t[i] == word[0]) { // first letter matches
-      for (e = 1; e < word_len; e) {
+      printf("letter 1 matches at pos %d\n", i);
+      for (e = 1; e < word_len; e++) {
         if ((i + e) > line_len || l->t[i + e] != word[e]) {
           break;
         }
       }
+
       if (e == word_len) { // found match!
-        for (e = 0; e < word_len; e) {
+        printf("found match at pos %d (%d)\n", i, word_len);
+        for (e = 0; e < word_len; e++) {
           l->r[i + e] |= RS_Uline; // underline
         }
 
@@ -444,11 +448,11 @@ rxvt_term::run_search(const char * str, int len) {
   // int end_row = 10;
   // int top_row = 2;
 
-  printf("row: %d, top_row: %d, nrow: %d, end_row: %d\n", row, top_row, nrow, end_row);
-
   while (row > top_row && ROW (row - 1).is_longer ()) {
     --row;
   }
+
+  printf("row: %d, top_row: %d, nrow: %d, end_row: %d\n", row, top_row, nrow, end_row);
 
   do {
     int start_row = row;
@@ -456,7 +460,9 @@ rxvt_term::run_search(const char * str, int len) {
 
     do {
       l = &ROW (row++);
-      if ((l->l > 0) && !(l->f & LINE_FILTERED)) {
+      printf("checking row %d (%d - %d)\n", row, l->l, (l->f & LINE_FILTERED));
+      if ((l->l > 0)) {
+        printf("checking word %s in row %d\n", str, row);
         if (find_word_in_line(l, str, len)) {
           found_at = row;
         }
@@ -476,8 +482,10 @@ rxvt_term::run_search(const char * str, int len) {
     } while (l->is_longer () && row < end_row);
   } while (row < end_row);
 
+  printf("finished checking\n");
+
   if (found_at) {
-    scr_move_to (found_at, 1);
+    // scr_move_to (found_at, 1);
     // scr_changeview (top_row + (nrow - 1 - top_row) * y / len);
   }
 }
@@ -506,7 +514,7 @@ rxvt_term::update_search(void) {
   scr_overlay_set (1, 0, "Search: ");
   scr_overlay_set (9, 0, query);
 
-  run_search(query, search_chars.size());
+  if (search_chars.size() > 2) run_search(query, search_chars.size());
 }
 
 void ecb_cold
@@ -537,7 +545,7 @@ rxvt_term::append_to_search (char * buf, int len) {
   if (search_chars.size() > MAX_SEARCH_LENGTH)
     return;
 
-  if (buf[0] > 30 && buf[0] < 120) {
+  if (buf[0] > 30 && buf[0] < 130) {
     search_chars.push_back(buf[0]);
   } else {
     printf("Not appending char %d\n", buf[0]);
