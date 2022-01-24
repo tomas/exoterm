@@ -406,6 +406,111 @@ rxvt_wcsdup (const wchar_t *str, int len)
   return r;
 }
 
+static bool search_shown = false;
+std::vector<char> search_chars;
+#define MAX_SEARCH_LENGTH 16
+
+bool find_word_in_line(line_t * l, const char * word, uint8_t word_len) {
+  int line_len = l->l;
+  int e;
+
+  for (i; i < line_len; i++) {
+    if (l->t[0] == word[0]) { // first letter matches
+      for (e = 1; e < word_len; e) {
+        if ((i + e) > line_len || l->t[e] != word[e]) {
+          break;
+        }
+      }
+      if (e == len) { // found match!
+        for (o = 1; e < len; e) {
+          l->r[e] |= RS_Uline; // underline
+        }
+
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void update_search(const char * str, int len) {
+  int row = view_start;
+  int end_row = row + nrow;
+  int found_at = 0;
+
+  while (row > top_row && ROW (row - 1).is_longer ()) {
+    --row;
+  }
+
+  do {
+    int start_row = row;
+    line_t *l;
+
+    do {
+      l = &ROW (row++);
+      if ((l->l > 0) && !(l->f & LINE_FILTERED)) {
+        if (find_word_in_line(l, str, len)) {
+          found_at = row;
+        }
+
+        // line not filtered, mark it as filtered
+        l->f |= LINE_FILTERED;
+        while (l->is_longer ()) {
+          l = &ROW (row++);
+
+          // find_word_in_line(l, str, len, in_search);
+          l->f |= LINE_FILTERED;
+        }
+
+        HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
+        break;
+      }
+    } while (l->is_longer () && row < end_row);
+  } while (row < end_row);
+
+  if (found_at) {
+    scr_move_to (found_at, 1);
+    // scr_changeview (top_row + (nrow - 1 - top_row) * y / len);
+  }
+}
+
+void draw_search_bar(const char * str) {
+  search_shown = true;
+
+  char * label = "Search:";
+  if (str != NULL) {
+    strcat(label, ": ");
+    strcat(label, str);
+  }
+
+  scr_overlay_new (2, -1, sizeof(label) - 1, 1);
+  scr_overlay_set (2, 2, label);
+}
+
+void clear_search (bool all) {
+  if (all)
+    search_chars.clear();
+  else if (search_chars.size() > 0)
+    search_chars.pop_back();
+}
+
+void hide_search_bar() {
+  clear_search(true);
+  search_shown = false;
+  scr_overlay_off();
+}
+
+void append_to_search (char ch) {
+  if (ch != 10)
+    search_chars.push_back(ch);
+
+  if (search_chars.size() > MAX_SEARCH_LENGTH) break;
+  std::string query(search_chars.begin(), search_chars.end());
+
+  draw_search_bar(query.c_str());
+  update_search(query.c_str(), query.size());
+}
+
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
@@ -509,6 +614,12 @@ rxvt_term::key_press (XKeyEvent &ev)
           switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
+
+                if (search_shown) {
+                  clear_search(meta);
+                  return;
+                }
+
                 if (priv_modes & PrivMode_HaveBackSpace)
                   {
                     kbuf[0] = (!! (priv_modes & PrivMode_BackSpace)
@@ -579,6 +690,12 @@ rxvt_term::key_press (XKeyEvent &ev)
                 break;
 
               case XK_KP_Enter:
+
+                if (search_shown) {
+                  hide_search_bar();
+                  return;
+                }
+
                 /* allow shift to override */
                 if (kp)
                   {
@@ -804,6 +921,12 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
+        // Alt + S
+        if (meta && (keysym == 115)) {
+          show_search_bar();
+          return;
+        }
+
         // if (ctrl && (keysym == XK_Up)) {
         //   detach_tab();
         //   return;
@@ -914,6 +1037,10 @@ rxvt_term::key_press (XKeyEvent &ev)
 
   if (len <= 0)
     return;			/* not mapped */
+
+  if (search_shown) {
+    append_to_search(kbuf, (unsigned int)len);
+  }
 
   tt_write_user_input (kbuf, (unsigned int)len);
 }
@@ -1621,7 +1748,6 @@ rxvt_term::mouse_report (XButtonEvent &ev)
               32 + x,
               32 + y);
 }
-
 
 static void *
 xgetprop(Display * dpy, Window w, Atom prop, Atom *type, int *fmt, size_t *cnt)
