@@ -2137,9 +2137,14 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
   XColor focused, unfocused;
-  XParseColor(dpy, cm, "#6b77bf", &focused);
+  // XParseColor(dpy, cm, "#6b77bf", &focused);
+  // XParseColor(dpy, cm, "#00d7d7", &focused);
+  // XParseColor(dpy, cm, "#00d7af", &focused);
+  XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
-  XParseColor(dpy, cm, "#2f3452", &unfocused);
+  // XParseColor(dpy, cm, "#2f3452", &unfocused);
+  XParseColor(dpy, cm, "#465163", &unfocused);
+  // XParseColor(dpy, cm, "#6b77bf", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
 
   int i = 0;
@@ -2147,7 +2152,7 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   // printf("termlist: %d, tab_width: %d\n", termlist.size(), tab_width);
 
   for (i = 0; i < termlist.size(); i++) {
-    if (tab_index == i)
+    if (tab_index == i && termlist.size() > 1)
       XSetForeground(dpy, gc, focused.pixel);
     else
       XSetForeground(dpy, gc, unfocused.pixel);
