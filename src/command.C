@@ -603,6 +603,39 @@ rxvt_term::append_to_search (char * buf, int len) {
   update_search();
 }
 
+void rxvt_term::prev_search_result() {
+  printf("prev_search_result\n");
+}
+
+void rxvt_term::next_search_result() {
+  printf("next_search_result\n");
+}
+
+void rxvt_term::handle_search_key(KeySym key, int ctrl, int meta) {
+  switch (key) {
+    case XK_BackSpace:
+      clear_search(meta);
+      break;
+
+    case XK_Up:
+      prev_search_result();
+      break;
+
+    case XK_Down:
+      next_search_result();
+      break;
+
+    case XK_KP_Enter:
+    case 0x0ff0d: // 65293
+      hide_search_bar();
+      break;
+
+    default:
+      printf("key: %d\n", key);
+      break;
+  }
+}
+
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
@@ -703,14 +736,14 @@ rxvt_term::key_press (XKeyEvent &ev)
 
           keysym = translate_keypad (keysym, kp);
 
+          if (search_shown) {
+            handle_search_key(keysym, ctrl, meta);
+            return;
+          }
+
           switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
-
-                if (search_shown) {
-                  clear_search(meta);
-                  return;
-                }
 
                 if (priv_modes & PrivMode_HaveBackSpace)
                   {
@@ -782,11 +815,6 @@ rxvt_term::key_press (XKeyEvent &ev)
                 break;
 
               case XK_KP_Enter:
-
-                if (search_shown) {
-                  hide_search_bar();
-                  return;
-                }
 
                 /* allow shift to override */
                 if (kp)
@@ -3298,7 +3326,6 @@ rxvt_term::process_nonprinting (unicode_t ch)
         scr_bell ();
         break;
       case C0_BS:		/* backspace */
-        printf("backspace!\n");
         scr_backspace ();
         break;
       case C0_HT:		/* tab */
