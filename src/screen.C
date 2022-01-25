@@ -2392,8 +2392,7 @@ rxvt_term::scr_refresh () NOTHROW
           dtp[col] = stp[col];
           drp[col] = rend;
 
-          printf("redrawing char at %dx%d: %c\n", row, col, stp[col]);
-
+          // printf("redrawing char at %dx%d: %c\n", row, col, stp[col]);
           int xpixel = Col2Pixel (col);
 
           for (i = 0; ++col < ncol; )
