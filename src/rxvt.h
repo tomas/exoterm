@@ -1406,7 +1406,7 @@ Pixmap icon_mask; //  = None;
 #endif
 
   // command.C
-  void run_search(const char * str, int len);
+  void run_search(const char * str, int len, int row_start, int row_end);
   void hide_search_matches(void);
   void prev_search_result(void);
   void next_search_result(void);

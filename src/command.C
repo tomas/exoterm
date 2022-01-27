@@ -413,16 +413,36 @@ vector<char> search_chars;
 // #define MATCH_BGCOLOR 18 // dark blue
 // #define MATCH_BGCOLOR 54 // purple
 #define MATCH_BGCOLOR 240
+#define MATCH_BGCOLOR_SELECTED 54
 
-void dehighlight_line(line_t * l) {
-  int line_len = l->l;
+struct search_match {
+  int row;
+  int col;
+  int length;
+};
+
+vector<search_match> search_matches;
+
+int selected_search = -1;
+
+// struct search_match selected_search;
+
+void dehighlight_line(line_t * l, int start, int len, int selected) {
   int i;
+  int bgcolor = selected ? MATCH_BGCOLOR_SELECTED : MATCH_BGCOLOR;
 
-  for (i = 0; i < line_len; i++) {
-    if (l->r[i] & (MATCH_BGCOLOR << RS_bgShift)) {
-      // l->r[i] |= RS_RVid;
-      l->r[i] &= ~(MATCH_BGCOLOR << RS_bgShift);
+  for (i = start; i < start + len; i++) {
+    if (l->r[i] & (bgcolor << RS_bgShift)) {
+      l->r[i] &= ~(bgcolor << RS_bgShift);
     }
+  }
+}
+
+void highlight_line(line_t * l, int start, int len, int selected) {
+  int e;
+  int bgcolor = selected ? MATCH_BGCOLOR_SELECTED : MATCH_BGCOLOR;
+  for (e = start; e < start + len; e++) {
+    l->r[e] |= bgcolor << RS_bgShift;
   }
 }
 
@@ -444,11 +464,14 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
 
       if (e == word_len) { // found match!
         printf("found match at pos %d (%d)\n", i, word_len);
-        for (e = 0; e < word_len; e++) {
-          // printf("mark %dx%d (%c) - %d\n", rownum, i+e, l->t[i + e], l->r[i + e]);
-          l->r[i + e] |= MATCH_BGCOLOR << RS_bgShift;
-          // l->r[i + e] |= RS_RVid;
-        }
+
+        struct search_match match;
+        match.row = rownum;
+        match.col = i;
+        match.length = word_len;
+        search_matches.push_back(match);
+
+        highlight_line(l, i, word_len, false);
 
         found = true;
         i += word_len-1;
@@ -466,22 +489,22 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
 }
 
 void ecb_cold
-rxvt_term::run_search(const char * str, int len) {
-  int row = view_start;
-  int end_row = row + nrow;
+rxvt_term::run_search(const char * str, int len, int row_start, int row_end) {
   int found_at = 0;
+  // int row = row_start;
+  // int end_row = row_end;
+  int row = row_end;
 
-  while (row > top_row && ROW (row - 1).is_longer ()) {
-    --row;
-  }
+  // while (row > top_row && ROW (row - 1).is_longer()) {
+  //   --row;
+  // }
 
   // printf("row: %d, top_row: %d, nrow: %d, end_row: %d\n", row, top_row, nrow, end_row);
   do {
-    int start_row = row;
     line_t *l;
 
     do {
-      l = &ROW (row++);
+      l = &ROW (row--);
       // printf("checking row %d (%d - %d)\n", row, l->l, (l->f & LINE_FILTERED));
 
       if ((l->l > 0)) {
@@ -492,18 +515,17 @@ rxvt_term::run_search(const char * str, int len) {
 
         // line not filtered, mark it as filtered
         l->f |= LINE_FILTERED;
-        while (l->is_longer ()) {
-          l = &ROW (row++);
+        while (l->is_longer()) {
+          l = &ROW (row--);
 
           // find_word_in_line(l, str, len, in_search);
           l->f |= LINE_FILTERED;
         }
 
-        HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
         break;
       }
-    } while (l->is_longer () && row < end_row);
-  } while (row < end_row);
+    } while (l->is_longer() && row >= row_start);
+  } while (row >= row_start);
 
   if (found_at) {
     // scr_move_to (found_at, 1);
@@ -514,6 +536,9 @@ rxvt_term::run_search(const char * str, int len) {
 
 void ecb_cold
 rxvt_term::hide_search_matches(void) {
+  // selected_search.length = 0;
+  selected_search = -1;
+
   int row = view_start;
   int end_row = row + nrow;
   int found_at = 0;
@@ -527,7 +552,7 @@ rxvt_term::hide_search_matches(void) {
     line_t *l;
     do {
       l = &ROW (row++);
-      if ((l->l > 0)) dehighlight_line(l);
+      if ((l->l > 0)) dehighlight_line(l, 0, l->l, false);
     } while (l->is_longer () && row < end_row);
   } while (row < end_row);
 }
@@ -557,7 +582,8 @@ rxvt_term::update_search(void) {
   scr_overlay_set (1, 0, "Search: ");
   scr_overlay_set (9, 0, query);
 
-  if (search_chars.size() > 2) run_search(query, search_chars.size());
+  if (search_chars.size() > 2)
+    run_search(query, search_chars.size(), view_start, view_start + nrow);
   // else hide_search_matches();
 }
 
@@ -582,6 +608,7 @@ rxvt_term::hide_search_bar(void) {
 void ecb_cold
 rxvt_term::show_search_bar(void) {
   search_shown = true;
+  selected_search = -1;
   update_search();
 }
 
@@ -604,7 +631,26 @@ rxvt_term::append_to_search (char * buf, int len) {
 }
 
 void rxvt_term::prev_search_result() {
-  printf("prev_search_result\n");
+  struct search_match match;
+
+  if (selected_search >= 0) {
+    match = search_matches[selected_search];
+    line_t * l = &ROW(match.row);
+    printf("dehighlight_line: %d %d %d\n", match.row, match.col, match.length);
+    dehighlight_line(l, match.col, match.length, true);
+  }
+
+  printf("search matches: %d, selected: %d\n", search_matches, selected_search);
+
+  if (selected_search >= search_matches.size()) { // no more matches to show
+    printf("scroll search\n");
+  } else {
+    match = search_matches[++selected_search];
+    line_t * l = &ROW(match.row);
+    printf("highlight_line: %d %d %d\n", match.row, match.col, match.length);
+    highlight_line(l, match.col, match.length, true);
+    int e;
+  }
 }
 
 void rxvt_term::next_search_result() {
