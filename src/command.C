@@ -512,15 +512,10 @@ rxvt_term::run_search(int row_start, int row_end) {
     return -1;
   }
 
-  // if (last_search != NULL) free(last_search);
-  // last_search = strndup(str, len);
-
   int num_matches = 0;
-  // int row = row_start;
-  // int end_row = row_end;
   int row = row_end;
 
-  printf("running search for %s (%d) from row_start: %d -> row_end: %d\n", query, len, row_start, row_end);
+  // printf("running search for %s (%d) from row_start: %d -> row_end: %d\n", query, len, row_start, row_end);
 
   // while (row > top_row && ROW (row - 1).is_longer()) {
   //   --row;
@@ -655,14 +650,16 @@ rxvt_term::append_to_search (char * buf, int len) {
   update_search();
 }
 
-void ecb_cold rxvt_term::dehighlight_selected() {
+bool ecb_cold rxvt_term::dehighlight_selected() {
   struct search_match match;
-  if (selected_search >= 0) {
+  if (selected_search >= 0 && selected_search <= search_matches.size() - 1) {
     match = search_matches[selected_search];
     line_t * l = &ROW(match.row);
     dehighlight_line(l, match.col, match.length, true);
     highlight_line(l, match.col, match.length, false);
+    return true;
   }
+  return false;
 }
 
 bool ecb_cold rxvt_term::find_previous_match() {
@@ -698,13 +695,19 @@ void ecb_cold rxvt_term::prev_search_result() {
   want_refresh = 1;
   dehighlight_selected();
 
+  if (selected_search != -1 && selected_search >= search_matches.size()) {
+    // reached the top searching, so return
+    return;
+  }
+
   if (selected_search != -1 && selected_search >= search_matches.size()-1) { // no more matches to show
-    printf("selected search (%d) is higher than matches (%d)\n", selected_search, search_matches.size());
+    // printf("selected search (%d) is higher than matches (%d)\n", selected_search, search_matches.size());
 
     bool found = find_previous_match();
+    ++selected_search;
 
     if (found) {
-      match = search_matches[++selected_search];
+      match = search_matches[selected_search];
       printf("found match %d, moving to %d\n", match.index, match.row);
       scr_changeview(match.row - 1);
 
@@ -715,7 +718,9 @@ void ecb_cold rxvt_term::prev_search_result() {
 
   } else {
     match = search_matches[++selected_search];
-    if (match.row < view_start) scr_changeview(match.row - 1);
+
+    if (match.row < view_start || match.row > (view_start + nrow))
+      scr_changeview(match.row - 1);
 
     line_t * l = &ROW(match.row);
     dehighlight_line(l, match.col, match.length, false);
@@ -726,18 +731,16 @@ void ecb_cold rxvt_term::prev_search_result() {
 void rxvt_term::next_search_result() {
   struct search_match match;
 
-  if (selected_search == -1) return;
+  if (selected_search == -1) return; // bottom of list
 
   want_refresh = 1;
-
-  dehighlight_selected();
+  int res = dehighlight_selected();
   --selected_search;
 
-  if (selected_search >= 0) {
+  if (selected_search >= 0 && selected_search <= search_matches.size() - 1) {
     match = search_matches[selected_search];
 
     if (match.row > (view_start + nrow)) {
-      printf("moving to %d\n", match.row);
       scr_changeview((match.row) - 1);
     }
 
@@ -750,7 +753,9 @@ void rxvt_term::next_search_result() {
 
 }
 
-void rxvt_term::handle_search_key(KeySym key, int ctrl, int meta) {
+bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
+  bool stop = true;
+
   switch (key) {
     case XK_BackSpace:
       clear_search(meta);
@@ -764,6 +769,14 @@ void rxvt_term::handle_search_key(KeySym key, int ctrl, int meta) {
       next_search_result();
       break;
 
+    case 65365: // page down
+    case 65366: // page up
+      if (shift) {
+        printf("TODO: find previous/next matches\n");
+        stop = false; // let regular shift pagedn/up behaviour work
+        break;
+      }
+
     case XK_Escape:
     case XK_KP_Enter:
     case 0x0ff0d: // 65293
@@ -771,9 +784,11 @@ void rxvt_term::handle_search_key(KeySym key, int ctrl, int meta) {
       break;
 
     default:
-      printf("key: %d\n", key);
+      // printf("unhandled key: %d\n", key);
       break;
   }
+
+  return stop;
 }
 
 void ecb_cold
@@ -877,8 +892,8 @@ rxvt_term::key_press (XKeyEvent &ev)
           keysym = translate_keypad (keysym, kp);
 
           if (search_shown) {
-            handle_search_key(keysym, ctrl, meta);
-            return;
+            bool stop = handle_search_key(keysym, ctrl, meta, shft);
+            if (stop) return;
           }
 
           switch (keysym) {

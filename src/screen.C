@@ -2019,8 +2019,7 @@ bool
 rxvt_term::scr_changeview (int new_view_start) NOTHROW
 {
 
-  printf("scr_changeview to %d\n", new_view_start);
-
+  // printf("scr_changeview to %d\n", new_view_start);
   clamp_it (new_view_start, top_row, 0);
 
   if (new_view_start == view_start) {
