@@ -412,8 +412,8 @@ vector<char> search_chars;
 #define MAX_SEARCH_LENGTH 18
 // #define MATCH_BGCOLOR 18 // dark blue
 // #define MATCH_BGCOLOR 54 // purple
-#define MATCH_BGCOLOR 240
-#define MATCH_BGCOLOR_SELECTED 54
+#define MATCH_BGCOLOR 244
+#define MATCH_BGCOLOR_SELECTED 62
 
 struct search_match {
   int row;
@@ -456,10 +456,10 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
   // printf("row %d line len %d\n", rownum, line_len);
   for (i = 0; i < line_len; i++) {
     // if (l->r[i] & RS_RVid) l->r[i] &= RS_RVid; // remove
-    // scr_set_char_rend (rownum, i, RS_None);
-    if (l->t[i] == word[0] && l->t[i + 1] == word[1]) { // first two letters match
+
+    if (tolower(l->t[i]) == word[0] && tolower(l->t[i + 1]) == word[1]) { // first two letters match
       for (e = 2; e < word_len; e++) {
-        if ((i + e) > line_len || l->t[i + e] != word[e]) {
+        if ((i + e) > line_len || tolower(l->t[i + e]) != word[e]) {
           break;
         }
       }
@@ -480,11 +480,9 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
         i += word_len-1;
       }
     } else {
-      if (l->r[i] & (MATCH_BGCOLOR << RS_bgShift)) {
-        // printf("unmark %dx%d (%c) - %d\n", rownum, i, l->t[i], l->r[i]);
-        l->r[i] &= ~(MATCH_BGCOLOR << RS_bgShift);
-        // l->r[i] &= ~RS_RVid;
-      }
+      // if (l->r[i] & (MATCH_BGCOLOR << RS_bgShift)) {
+      //   l->r[i] &= ~(MATCH_BGCOLOR << RS_bgShift);
+      // }
     }
   }
 
@@ -638,7 +636,7 @@ rxvt_term::append_to_search (char * buf, int len) {
     return;
 
   if (buf[0] > 30 && buf[0] < 130) {
-    search_chars.push_back(buf[0]);
+    search_chars.push_back(tolower(buf[0]));
   } else {
     printf("Not appending char %d\n", buf[0]);
     // close search bar with ctrl-c, enter or escape
@@ -774,8 +772,8 @@ bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
       if (shift) {
         printf("TODO: find previous/next matches\n");
         stop = false; // let regular shift pagedn/up behaviour work
-        break;
       }
+      break;
 
     case XK_Escape:
     case XK_KP_Enter:
