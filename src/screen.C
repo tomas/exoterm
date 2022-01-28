@@ -2020,8 +2020,10 @@ rxvt_term::scr_changeview (int new_view_start) NOTHROW
 {
   clamp_it (new_view_start, top_row, 0);
 
-  if (new_view_start == view_start)
+  if (new_view_start == view_start) {
+    printf("same vew start: %d\n", view_start);
     return false;
+  }
 
   num_scr += new_view_start - view_start;
   view_start = new_view_start;
