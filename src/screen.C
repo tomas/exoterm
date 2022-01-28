@@ -2018,10 +2018,12 @@ rxvt_term::scr_page (int nlines) NOTHROW
 bool
 rxvt_term::scr_changeview (int new_view_start) NOTHROW
 {
+
+  printf("scr_changeview to %d\n", new_view_start);
+
   clamp_it (new_view_start, top_row, 0);
 
   if (new_view_start == view_start) {
-    printf("same vew start: %d\n", view_start);
     return false;
   }
 
@@ -2361,7 +2363,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  printf("draw! ncol: %d, nrow: %d\n", ncol, nrow);
+  // printf("draw! view_start: %d, ncol: %d, nrow: %d\n", view_start, ncol, nrow);
 
   /*
    * E: main pass across every character

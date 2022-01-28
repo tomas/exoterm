@@ -651,7 +651,7 @@ rxvt_term::append_to_search (char * buf, int len) {
     return;
   }
 
-  printf("Appending to search: %s (%d) - char %d\n", buf, len, buf[0]);
+  // printf("Appending to search: %s (%d) - char %d\n", buf, len, buf[0]);
   update_search();
 }
 
@@ -665,6 +665,33 @@ void ecb_cold rxvt_term::dehighlight_selected() {
   }
 }
 
+bool ecb_cold rxvt_term::find_previous_match() {
+  bool found = false;
+  int row_start = view_start - nrow;
+  int row_end = view_start;
+
+  // printf("top_row: %d\n", top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
+  // printf("nrow: %d\n", nrow); // num of rows in view
+  // printf("view_start: %d\n", view_start); // position
+
+  while (top_row < row_end) {
+    if (top_row > row_start) {
+      row_start = top_row;
+    }
+
+    int num_matches = run_search(row_start, row_end);
+    if (num_matches > 0) {
+      found = true;
+      break;
+    }
+
+    row_start -= nrow;
+    row_end -= nrow;
+  }
+
+  return found;
+}
+
 void ecb_cold rxvt_term::prev_search_result() {
   struct search_match match;
 
@@ -674,28 +701,12 @@ void ecb_cold rxvt_term::prev_search_result() {
   if (selected_search != -1 && selected_search >= search_matches.size()-1) { // no more matches to show
     printf("selected search (%d) is higher than matches (%d)\n", selected_search, search_matches.size());
 
-    // int row_start = view_start;
-    // int row_end = view_start + nrow;
-    int row_start = view_start - nrow;
-    int row_end = view_start;
+    bool found = find_previous_match();
 
-    printf("top_row: %d\n", top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
-    printf("nrow: %d\n", nrow); // num of rows in view
-    printf("view_start: %d\n", view_start); // position
-
-    if (top_row >= row_end) {
-      printf("reached the top\n");
-      return;
-    } else if (top_row > row_start) {
-      row_start = top_row;
-    }
-
-    int num_matches = run_search(row_start, row_end);
-
-    if (num_matches > 0) {
+    if (found) {
       match = search_matches[++selected_search];
-      printf("found %d matches, moving to %d\n", num_matches, match.row);
-      scr_page((match.row * -1) + 1);
+      printf("found match %d, moving to %d\n", match.index, match.row);
+      scr_changeview(match.row - 1);
 
       line_t * l = &ROW(match.row);
       dehighlight_line(l, match.col, match.length, false);
@@ -704,7 +715,7 @@ void ecb_cold rxvt_term::prev_search_result() {
 
   } else {
     match = search_matches[++selected_search];
-    if (match.row < view_start) scr_page((match.row * -1) + 1);
+    if (match.row < view_start) scr_changeview(match.row - 1);
 
     line_t * l = &ROW(match.row);
     dehighlight_line(l, match.col, match.length, false);
@@ -727,12 +738,14 @@ void rxvt_term::next_search_result() {
 
     if (match.row > (view_start + nrow)) {
       printf("moving to %d\n", match.row);
-      scr_page((match.row * -1) - 1);
+      scr_changeview((match.row) - 1);
     }
 
     line_t * l = &ROW(match.row);
     dehighlight_line(l, match.col, match.length, false);
     highlight_line(l, match.col, match.length, true);
+  } else {
+    scr_changeview(top_row * -1);
   }
 
 }
