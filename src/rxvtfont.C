@@ -860,6 +860,8 @@ rxvt_font_x11::load (const rxvt_fontprop &prop, bool force_prop)
     // return;
   }
 
+  XFreeStringList(missingList);
+
   char *registry = get_property (f, term->xa [XA_CHARSET_REGISTRY], 0);
   char *encoding = get_property (f, term->xa [XA_CHARSET_ENCODING], 0);
 
