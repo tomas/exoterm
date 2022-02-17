@@ -559,6 +559,7 @@ struct rxvt_font_x11 : rxvt_font {
 
   bool slow; // whether this is a proportional font or has other funny characteristics
   XFontStruct *f;
+  XFontSet fontSet;
   bool enc2b, encm;
 
   char *get_property (XFontStruct *f, Atom property, const char *repl) const;
@@ -849,6 +850,16 @@ rxvt_font_x11::load (const rxvt_fontprop &prop, bool force_prop)
   if (!f)
     return false;
 
+  char **missingList;
+  int missingCount;
+  char *defString;
+  printf("font name: %s\n", this->name);
+  fontSet = XCreateFontSet(disp, this->name, &missingList, &missingCount, &defString);
+  if (fontSet == NULL) {
+    printf("Failed to create fontset\n");
+    // return;
+  }
+
   char *registry = get_property (f, term->xa [XA_CHARSET_REGISTRY], 0);
   char *encoding = get_property (f, term->xa [XA_CHARSET_ENCODING], 0);
 
@@ -968,6 +979,7 @@ rxvt_font_x11::clear ()
     {
       XFreeFont (term->dpy, f);
       f = 0;
+      fontSet = 0;
     }
 }
 
@@ -1111,16 +1123,25 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
             {
               do
                 {
-                  if (*xc)
-                    XDrawString (disp, d, gc, x, y + base, xc, 1);
+                  if (*xc) {
+                    if (fontSet) {
+                      XmbDrawString(disp, d, fontSet, gc, x, y + base, xc, 1);
+                    } else {
+                      XDrawString (disp, d, gc, x, y + base, xc, 1);
+                    }
 
                   x += term->fwidth;
                   xc++; len--;
                 }
               while (len);
             }
-          else
-            XDrawString (disp, d, gc, x, y + base, xc, len);
+          else {
+            if (fontSet) {
+              XmbDrawString(disp, d, fontSet, gc, x, y + base, xc, len);
+            } else {
+              XDrawString (disp, d, gc, x, y + base, xc, len);
+            }
+          }
         }
     }
 }
@@ -1701,6 +1722,7 @@ rxvt_fontset::find_font (const char *name) const
 int
 rxvt_fontset::find_font_idx (unicode_t unicode)
 {
+
   if (unicode >= 1<<20)
     return 0;
 
