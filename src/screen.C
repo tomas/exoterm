@@ -933,6 +933,7 @@ rxvt_term::scr_add_lines (const wchar_t *str, int len, int minlines) NOTHROW
       // drawing characters below as they might be invalid in the current
       // locale.
       int width = WCWIDTH (c);
+      if (width == 1 && c > 0x2500) width = 2;
 
       if (ecb_unlikely (charsets [screen.charset] == '0')) // DEC SPECIAL
         {
