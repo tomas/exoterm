@@ -934,6 +934,7 @@ rxvt_term::scr_add_lines (const wchar_t *str, int len, int minlines) NOTHROW
       // locale.
       int width = WCWIDTH (c);
       if (width == 1 && c > 0x2500) width = 2;
+      // printf("WCWIDTH for %d -> %d\n", c, width);
 
       if (ecb_unlikely (charsets [screen.charset] == '0')) // DEC SPECIAL
         {
@@ -2560,8 +2561,11 @@ rxvt_term::scr_refresh () NOTHROW
               CLEAR_CHARS (xpixel, ypixel, count);
               did_clear: ;
             }
-          else
-            font->draw (*drawable, xpixel, ypixel, text, count, fore, back);
+          else {
+            printf("draw2: %s\n", text);
+            if (font) // weird check needed for cozette font
+              font->draw (*drawable, xpixel, ypixel, text, count, fore, back);
+          }
 
           if (ecb_unlikely (rend & RS_Uline && font->descent > 1 && fore != back))
             {

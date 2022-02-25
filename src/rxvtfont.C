@@ -45,6 +45,10 @@ static const struct rxvt_fallback_font {
   codeset cs;
   const char *name;
 } fallback_fonts[] = {
+  // siji glyph font
+  { CS_ISO8859_1, "-wuncon-siji-medium-r-normal--10-100-75-75-c-80-iso10646-1" },
+  // { CS_ISO8859_1,   "-sun-open look glyph-----*-*-*-*-p-*-sunolglyph-1" },
+  { CS_ISO8859_1,   "-sun-open look glyph-----12-120-75-75-p-113-sunolglyph-1" },
   { CS_ISO8859_1,    "-*-*-*-r-*--*-*-*-*-c-*-iso8859-1"           },
   { CS_ISO8859_15,   "-*-*-*-r-*--*-*-*-*-c-*-iso8859-15"          },
   { CS_ISO8859_15,   "-*-*-*-r-*--*-*-*-*-c-*-fcd8859-15"          },
@@ -302,8 +306,9 @@ struct rxvt_font_default : rxvt_font {
     if (unicode <= 0x001f)
       return true;
 
-    if (unicode <= 0x007f)
+    if (unicode <= 0x007f) {
       return false;
+    }
 
     if (unicode <= 0x009f)
       return true;
@@ -324,6 +329,7 @@ struct rxvt_font_default : rxvt_font {
           return true;
       }
 
+    // return true;
     return false;
   }
 
@@ -339,6 +345,8 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
 {
   dTermDisplay;
   dTermGC;
+
+  printf("rxvt_font_default::draw\n");
 
   clear_rect (d, x, y, term->fwidth * len, term->fheight, bg);
 
@@ -478,6 +486,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
               break;
 
             default:
+              printf("drawrect\n");
               XDrawRectangle (disp, d, gc, x + 1, y + 2,
                               fwidth - 3, term->fheight - 9);
           }
@@ -708,6 +717,8 @@ bool
 rxvt_font_x11::load (const rxvt_fontprop &prop, bool force_prop)
 {
   dTermDisplay;
+
+  printf("rxvt_font_x11::load \n");
 
   clear ();
 
@@ -992,8 +1003,10 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
 
   uint32_t ch = FROM_UNICODE (cs, unicode);
 
-  if (ch == NOCHAR)
+  if (ch == NOCHAR) {
+    printf("nochar!\n");
     return false;
+  }
 
   /* check whether the character exists in _this_ font. horrible. */
   XCharStruct *xcs;
@@ -1004,8 +1017,9 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
       unsigned char byte2 = ch & 255;
 
       if (byte1 < f->min_byte1 || byte1 > f->max_byte1
-          || byte2 < f->min_char_or_byte2 || byte2 > f->max_char_or_byte2)
+          || byte2 < f->min_char_or_byte2 || byte2 > f->max_char_or_byte2) {
         return false;
+      }
 
       if (f->per_char)
         {
@@ -1019,8 +1033,9 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
     }
   else
     {
-      if (ch < f->min_char_or_byte2 || ch > f->max_char_or_byte2)
+      if (ch < f->min_char_or_byte2 || ch > f->max_char_or_byte2) {
         return false;
+      }
 
       if (f->per_char)
         xcs = f->per_char + (ch - f->min_char_or_byte2);
@@ -1029,8 +1044,10 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
     }
 
   if (xcs->lbearing == 0 && xcs->rbearing == 0 && xcs->width == 0
-      && xcs->ascent == 0 && xcs->descent == 0)
+      && xcs->ascent == 0 && xcs->descent == 0) {
+    printf("descent 0\n");
     return false;
+  }
 
   if (!prop || prop->width == rxvt_fontprop::unset)
     return true;
@@ -1042,8 +1059,10 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
   careful = xcs->lbearing < 0 || xcs->rbearing > prop->width * wcw;
 
 #if !ENABLE_WIDE_GLYPHS
-  if (careful && !OVERLAP_OK (w, wcw, prop))
+  if (careful && !OVERLAP_OK (w, wcw, prop)) {
+    // return true;
     return false;
+  }
 #endif
 
   return true;
@@ -1054,6 +1073,8 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
                      const text_t *text, int len,
                      int fg, int bg)
 {
+
+  printf("rxvt_font_x11::draw\n");
   // this looks like a mess /.
   // and it is a mess /.
   // yet we are trying to be perfect /.
@@ -1121,6 +1142,7 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
 
           XChangeGC (disp, gc, GCForeground | GCFont, &v);
 
+
           if (slow)
             {
               do
@@ -1131,6 +1153,7 @@ rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
                     } else {
                       XDrawString (disp, d, gc, x, y + base, xc, 1);
                     }
+                  }
 
                   x += term->fwidth;
                   xc++; len--;
@@ -1682,13 +1705,16 @@ rxvt_fontset::realize_font (int i)
   if (i < 0 || i >= fonts.size ())
     return false;
 
-  if (fonts[i]->loaded)
+  if (fonts[i]->loaded) {
+    printf("already loaded: %d\n", i);
     return true;
+  }
 
   fonts[i]->loaded = true;
 
   if (!fonts[i]->load (prop, force_prop))
     {
+      printf("loading failed\n");
       fonts[i]->cs = CS_UNKNOWN;
       return false;
     }
@@ -1725,6 +1751,8 @@ int
 rxvt_fontset::find_font_idx (unicode_t unicode)
 {
 
+  printf("find_font_idx: %c (%d)\n", unicode, fonts.size());
+
   if (unicode >= 1<<20)
     return 0;
 
@@ -1733,35 +1761,44 @@ rxvt_fontset::find_font_idx (unicode_t unicode)
   if (hi < fmap.size ()
       && fmap[hi]
       && (*fmap[hi])[unicode & 0xff] != 0xff)
-    return (*fmap[hi])[unicode & 0xff];
+    return (*fmap[hi])[unicode & 0xff]; // already cached
 
   unsigned int i;
 
   for (i = 0; i < fonts.size (); i++)
     {
       rxvt_font *f = fonts[i];
+      printf("checking font %i -> %s\n", i, f->name);
 
       if (!f->loaded)
         {
-          if (FROM_UNICODE (f->cs, unicode) == NOCHAR)
+          if (FROM_UNICODE (f->cs, unicode) == NOCHAR) {
+            printf("from unicode! NOCHAR\n");
             goto next_font;
+          }
 
-          if (!realize_font (i))
+          if (!realize_font (i)) {
+            printf("couldnt realize font\n");
             goto next_font;
+          }
 
           if (prop.ascent != rxvt_fontprop::unset)
             max_it (f->ascent, prop.ascent);
         }
 
-      if (f->cs == CS_UNKNOWN)
+      if (f->cs == CS_UNKNOWN) {
+        printf("unknown\n");
         goto next_font;
+      }
 
       bool careful;
       if (f->has_char (unicode, &prop, careful))
         {
           i = (i << 1) | careful;
-
+          printf("has char\n");
           goto found;
+        } else {
+          printf("has not char\n");
         }
 
     next_font:
@@ -1769,6 +1806,7 @@ rxvt_fontset::find_font_idx (unicode_t unicode)
         {
           if (fallback->name)
             {
+              printf("last font %d, using fallback: %s\n", i, fallback->name);
               // search through the fallback list
               push_font (new_font (fallback->name, fallback->cs));
               fallback++;
@@ -1820,6 +1858,8 @@ rxvt_fontset::find_font_idx (unicode_t unicode)
                 }
 #endif
             }
+        } else {
+          printf("not last font: %d\n", i);
         }
     }
 
@@ -1827,6 +1867,8 @@ rxvt_fontset::find_font_idx (unicode_t unicode)
   i = 0;
 
 found:
+  printf("found font (%d) for char: %d\n", i >> 1, hi);
+
   // found a font, cache it
   if (i < 255)
     {
