@@ -8,3 +8,4 @@ doc/*.man
 src/perlxsi.c
 src/rxvtperl.C
 rxvt-unicode-9.30
+fonts
