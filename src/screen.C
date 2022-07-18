@@ -31,7 +31,8 @@
 
 #include <inttypes.h>
 #include <stdio.h>
-
+#include <sys/stat.h>
+#include <unistd.h>
 // tempfile_t manipulation
 
 typedef struct {

@@ -3821,6 +3821,8 @@ rxvt_term::process_csi_seq ()
               process_terminal_mode (ch, priv, nargs, arg);
             else if (ch == 'S')
               process_graphics_attributes (nargs, arg);
+            if (prev_ch == '$' && ch == 'p')
+              process_terminal_mode (ch, priv, nargs, arg);
             break;
 
           case '!':
@@ -4965,7 +4967,6 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             /* case 8:	- auto repeat, can't do on a per window basis */
             case 9:			/* X10 mouse reporting */
-              printf("mouse reporting!\n");
               if (state)		/* orthogonal */
                 priv_modes &= ~(PrivMode_MouseX11|PrivMode_MouseBtnEvent|PrivMode_MouseAnyEvent);
               break;
