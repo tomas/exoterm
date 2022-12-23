@@ -222,6 +222,7 @@ rxvt_term::emergency_cleanup ()
 
   pty_ev.stop ();
   delete pty; pty = 0;
+
 }
 
 rxvt_term::~rxvt_term ()
@@ -258,6 +259,10 @@ rxvt_term::~rxvt_term ()
   delete bg_img;
   // delete winbg;
   if (winbg != None) XFreePixmap(dpy, winbg);
+#endif
+
+#ifdef ENABLE_DND
+  xdnd_deinit();
 #endif
 
   if (display) {

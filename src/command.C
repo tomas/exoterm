@@ -2062,14 +2062,12 @@ rxvt_term::dndmatchtarget(size_t count, Atom *target)
 }
 
 static unsigned int
-xtoi(char hex)
-{
+xtoi(char hex) {
   return (isdigit(hex) ? hex - '0' : toupper(hex) - 'A' + 10);
 }
 
 static int
-urldecode(char *str, char *url, size_t len)
-{
+urldecode(char *str, char *url, size_t len) {
   while (len > 0 && *url != '\0') {
     if (url[0] != '%') {
       *str++ = *url++;
@@ -2089,7 +2087,7 @@ urldecode(char *str, char *url, size_t len)
 
 void rxvt_term::handle_uri(char * uri, uint16_t len) {
   printf("Got URI: %s\n", uri);
-  paste(uri, len);
+  GET_R->paste(uri, len);
 }
 
 void rxvt_term::selnotify(XEvent *e) {
@@ -2114,17 +2112,41 @@ void rxvt_term::selnotify(XEvent *e) {
 
   uri = strtok(data, "\r\n");
   while (uri != NULL) {
-    if (strncmp(uri, "file://", strlen("file://")) == 0) {
+    if (strncmp(uri, "http://", strlen("http://")) == 0) {
+      urldecode(uri, uri, 0);
+      handle_uri(uri, strlen(uri));
+    } else if (strncmp(uri, "https://", strlen("https://")) == 0) {
+      urldecode(uri, uri, 0);
+      handle_uri(uri, strlen(uri));
+    } else if (strncmp(uri, "file://", strlen("file://")) == 0) {
       uri += strlen("file://");
       len = strlen(uri) + 1;
       urldecode(uri, uri, len);
       handle_uri(uri, len);
+    } else {
+      // printf("uri doesn't match: %s\n", uri);
     }
     uri = strtok(NULL, "\r\n");
   }
 
   XFree(data);
   XDeleteProperty(dpy, win, prop);
+}
+
+void rxvt_term::send_dnd_finished(XEvent ev, Window src) {
+  dLocal (Display *, dpy);
+  Window win = this->parent;
+
+  XEvent xevent;
+  memset(&xevent, 0, sizeof(xevent));
+
+  xevent.xany.type            = ClientMessage;
+  xevent.xany.display         = dpy;
+  xevent.xclient.window       = src;
+  xevent.xclient.message_type = xdndfini;
+  xevent.xclient.format       = 32;
+  xevent.xclient.data.l[0]    = win;
+  XSendEvent(dpy, (&ev)->xclient.data.l[0], 0, 0, &xevent);
 }
 
 /*{{{ process an X event */
@@ -2218,6 +2240,7 @@ rxvt_term::x_cb (XEvent &ev)
             }
 
             else if (ev.xclient.message_type == xdndposition) {
+
               Window src = ev.xclient.data.l[0];
               Atom action = ev.xclient.data.l[4];
               /* accept the drag-n-drop if we matched a target,
@@ -2237,15 +2260,21 @@ rxvt_term::x_cb (XEvent &ev)
               m.data.l[3] = 0;
               m.data.l[4] = xdndacopy;
 
-              if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0)
+              if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0) {
                 fprintf(stderr, "xsend error\n");
+              }
             }
             else if (ev.xclient.message_type == xdnddrop) {
               Time droptimestamp = ev.xclient.data.l[2];
               if (dndtarget != None) {
                 XConvertSelection(dpy, xdndselection, dndtarget, xdnddata, this->parent, droptimestamp);
               }
+
+              // notify the source window that we *did* receive the drop
+              Window owner = XGetSelectionOwner(dpy, xdndselection);
+              send_dnd_finished(ev, owner);
             }
+
             else if (ev.xclient.message_type == xdndleave) {
               dndtarget = None;
             }
@@ -2253,16 +2282,19 @@ rxvt_term::x_cb (XEvent &ev)
 
             // else {
             //   printf("Unknown message type: %d\n", ev.xclient.message_type);
-            //   printf("xdndenter: %d\n", xdndenter);
             // }
 
           }
         break;
 
+#ifdef ENABLE_DND
+
       case SelectionNotify:
         if (dndtarget) selnotify(&ev); // process dnd
         dndtarget = None;
         break;
+
+#endif
 
         /*
          * XXX: this is not the _current_ arrangement

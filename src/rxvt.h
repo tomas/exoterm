@@ -1320,8 +1320,10 @@ Pixmap icon_mask; //  = None;
   Atom dndtarget;
 
   void xdnd_init(void);
+  void xdnd_deinit(void);
   Atom dndmatchtarget(size_t count, Atom *target);
   void selnotify(XEvent * e);
+  void send_dnd_finished(XEvent ev, Window win);
   void handle_uri(char * uri, uint16_t len);
 
 #endif
