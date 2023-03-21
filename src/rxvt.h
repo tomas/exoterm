@@ -1642,6 +1642,7 @@ Pixmap icon_mask; //  = None;
   void scr_reverse_selection () NOTHROW;
   void scr_dump (int fd) NOTHROW;
 
+  void push_selection_to_x11 (bool clipboard, wchar_t * buf, int len) NOTHROW;
   void selection_check (int check_more) NOTHROW;
   void selection_changed () NOTHROW; /* sets want_refresh, corrects coordinates */
   void selection_request (Time tm, int selnum = Sel_Primary) NOTHROW;

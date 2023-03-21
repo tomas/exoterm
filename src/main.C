@@ -400,7 +400,6 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
   // make_current ();
 
   if (termlist.size() > 1) {
-
     if (tab_index == 0)  {
       rxvt_term * tab = termlist.at(1);
       tab->detach_tab();

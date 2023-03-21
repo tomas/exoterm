@@ -3220,11 +3220,166 @@ rxvt_term::paste (char *data, unsigned int len) NOTHROW
 void
 rxvt_term::selection_request (Time tm, int selnum) NOTHROW
 {
-  if (!selection_req)
-    {
-      selection_req = new rxvt_selection (display, selnum, tm, vt, xa[XA_VT_SELECTION], this);
-      selection_req->run ();
+  if (!selection_req) {
+    selection_req = new rxvt_selection (display, selnum, tm, vt, xa[XA_VT_SELECTION], this);
+    selection_req->run ();
+  }
+}
+
+static bool waitForX11Event(Display * dpy) {
+  fd_set fds;
+  const int fd = ConnectionNumber(dpy);
+  int count = fd + 1;
+
+  for (;;) {
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+
+    if (select(count, &fds, NULL, NULL, NULL) != -1 || errno != EINTR)
+      return true;
+  }
+}
+
+unsigned long GetWindowPropertyX11(Display * display, Window window, Atom property, Atom type, unsigned char** value) {
+    Atom actualType;
+    int actualFormat;
+    unsigned long itemCount, bytesAfter;
+    XGetWindowProperty(display, window, property, 0, LONG_MAX, False, type, &actualType, &actualFormat, &itemCount, &bytesAfter, value);
+    return itemCount;
+}
+
+static Atom writeTargetToProperty(Display * dpy, const XSelectionRequestEvent* request, const char * selectionString) {
+    Atom NULL_ = XInternAtom(dpy, "NULL", False);
+    Atom ATOM_PAIR = XInternAtom(dpy, "ATOM_PAIR", False);
+    Atom UTF8_STRING = XInternAtom(dpy, "UTF8_STRING", False);
+    Atom TARGETS = XInternAtom(dpy, "TARGETS", False);
+    Atom MULTIPLE = XInternAtom(dpy, "MULTIPLE", False);
+    Atom PRIMARY = XInternAtom(dpy, "PRIMARY", False);
+    Atom INCR = XInternAtom(dpy, "INCR", False);
+    Atom CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", False);
+    Atom SAVE_TARGETS = XInternAtom(dpy, "SAVE_TARGETS", False);
+
+    int i;
+    const Atom formats[] = { UTF8_STRING, XA_STRING };
+    const int formatCount = sizeof(formats) / sizeof(formats[0]);
+
+    // if (request->selection == PRIMARY) {
+    //   printf("primary string requested\n");
+    // } else {
+    //   printf("clipboard string requested\n");
+    // }
+
+    if (request->property == None) {
+        // The requester is a legacy client (ICCCM section 2.2)
+        // We don't support legacy clients, so fail here
+        return None;
     }
+
+    if (request->target == TARGETS) {
+        // The list of supported targets was requested
+        const Atom targets[] = { TARGETS, MULTIPLE, UTF8_STRING, XA_STRING };
+        XChangeProperty(dpy, request->requestor, request->property, XA_ATOM, 32, PropModeReplace, (unsigned char*) targets, sizeof(targets) / sizeof(targets[0]));
+        return request->property;
+    }
+
+    if (request->target == MULTIPLE) {
+        // Multiple conversions were requested
+
+        Atom* targets;
+        unsigned long i, count;
+        count = GetWindowPropertyX11(dpy, request->requestor, request->property, ATOM_PAIR, (unsigned char**) &targets);
+
+        for (i = 0;  i < count;  i += 2) {
+            int j;
+
+            for (j = 0;  j < formatCount;  j++) {
+                if (targets[i] == formats[j]) break;
+            }
+
+            if (j < formatCount) {
+                XChangeProperty(dpy, request->requestor, targets[i + 1], targets[i], 8, PropModeReplace, (unsigned char *) selectionString, strlen(selectionString));
+            } else {
+                targets[i + 1] = None;
+            }
+        }
+
+        XChangeProperty(dpy, request->requestor, request->property, ATOM_PAIR, 32, PropModeReplace, (unsigned char*) targets, count);
+        XFree(targets);
+        return request->property;
+    }
+
+    if (request->target == SAVE_TARGETS) {
+        // The request is a check whether we support SAVE_TARGETS
+        // It should be handled as a no-op side effect target
+        XChangeProperty(dpy, request->requestor, request->property, NULL_, 32, PropModeReplace, NULL, 0);
+        return request->property;
+    }
+
+
+    // Conversion to a data target was requested
+    for (i = 0;  i < formatCount;  i++) {
+        if (request->target == formats[i]) {
+            // The requested target is one we support
+            XChangeProperty(dpy, request->requestor, request->property, request->target, 8, PropModeReplace, (unsigned char *) selectionString, strlen(selectionString));
+            return request->property;
+        }
+    }
+
+    return None; // The requested target is not supported
+}
+
+void rxvt_term::push_selection_to_x11(bool clipboard, wchar_t * buf, int len) {
+
+  Atom CLIPBOARD_MANAGER = XInternAtom(dpy, "CLIPBOARD_MANAGER", False);
+  Atom SAVE_TARGETS = XInternAtom(dpy, "SAVE_TARGETS", False);
+  Atom CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", False);
+
+  Atom sel = clipboard ? xa[XA_CLIPBOARD] : XA_PRIMARY;
+
+  if (XGetSelectionOwner(dpy, sel) != vt) return; // not the owner anymore
+
+  // printf("pushing selection to x11! clipboard: %d\n", clipboard);
+
+  XConvertSelection(dpy, CLIPBOARD_MANAGER, SAVE_TARGETS, None, vt, CurrentTime);
+  char * str = rxvt_wcstombs(buf, len);
+
+  for (;;) {
+    XEvent event;
+    XNextEvent(dpy, &event);
+
+    if ((event.xany.window == vt) && (event.type == SelectionRequest || event.type == SelectionNotify || event.type == SelectionClear)) {
+      switch (event.type) {
+        case SelectionRequest: {
+          const XSelectionRequestEvent* request = &event.xselectionrequest;
+          XEvent reply = { SelectionNotify };
+          reply.xselection.property = writeTargetToProperty(dpy, request, str);
+          reply.xselection.display = request->display;
+          reply.xselection.requestor = request->requestor;
+          reply.xselection.selection = request->selection;
+          reply.xselection.target = request->target;
+          reply.xselection.time = request->time;
+          XSendEvent(dpy, request->requestor, False, 0, &reply);
+          // delete(str);
+          break;
+        }
+
+        case SelectionNotify: {
+          if (event.xselection.target == SAVE_TARGETS) {
+            // This means one of two things; either the selection
+            // was not owned, which means there is no clipboard
+            // manager, or the transfer to the clipboard manager has
+            // completed
+            // In either case, it means we are done here
+            return;
+          }
+
+          break;
+        }
+      }
+    }
+
+    waitForX11Event(dpy);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -3238,22 +3393,27 @@ rxvt_term::selection_clear (bool clipboard) NOTHROW
   if (!clipboard)
     {
       want_refresh = 1;
+      if (display->selection_owner == this && selection.len > 0) {
+        this->push_selection_to_x11(false, selection.text, selection.len);
+        display->selection_owner = 0;
+      }
+
       free (selection.text);
       selection.text = NULL;
       selection.len = 0;
       CLEAR_SELECTION ();
 
-      if (display->selection_owner == this)
-        display->selection_owner = 0;
     }
   else
     {
+      if (display->selection_owner == this && selection.clip_len > 0) {
+        this->push_selection_to_x11(true, selection.clip_text, selection.clip_len);
+        display->selection_owner = 0;
+      }
+
       free (selection.clip_text);
       selection.clip_text = NULL;
       selection.clip_len = 0;
-
-      if (display->clipboard_owner == this)
-        display->clipboard_owner = 0;
     }
 }
 
