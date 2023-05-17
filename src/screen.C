@@ -30,6 +30,175 @@
 #include "rxvtperl.h"           /* NECESSARY */
 
 #include <inttypes.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <unistd.h>
+// tempfile_t manipulation
+
+typedef struct {
+  FILE *fp;
+  unsigned int ref_counter;
+} tempfile_t;
+
+typedef struct {
+  tempfile_t *tempfile;
+  size_t position;
+} temp_storage_t;
+
+static tempfile_t *tempfile_current = NULL;
+static size_t tempfile_num = 0;
+static size_t const TEMPFILE_MAX_SIZE = 1024 * 1024 * 16;  /* 16MB */
+static size_t const TEMPFILE_MAX_NUM = 16;
+
+static tempfile_t *
+tempfile_new (void)
+{
+  tempfile_t *tempfile;
+  FILE *fp;
+
+  fp = tmpfile();
+  if (!fp)
+    return NULL;
+
+  tempfile = (tempfile_t *)rxvt_malloc (sizeof(tempfile_t));
+  if (!tempfile)
+    return NULL;
+
+  tempfile->fp = fp;
+  tempfile->ref_counter = 1;
+
+  tempfile_num++;
+
+  return tempfile;
+}
+
+static void
+tempfile_destroy(tempfile_t *tempfile)
+{
+  if (tempfile == tempfile_current)
+    tempfile_current = NULL;
+  fclose((FILE *)tempfile->fp);
+  free (tempfile);
+  tempfile_num--;
+}
+
+static void
+tempfile_ref(tempfile_t *tempfile)
+{
+  tempfile->ref_counter++;
+}
+
+static void
+tempfile_deref(tempfile_t *tempfile)
+{
+  if (--tempfile->ref_counter == 0)
+    tempfile_destroy(tempfile);
+}
+
+static size_t
+tempfile_size(tempfile_t *tempfile)
+{
+  struct stat info;
+
+  fstat(fileno(tempfile->fp), &info);
+
+  return info.st_size;
+}
+
+static tempfile_t *
+tempfile_get(void)
+{
+  size_t size;
+
+  if (!tempfile_current)
+    {
+      tempfile_current = tempfile_new();
+      return tempfile_current;
+    }
+
+  /* get file size */
+  size = tempfile_size(tempfile_current);
+
+  /* if the file size reaches TEMPFILE_MAX_SIZE, return new temporary file */
+  if (size > TEMPFILE_MAX_SIZE)
+    {
+      tempfile_current = tempfile_new();
+      return tempfile_current;
+    }
+
+  /* increment reference counter */
+  tempfile_ref (tempfile_current);
+
+  return tempfile_current;
+}
+
+static bool
+tempfile_write(tempfile_t *tempfile, void *p, size_t pos, size_t size)
+{
+  size_t nbytes;
+
+  fseek ((FILE *)tempfile->fp, pos, SEEK_SET);
+  nbytes = fwrite(p, 1, size, tempfile->fp);
+  if (nbytes != size)
+    return false;
+
+  return true;
+}
+
+static bool
+tempfile_read(tempfile_t *tempfile, void *p, size_t pos, size_t size)
+{
+  size_t nbytes;
+
+  fflush((FILE *)tempfile->fp);
+  fseek((FILE *)tempfile->fp, pos, SEEK_SET);
+  nbytes = fread (p, 1, size, (FILE *)tempfile->fp);
+  if (nbytes != size)
+    return false;
+
+  return true;
+}
+
+// temp_storage_t implementation
+
+static temp_storage_t *
+storage_create(void)
+{
+  temp_storage_t *storage;
+  tempfile_t *tempfile;
+
+  tempfile = tempfile_get ();
+  if (!tempfile)
+    return NULL;
+
+  storage = (temp_storage_t *)rxvt_malloc (sizeof(temp_storage_t));
+  if (!storage)
+    return NULL;
+
+  storage->tempfile = tempfile;
+  storage->position = tempfile_size(storage->tempfile);
+
+  return storage;
+}
+
+static void
+storage_destroy (temp_storage_t *storage)
+{
+  tempfile_deref (storage->tempfile);
+  free (storage);
+}
+
+static bool
+storage_write(temp_storage_t *storage, void *p, size_t size)
+{
+  return tempfile_write (storage->tempfile, p, storage->position, size);
+}
+
+static bool
+storage_read(temp_storage_t *storage, void *p, size_t size)
+{
+  return tempfile_read (storage->tempfile, p, storage->position, size);
+}
 
 static inline void
 fill_text (text_t *start, text_t value, int len)
@@ -709,6 +878,7 @@ rxvt_term::scr_scroll_text (int row1, int row2, int count) NOTHROW
 
       // scroll everything up 'count' lines
       term_start = (term_start + count) % total_rows;
+      virtual_lines += count;
 
       // now copy lines below the scroll region bottom to the
       // bottom of the screen again, so they look as if they
@@ -2018,10 +2188,13 @@ rxvt_term::scr_page (int nlines) NOTHROW
 bool
 rxvt_term::scr_changeview (int new_view_start) NOTHROW
 {
+
+  // printf("scr_changeview to %d\n", new_view_start);
   clamp_it (new_view_start, top_row, 0);
 
-  if (new_view_start == view_start)
+  if (new_view_start == view_start) {
     return false;
+  }
 
   num_scr += new_view_start - view_start;
   view_start = new_view_start;
@@ -2137,9 +2310,14 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
   XColor focused, unfocused;
-  XParseColor(dpy, cm, "#6b77bf", &focused);
+  // XParseColor(dpy, cm, "#6b77bf", &focused);
+  // XParseColor(dpy, cm, "#00d7d7", &focused);
+  // XParseColor(dpy, cm, "#00d7af", &focused);
+  XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
-  XParseColor(dpy, cm, "#2f3452", &unfocused);
+  // XParseColor(dpy, cm, "#2f3452", &unfocused);
+  XParseColor(dpy, cm, "#465163", &unfocused);
+  // XParseColor(dpy, cm, "#6b77bf", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
 
   int i = 0;
@@ -2147,7 +2325,7 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   // printf("termlist: %d, tab_width: %d\n", termlist.size(), tab_width);
 
   for (i = 0; i < termlist.size(); i++) {
-    if (tab_index == i)
+    if (tab_index == i && termlist.size() > 1)
       XSetForeground(dpy, gc, focused.pixel);
     else
       XSetForeground(dpy, gc, unfocused.pixel);
@@ -2354,7 +2532,7 @@ rxvt_term::scr_refresh () NOTHROW
     }
 #endif
 
-  // printf("ncol: %d, nrow: %d\n", ncol, nrow);
+  // printf("draw! view_start: %d, ncol: %d, nrow: %d\n", view_start, ncol, nrow);
 
   /*
    * E: main pass across every character
@@ -2375,7 +2553,7 @@ rxvt_term::scr_refresh () NOTHROW
         {
           /* compare new text with old - if exactly the same then continue */
           if (stp[col] == dtp[col] && RS_SAME (srp[col], drp[col])) {
-            // printf("same!\n");
+            // printf("same char at %dx%d!\n", row, col);
             continue;
           }
 
@@ -2392,6 +2570,7 @@ rxvt_term::scr_refresh () NOTHROW
           dtp[col] = stp[col];
           drp[col] = rend;
 
+          // printf("redrawing char at %dx%d: %c\n", row, col, stp[col]);
           int xpixel = Col2Pixel (col);
 
           for (i = 0; ++col < ncol; )
@@ -2572,6 +2751,168 @@ rxvt_term::scr_refresh () NOTHROW
             }
         }                     /* for (col....) */
     }                         /* for (row....) */
+
+  /*
+   * F: draw sixel images
+   */
+  if (images)
+    {
+      imagelist_t *im;
+      GC clipgc;
+      int trow, brow;  // top, bottom
+      int nlimit = 256;  //  num of allocated rects
+      XRectangle *rects = NULL, *itrect = NULL, *p = NULL;
+      int n, x, y;
+      XImage xi;
+
+      // for each images
+      for (im = images; im; im = im->next)
+        {
+          trow = im->row - virtual_lines;
+          brow = trow + (im->pxheight + fheight - 1) / fheight;
+
+          // if the image is out of scrollback, delete it.
+          if (brow <= top_row)
+            {
+              if (im->prev)
+                im->prev->next = im->next;
+              else
+                images = im->next;
+              if (im->next)
+                im->next->prev = im->prev;
+              if (im->drawable)
+                XFreePixmap (dpy, im->drawable);
+              if (im->storage)
+                storage_destroy ((temp_storage_t *)im->storage);
+              free (im->pixels);
+              free (im);
+              continue;
+            }
+
+          // if the image is out of view, serialize into the storage object(im->storage).
+          if (trow >= view_start + nrow || brow <= view_start)
+            {
+              if (! im->storage)
+                {
+                  if (im->drawable)
+                    {
+                      XFreePixmap (dpy, im->drawable);
+                      im->drawable = NULL;
+                    }
+                  if (! im->storage)
+                      im->storage = storage_create();
+                  if (! storage_write ((temp_storage_t *)im->storage, im->pixels, im->pxwidth * im->pxheight * 4))
+                    break;
+                  free (im->pixels);
+                  im->pixels = NULL;
+                }
+              continue;
+            }
+
+          // ensure the pixmap(im->drawable) is available
+          if (! im->drawable)
+            {
+              // ensure the in-memory pixel buffer(im->pixels) is available
+              if (! im->pixels)
+                {
+                  im->pixels = (unsigned char *)rxvt_malloc (im->pxwidth * im->pxheight * 4);
+                  if (! storage_read ((temp_storage_t *)im->storage, im->pixels, im->pxwidth * im->pxheight * 4))
+                    break;
+                  storage_destroy ((temp_storage_t *)im->storage);
+                  im->storage = NULL;
+                  assert (im->pixels);
+                }
+
+              // create the pixmap object(im->drawable).
+              XInitImage (&xi);
+              xi.format = ZPixmap;
+              xi.data = (char *)im->pixels;
+              xi.width = im->pxwidth;
+              xi.height = im->pxheight;
+              xi.xoffset = 0;
+              xi.byte_order = LSBFirst;
+              xi.bitmap_bit_order = MSBFirst;
+              xi.bits_per_pixel = 32;
+              xi.bytes_per_line = im->pxwidth * 4;
+              xi.bitmap_unit = 32;
+              xi.bitmap_pad = 32;
+              xi.depth = 24;
+              im->drawable = XCreatePixmap(dpy, vt, im->pxwidth, im->pxheight, DefaultDepth (dpy, 0));
+              XPutImage (dpy, im->drawable, gc, &xi, 0, 0, 0, 0, im->pxwidth, im->pxheight);
+            }
+
+          // XXX: this is shoddy work!!
+          // construct clipping rectangle array
+          itrect = rects = NULL;
+          for (y = trow - view_start; y < brow - view_start; y++)  // for rows
+            {
+              if (y >= 0 && y < nrow)
+                {
+                  // compare recent two clip rectangles, combine them if they has same (left, width).
+                  if (itrect - rects > 0 && itrect->x == (itrect - 1)->x && itrect->width == (itrect - 1)->width)
+                    {
+                      // test whether itrect adjacent to itrect - 1
+                      if ((itrect - 1)->y + (itrect - 1)->height == itrect->y)
+                        {
+                          itrect--;
+                          itrect->height += fheight;
+                        }
+                    }
+
+                  for (x = im->col; x < im->col + Pixel2Col (im->pxwidth + fwidth - 1) && x < ncol; x++)  // for cols
+                    {
+                      // lazy initialization for rectangle array
+                      if (!rects)
+                        itrect = rects = (XRectangle *)rxvt_malloc (sizeof (XRectangle) * nlimit);
+                      if (rects == NULL)
+                        break;
+
+                      // resize rectangle array
+                      if (itrect - rects == nlimit)
+                        {
+                          p = (XRectangle *)rxvt_realloc (rects, sizeof (XRectangle) * (nlimit *= 2));
+                          if (p == NULL)
+                            break;
+                          rects = p;
+                        }
+
+                      if (ROW(view_start + y).t[x] == CHAR_IMAGE)
+                        {
+                          // check if current cell is combinable with last clip rectangle
+                          if (itrect - rects > 0 && (itrect - 1)->x + (itrect - 1)->width == Col2Pixel (x) && (itrect - 1)->y == Row2Pixel (y))
+                            {
+                              (itrect - 1)->width += fwidth;
+                            }
+                          else
+                            {
+                              // add new clip rectangle
+                              itrect->x = Col2Pixel (x);
+                              itrect->y = Row2Pixel (y);
+                              itrect->width = fwidth;
+                              itrect->height = fheight;
+                              itrect++;
+                            }
+                        }
+                    }
+                }
+            }
+
+          if (itrect - rects > 0)  // if it should be drawn
+            {
+              clipgc = XCreateGC (dpy, vt, 0, 0);
+              // set clipping region
+              XSetClipRectangles (dpy, clipgc, 0, 0, rects, itrect - rects, YXSorted);
+              XCopyArea (dpy, im->drawable, vt,
+                         clipgc, 0, 0,
+                         im->pxwidth, im->pxheight,
+                         (unsigned int)Width2Pixel (im->col),
+                         (unsigned int)Height2Pixel (im->row - virtual_lines - view_start));
+              XFreeGC (dpy, clipgc);
+            }
+
+          free (rects);
+      }
+    }
 
   /*
    * G: cleanup cursor and display outline cursor if necessary
@@ -2879,11 +3220,166 @@ rxvt_term::paste (char *data, unsigned int len) NOTHROW
 void
 rxvt_term::selection_request (Time tm, int selnum) NOTHROW
 {
-  if (!selection_req)
-    {
-      selection_req = new rxvt_selection (display, selnum, tm, vt, xa[XA_VT_SELECTION], this);
-      selection_req->run ();
+  if (!selection_req) {
+    selection_req = new rxvt_selection (display, selnum, tm, vt, xa[XA_VT_SELECTION], this);
+    selection_req->run ();
+  }
+}
+
+static bool waitForX11Event(Display * dpy) {
+  fd_set fds;
+  const int fd = ConnectionNumber(dpy);
+  int count = fd + 1;
+
+  for (;;) {
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+
+    if (select(count, &fds, NULL, NULL, NULL) != -1 || errno != EINTR)
+      return true;
+  }
+}
+
+unsigned long GetWindowPropertyX11(Display * display, Window window, Atom property, Atom type, unsigned char** value) {
+    Atom actualType;
+    int actualFormat;
+    unsigned long itemCount, bytesAfter;
+    XGetWindowProperty(display, window, property, 0, LONG_MAX, False, type, &actualType, &actualFormat, &itemCount, &bytesAfter, value);
+    return itemCount;
+}
+
+static Atom writeTargetToProperty(Display * dpy, const XSelectionRequestEvent* request, const char * selectionString) {
+    Atom NULL_ = XInternAtom(dpy, "NULL", False);
+    Atom ATOM_PAIR = XInternAtom(dpy, "ATOM_PAIR", False);
+    Atom UTF8_STRING = XInternAtom(dpy, "UTF8_STRING", False);
+    Atom TARGETS = XInternAtom(dpy, "TARGETS", False);
+    Atom MULTIPLE = XInternAtom(dpy, "MULTIPLE", False);
+    Atom PRIMARY = XInternAtom(dpy, "PRIMARY", False);
+    Atom INCR = XInternAtom(dpy, "INCR", False);
+    Atom CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", False);
+    Atom SAVE_TARGETS = XInternAtom(dpy, "SAVE_TARGETS", False);
+
+    int i;
+    const Atom formats[] = { UTF8_STRING, XA_STRING };
+    const int formatCount = sizeof(formats) / sizeof(formats[0]);
+
+    // if (request->selection == PRIMARY) {
+    //   printf("primary string requested\n");
+    // } else {
+    //   printf("clipboard string requested\n");
+    // }
+
+    if (request->property == None) {
+        // The requester is a legacy client (ICCCM section 2.2)
+        // We don't support legacy clients, so fail here
+        return None;
     }
+
+    if (request->target == TARGETS) {
+        // The list of supported targets was requested
+        const Atom targets[] = { TARGETS, MULTIPLE, UTF8_STRING, XA_STRING };
+        XChangeProperty(dpy, request->requestor, request->property, XA_ATOM, 32, PropModeReplace, (unsigned char*) targets, sizeof(targets) / sizeof(targets[0]));
+        return request->property;
+    }
+
+    if (request->target == MULTIPLE) {
+        // Multiple conversions were requested
+
+        Atom* targets;
+        unsigned long i, count;
+        count = GetWindowPropertyX11(dpy, request->requestor, request->property, ATOM_PAIR, (unsigned char**) &targets);
+
+        for (i = 0;  i < count;  i += 2) {
+            int j;
+
+            for (j = 0;  j < formatCount;  j++) {
+                if (targets[i] == formats[j]) break;
+            }
+
+            if (j < formatCount) {
+                XChangeProperty(dpy, request->requestor, targets[i + 1], targets[i], 8, PropModeReplace, (unsigned char *) selectionString, strlen(selectionString));
+            } else {
+                targets[i + 1] = None;
+            }
+        }
+
+        XChangeProperty(dpy, request->requestor, request->property, ATOM_PAIR, 32, PropModeReplace, (unsigned char*) targets, count);
+        XFree(targets);
+        return request->property;
+    }
+
+    if (request->target == SAVE_TARGETS) {
+        // The request is a check whether we support SAVE_TARGETS
+        // It should be handled as a no-op side effect target
+        XChangeProperty(dpy, request->requestor, request->property, NULL_, 32, PropModeReplace, NULL, 0);
+        return request->property;
+    }
+
+
+    // Conversion to a data target was requested
+    for (i = 0;  i < formatCount;  i++) {
+        if (request->target == formats[i]) {
+            // The requested target is one we support
+            XChangeProperty(dpy, request->requestor, request->property, request->target, 8, PropModeReplace, (unsigned char *) selectionString, strlen(selectionString));
+            return request->property;
+        }
+    }
+
+    return None; // The requested target is not supported
+}
+
+void rxvt_term::push_selection_to_x11(bool clipboard, wchar_t * buf, int len) {
+
+  Atom CLIPBOARD_MANAGER = XInternAtom(dpy, "CLIPBOARD_MANAGER", False);
+  Atom SAVE_TARGETS = XInternAtom(dpy, "SAVE_TARGETS", False);
+  Atom CLIPBOARD = XInternAtom(dpy, "CLIPBOARD", False);
+
+  Atom sel = clipboard ? xa[XA_CLIPBOARD] : XA_PRIMARY;
+
+  if (XGetSelectionOwner(dpy, sel) != vt) return; // not the owner anymore
+
+  // printf("pushing selection to x11! clipboard: %d\n", clipboard);
+
+  XConvertSelection(dpy, CLIPBOARD_MANAGER, SAVE_TARGETS, None, vt, CurrentTime);
+  char * str = rxvt_wcstombs(buf, len);
+
+  for (;;) {
+    XEvent event;
+    XNextEvent(dpy, &event);
+
+    if ((event.xany.window == vt) && (event.type == SelectionRequest || event.type == SelectionNotify || event.type == SelectionClear)) {
+      switch (event.type) {
+        case SelectionRequest: {
+          const XSelectionRequestEvent* request = &event.xselectionrequest;
+          XEvent reply = { SelectionNotify };
+          reply.xselection.property = writeTargetToProperty(dpy, request, str);
+          reply.xselection.display = request->display;
+          reply.xselection.requestor = request->requestor;
+          reply.xselection.selection = request->selection;
+          reply.xselection.target = request->target;
+          reply.xselection.time = request->time;
+          XSendEvent(dpy, request->requestor, False, 0, &reply);
+          // delete(str);
+          break;
+        }
+
+        case SelectionNotify: {
+          if (event.xselection.target == SAVE_TARGETS) {
+            // This means one of two things; either the selection
+            // was not owned, which means there is no clipboard
+            // manager, or the transfer to the clipboard manager has
+            // completed
+            // In either case, it means we are done here
+            return;
+          }
+
+          break;
+        }
+      }
+    }
+
+    waitForX11Event(dpy);
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2897,22 +3393,27 @@ rxvt_term::selection_clear (bool clipboard) NOTHROW
   if (!clipboard)
     {
       want_refresh = 1;
+      if (display->selection_owner == this && selection.len > 0) {
+        this->push_selection_to_x11(false, selection.text, selection.len);
+        display->selection_owner = 0;
+      }
+
       free (selection.text);
       selection.text = NULL;
       selection.len = 0;
       CLEAR_SELECTION ();
 
-      if (display->selection_owner == this)
-        display->selection_owner = 0;
     }
   else
     {
+      if (display->selection_owner == this && selection.clip_len > 0) {
+        this->push_selection_to_x11(true, selection.clip_text, selection.clip_len);
+        display->selection_owner = 0;
+      }
+
       free (selection.clip_text);
       selection.clip_text = NULL;
       selection.clip_len = 0;
-
-      if (display->clipboard_owner == this)
-        display->clipboard_owner = 0;
     }
 }
 

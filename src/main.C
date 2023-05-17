@@ -222,6 +222,7 @@ rxvt_term::emergency_cleanup ()
 
   pty_ev.stop ();
   delete pty; pty = 0;
+
 }
 
 rxvt_term::~rxvt_term ()
@@ -258,6 +259,10 @@ rxvt_term::~rxvt_term ()
   delete bg_img;
   // delete winbg;
   if (winbg != None) XFreePixmap(dpy, winbg);
+#endif
+
+#ifdef ENABLE_DND
+  xdnd_deinit();
 #endif
 
   if (display) {
@@ -395,7 +400,6 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
   // make_current ();
 
   if (termlist.size() > 1) {
-
     if (tab_index == 0)  {
       rxvt_term * tab = termlist.at(1);
       tab->detach_tab();

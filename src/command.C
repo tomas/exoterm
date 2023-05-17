@@ -51,11 +51,13 @@
 #include "rxvtperl.h"
 #include "version.h"
 #include "command.h"
+#include "sixel.h"
 
 #ifdef KEYSYM_RESOURCE
 # include "keyboard.h"
 #endif
 
+#include <string>
 #include <signal.h>
 
 #if LINUX_YIELD_HACK
@@ -406,6 +408,388 @@ rxvt_wcsdup (const wchar_t *str, int len)
   return r;
 }
 
+static bool search_shown = false;
+vector<char> search_chars;
+#define MAX_SEARCH_LENGTH 18
+// #define MATCH_BGCOLOR 18 // dark blue
+// #define MATCH_BGCOLOR 54 // purple
+#define MATCH_BGCOLOR 244
+#define MATCH_BGCOLOR_SELECTED 62
+
+struct search_match {
+  int row;
+  int col;
+  int length;
+  int index;
+};
+
+vector<search_match> search_matches;
+
+static char * last_search = NULL;
+int selected_search = -1;
+
+// struct search_match selected_search;
+
+void dehighlight_line(line_t * l, int start, int len, int selected) {
+  int i;
+  int bgcolor = selected ? MATCH_BGCOLOR_SELECTED : MATCH_BGCOLOR;
+
+  for (i = start; i < start + len; i++) {
+    if (l->r[i] & (bgcolor << RS_bgShift)) {
+      l->r[i] &= ~(bgcolor << RS_bgShift);
+    }
+  }
+}
+
+void highlight_line(line_t * l, int start, int len, int selected) {
+  int e;
+  int bgcolor = selected ? MATCH_BGCOLOR_SELECTED : MATCH_BGCOLOR;
+  for (e = start; e < start + len; e++) {
+    l->r[e] |= bgcolor << RS_bgShift;
+  }
+}
+
+bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_len) {
+  int line_len = l->l;
+  int i, e;
+  bool found = false;
+
+  // printf("row %d line len %d\n", rownum, line_len);
+  for (i = 0; i < line_len; i++) {
+    // if (l->r[i] & RS_RVid) l->r[i] &= RS_RVid; // remove
+
+    if (tolower(l->t[i]) == word[0] && tolower(l->t[i + 1]) == word[1]) { // first two letters match
+      for (e = 2; e < word_len; e++) {
+        if ((i + e) > line_len || tolower(l->t[i + e]) != word[e]) {
+          break;
+        }
+      }
+
+      if (e == word_len) { // found match!
+
+        struct search_match match;
+        match.row = rownum+1;
+        match.col = i;
+        match.length = word_len;
+        match.index = search_matches.size();
+        search_matches.push_back(match);
+
+        printf("added match %d at %d/%d (%d)\n", match.index, match.row, match.col, match.length);
+        highlight_line(l, i, word_len, false);
+
+        found = true;
+        i += word_len-1;
+      }
+    } else {
+      // if (l->r[i] & (MATCH_BGCOLOR << RS_bgShift)) {
+      //   l->r[i] &= ~(MATCH_BGCOLOR << RS_bgShift);
+      // }
+    }
+  }
+
+  return found; // might be more than once
+}
+
+int ecb_cold
+rxvt_term::run_search(int row_start, int row_end) {
+
+  int len = search_chars.size();
+  char query[len];
+
+  int i;
+  for (i = 0; i < len; i++) {
+    query[i] = search_chars[i];
+  }
+  query[len] = '\0';
+
+  scr_overlay_new (-1, -1, 10 + len, 1);
+  scr_overlay_set (1, 0, "Search: ");
+  scr_overlay_set (9, 0, query);
+
+  if (row_start >= row_end) {
+    printf("invalid search rows given - row_start: %d -> row_end: %d\n", row_start, row_end);
+    return -1;
+  }
+
+  int num_matches = 0;
+  int row = row_end;
+
+  // printf("running search for %s (%d) from row_start: %d -> row_end: %d\n", query, len, row_start, row_end);
+
+  // while (row > top_row && ROW (row - 1).is_longer()) {
+  //   --row;
+  // }
+
+  do {
+    line_t *l;
+
+    do {
+      l = &ROW (row--);
+      // printf("checking row %d (%d - %d)\n", row, l->l, (l->f & LINE_FILTERED));
+
+      if ((l->l > 0)) {
+        // printf("checking word %s in row %d\n", query, row);
+        if (find_word_in_line(l, row, query, len)) {
+          // found_at = row;
+          num_matches++;
+        }
+
+/*
+        // line not filtered, mark it as filtered
+        l->f |= LINE_FILTERED;
+        while (l->is_longer()) {
+          l = &ROW (row--);
+
+          // find_word_in_line(l, str, len, in_search);
+          l->f |= LINE_FILTERED;
+        }
+        break;
+*/
+
+      }
+    } while (l->is_longer() && row >= row_start);
+  } while (row >= row_start);
+
+  return num_matches;
+}
+
+
+void ecb_cold
+rxvt_term::hide_search_matches(void) {
+  // selected_search.length = 0;
+  selected_search = -1;
+
+  int row = view_start;
+  int end_row = row + nrow;
+  int found_at = 0;
+
+  while (row > top_row && ROW (row - 1).is_longer ()) {
+    --row;
+  }
+
+  do {
+    int start_row = row;
+    line_t *l;
+    do {
+      l = &ROW (row++);
+      if ((l->l > 0)) dehighlight_line(l, 0, l->l, false);
+    } while (l->is_longer () && row < end_row);
+  } while (row < end_row);
+}
+
+void ecb_cold
+rxvt_term::update_search(void) {
+
+  char * label = "Search:";
+  if (search_chars.size() == 0) {
+    scr_overlay_new (-1, -1, sizeof("Search:") + 1, 1);
+    scr_overlay_set (1, 0, "Search:");
+    dehighlight_selected();
+    hide_search_matches();
+    // if (last_search != NULL) free(last_search);
+    // last_search = NULL;
+    return;
+  }
+
+  search_matches.clear();
+  dehighlight_selected();
+  selected_search = -1;
+
+  if (search_chars.size() > 2) {
+    run_search(view_start, view_start + nrow);
+  } else {
+    hide_search_matches();
+  }
+
+  printf("matches: %d\n", search_matches.size());
+  // for (i = 0, len = songs.size(); i < len; i++) {
+  // }
+}
+
+void ecb_cold
+rxvt_term::clear_search (bool all) {
+  if (all)
+    search_chars.clear();
+  else if (search_chars.size() > 0)
+    search_chars.pop_back();
+
+  update_search();
+}
+
+void ecb_cold
+rxvt_term::hide_search_bar(void) {
+  clear_search(true);
+  search_shown = false;
+  selected_search = -1;
+  scr_overlay_off();
+}
+
+void ecb_cold
+rxvt_term::show_search_bar(void) {
+  search_shown = true;
+  // selected_search = -1;
+  update_search();
+}
+
+void ecb_cold
+rxvt_term::append_to_search (char * buf, int len) {
+  if (search_chars.size() > MAX_SEARCH_LENGTH)
+    return;
+
+  if (buf[0] > 30 && buf[0] < 130) {
+    search_chars.push_back(tolower(buf[0]));
+  } else {
+    printf("Not appending char %d\n", buf[0]);
+    // close search bar with ctrl-c, enter or escape
+    if (len == 1 && (buf[0] == 3 || buf[0] == 13 || buf[0] == 27)) hide_search_bar();
+    return;
+  }
+
+  // printf("Appending to search: %s (%d) - char %d\n", buf, len, buf[0]);
+  update_search();
+}
+
+bool ecb_cold rxvt_term::dehighlight_selected() {
+  struct search_match match;
+  if (selected_search >= 0 && selected_search <= search_matches.size() - 1) {
+    match = search_matches[selected_search];
+    line_t * l = &ROW(match.row);
+    dehighlight_line(l, match.col, match.length, true);
+    highlight_line(l, match.col, match.length, false);
+    return true;
+  }
+  return false;
+}
+
+bool ecb_cold rxvt_term::find_previous_match() {
+  bool found = false;
+  int row_start = view_start - nrow;
+  int row_end = view_start;
+
+  // printf("top_row: %d\n", top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
+  // printf("nrow: %d\n", nrow); // num of rows in view
+  // printf("view_start: %d\n", view_start); // position
+
+  while (top_row < row_end) {
+    if (top_row > row_start) {
+      row_start = top_row;
+    }
+
+    int num_matches = run_search(row_start, row_end);
+    if (num_matches > 0) {
+      found = true;
+      break;
+    }
+
+    row_start -= nrow;
+    row_end -= nrow;
+  }
+
+  return found;
+}
+
+void ecb_cold rxvt_term::prev_search_result() {
+  struct search_match match;
+
+  want_refresh = 1;
+  dehighlight_selected();
+
+  if (selected_search != -1 && selected_search >= search_matches.size()) {
+    // reached the top searching, so return
+    return;
+  }
+
+  if (selected_search != -1 && selected_search >= search_matches.size()-1) { // no more matches to show
+    // printf("selected search (%d) is higher than matches (%d)\n", selected_search, search_matches.size());
+
+    bool found = find_previous_match();
+    ++selected_search;
+
+    if (found) {
+      match = search_matches[selected_search];
+      printf("found match %d, moving to %d\n", match.index, match.row);
+      scr_changeview(match.row - 1);
+
+      line_t * l = &ROW(match.row);
+      dehighlight_line(l, match.col, match.length, false);
+      highlight_line(l, match.col, match.length, true);
+    }
+
+  } else {
+    match = search_matches[++selected_search];
+
+    if (match.row < view_start || match.row > (view_start + nrow))
+      scr_changeview(match.row - 1);
+
+    line_t * l = &ROW(match.row);
+    dehighlight_line(l, match.col, match.length, false);
+    highlight_line(l, match.col, match.length, true);
+  }
+}
+
+void rxvt_term::next_search_result() {
+  struct search_match match;
+
+  if (selected_search == -1) return; // bottom of list
+
+  want_refresh = 1;
+  int res = dehighlight_selected();
+  --selected_search;
+
+  if (selected_search >= 0 && selected_search <= search_matches.size() - 1) {
+    match = search_matches[selected_search];
+
+    if (match.row > (view_start + nrow)) {
+      scr_changeview((match.row) - 1);
+    }
+
+    line_t * l = &ROW(match.row);
+    dehighlight_line(l, match.col, match.length, false);
+    highlight_line(l, match.col, match.length, true);
+  } else {
+    scr_changeview(top_row * -1);
+  }
+
+}
+
+bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
+  bool stop = true;
+
+  switch (key) {
+    case XK_BackSpace:
+      clear_search(meta);
+      break;
+
+    case XK_Up:
+      prev_search_result();
+      break;
+
+    case XK_Down:
+      next_search_result();
+      break;
+
+    case 65365: // page down
+    case 65366: // page up
+      if (shift) {
+        printf("TODO: find previous/next matches\n");
+        stop = false; // let regular shift pagedn/up behaviour work
+      }
+      break;
+
+    case XK_Escape:
+    case XK_KP_Enter:
+    case 0x0ff0d: // 65293
+      hide_search_bar();
+      break;
+
+    default:
+      // printf("unhandled key: %d\n", key);
+      break;
+  }
+
+  return stop;
+}
+
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
@@ -506,9 +890,15 @@ rxvt_term::key_press (XKeyEvent &ev)
 
           keysym = translate_keypad (keysym, kp);
 
+          if (search_shown) {
+            bool stop = handle_search_key(keysym, ctrl, meta, shft);
+            if (stop) return;
+          }
+
           switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
+
                 if (priv_modes & PrivMode_HaveBackSpace)
                   {
                     kbuf[0] = (!! (priv_modes & PrivMode_BackSpace)
@@ -579,6 +969,7 @@ rxvt_term::key_press (XKeyEvent &ev)
                 break;
 
               case XK_KP_Enter:
+
                 /* allow shift to override */
                 if (kp)
                   {
@@ -804,6 +1195,12 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
+        // Alt + S
+        if (meta && (keysym == 115)) {
+          show_search_bar();
+          return;
+        }
+
         // if (ctrl && (keysym == XK_Up)) {
         //   detach_tab();
         //   return;
@@ -820,8 +1217,10 @@ rxvt_term::key_press (XKeyEvent &ev)
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
 
-              scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
-              scr_overlay_set (0, 0, "Copied to clipboard");
+              if (!search_shown) {
+                scr_overlay_new (0, -1, sizeof ("Copied to clipboard") - 1, 1);
+                scr_overlay_set (0, 0, "Copied to clipboard");
+              }
             }
 
           return;
@@ -914,6 +1313,11 @@ rxvt_term::key_press (XKeyEvent &ev)
 
   if (len <= 0)
     return;			/* not mapped */
+
+  if (search_shown) {
+    append_to_search(kbuf, (unsigned int)len);
+    return;
+  }
 
   tt_write_user_input (kbuf, (unsigned int)len);
 }
@@ -1622,7 +2026,6 @@ rxvt_term::mouse_report (XButtonEvent &ev)
               32 + y);
 }
 
-
 static void *
 xgetprop(Display * dpy, Window w, Atom prop, Atom *type, int *fmt, size_t *cnt)
 {
@@ -1659,14 +2062,12 @@ rxvt_term::dndmatchtarget(size_t count, Atom *target)
 }
 
 static unsigned int
-xtoi(char hex)
-{
+xtoi(char hex) {
   return (isdigit(hex) ? hex - '0' : toupper(hex) - 'A' + 10);
 }
 
 static int
-urldecode(char *str, char *url, size_t len)
-{
+urldecode(char *str, char *url, size_t len) {
   while (len > 0 && *url != '\0') {
     if (url[0] != '%') {
       *str++ = *url++;
@@ -1686,7 +2087,7 @@ urldecode(char *str, char *url, size_t len)
 
 void rxvt_term::handle_uri(char * uri, uint16_t len) {
   printf("Got URI: %s\n", uri);
-  paste(uri, len);
+  GET_R->paste(uri, len);
 }
 
 void rxvt_term::selnotify(XEvent *e) {
@@ -1711,17 +2112,41 @@ void rxvt_term::selnotify(XEvent *e) {
 
   uri = strtok(data, "\r\n");
   while (uri != NULL) {
-    if (strncmp(uri, "file://", strlen("file://")) == 0) {
+    if (strncmp(uri, "http://", strlen("http://")) == 0) {
+      urldecode(uri, uri, 0);
+      handle_uri(uri, strlen(uri));
+    } else if (strncmp(uri, "https://", strlen("https://")) == 0) {
+      urldecode(uri, uri, 0);
+      handle_uri(uri, strlen(uri));
+    } else if (strncmp(uri, "file://", strlen("file://")) == 0) {
       uri += strlen("file://");
       len = strlen(uri) + 1;
       urldecode(uri, uri, len);
       handle_uri(uri, len);
+    } else {
+      // printf("uri doesn't match: %s\n", uri);
     }
     uri = strtok(NULL, "\r\n");
   }
 
   XFree(data);
   XDeleteProperty(dpy, win, prop);
+}
+
+void rxvt_term::send_dnd_finished(XEvent ev, Window src) {
+  dLocal (Display *, dpy);
+  Window win = this->parent;
+
+  XEvent xevent;
+  memset(&xevent, 0, sizeof(xevent));
+
+  xevent.xany.type            = ClientMessage;
+  xevent.xany.display         = dpy;
+  xevent.xclient.window       = src;
+  xevent.xclient.message_type = xdndfini;
+  xevent.xclient.format       = 32;
+  xevent.xclient.data.l[0]    = win;
+  XSendEvent(dpy, (&ev)->xclient.data.l[0], 0, 0, &xevent);
 }
 
 /*{{{ process an X event */
@@ -1744,7 +2169,7 @@ rxvt_term::x_cb (XEvent &ev)
 
   switch (ev.type) {
       case KeyPress:
-        scr_overlay_off();
+        if (!search_shown) scr_overlay_off();
         key_press (ev.xkey);
         break;
 
@@ -1753,7 +2178,7 @@ rxvt_term::x_cb (XEvent &ev)
         break;
 
       case ButtonPress:
-        scr_overlay_off();
+        if (!search_shown) scr_overlay_off();
         button_press (ev.xbutton);
         break;
 
@@ -1815,6 +2240,7 @@ rxvt_term::x_cb (XEvent &ev)
             }
 
             else if (ev.xclient.message_type == xdndposition) {
+
               Window src = ev.xclient.data.l[0];
               Atom action = ev.xclient.data.l[4];
               /* accept the drag-n-drop if we matched a target,
@@ -1834,15 +2260,21 @@ rxvt_term::x_cb (XEvent &ev)
               m.data.l[3] = 0;
               m.data.l[4] = xdndacopy;
 
-              if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0)
+              if (XSendEvent(dpy, src, False, NoEventMask, (XEvent *)&m) == 0) {
                 fprintf(stderr, "xsend error\n");
+              }
             }
             else if (ev.xclient.message_type == xdnddrop) {
               Time droptimestamp = ev.xclient.data.l[2];
               if (dndtarget != None) {
                 XConvertSelection(dpy, xdndselection, dndtarget, xdnddata, this->parent, droptimestamp);
               }
+
+              // notify the source window that we *did* receive the drop
+              Window owner = XGetSelectionOwner(dpy, xdndselection);
+              send_dnd_finished(ev, owner);
             }
+
             else if (ev.xclient.message_type == xdndleave) {
               dndtarget = None;
             }
@@ -1850,16 +2282,19 @@ rxvt_term::x_cb (XEvent &ev)
 
             // else {
             //   printf("Unknown message type: %d\n", ev.xclient.message_type);
-            //   printf("xdndenter: %d\n", xdndenter);
             // }
 
           }
         break;
 
+#ifdef ENABLE_DND
+
       case SelectionNotify:
         if (dndtarget) selnotify(&ev); // process dnd
         dndtarget = None;
         break;
+
+#endif
 
         /*
          * XXX: this is not the _current_ arrangement
@@ -2703,8 +3138,10 @@ rxvt_term::button_release (XButtonEvent &ev)
               selection.clip_len = selection.len;
               selection_grab (CurrentTime, true);
 
-              scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1);
-              scr_overlay_set (0, 0, "Copied to clipboard");
+              if (!search_shown) {
+                scr_overlay_new (-1, 0, sizeof ("Copied to clipboard") - 1, 1);
+                scr_overlay_set (0, 0, "Copied to clipboard");
+              }
             }
 
             break;
@@ -3414,6 +3851,10 @@ rxvt_term::process_csi_seq ()
           case '?':
             if (ch == 'h' || ch == 'l' || ch == 'r' || ch == 's' || ch == 't')
               process_terminal_mode (ch, priv, nargs, arg);
+            else if (ch == 'S')
+              process_graphics_attributes (nargs, arg);
+            if (prev_ch == '$' && ch == 'p')
+              process_terminal_mode (ch, priv, nargs, arg);
             break;
 
           case '!':
@@ -3811,15 +4252,215 @@ rxvt_term::get_to_st (unicode_t &ends_how)
 void
 rxvt_term::process_dcs_seq ()
 {
-  /*
-   * Not handled yet
-   */
+  unicode_t ch;
+  unsigned char c;
+  const int max_params = 16;
+  int params[max_params] = { 0 };
+  int nparams = 0;
+  int cmd = 0;
+  enum {
+    DCS_START,
+    DCS_PARAM,
+    DCS_INTERMEDIATE,
+    DCS_PASSTHROUGH,
+    DCS_IGNORE,
+    DCS_ESC
+  };
+  int st = DCS_START;
+  int x, y;
+  sixel_state_t sixel_st = { PS_GROUND };
+  imagelist_t *new_image;
+  line_t l;
 
-  unicode_t eh;
-  char *s = get_to_st (eh);
-  if (s)
-    free (s);
+  while (1) {
+    if ((ch = next_char ()) == NOCHAR) {
+        pty_fill ();
+        continue;
+    }
+    c = ch & 0xff;
+    switch (st) {
+    case DCS_START:
+    case DCS_PARAM:
+      switch (c) {
+      case '\030':  /* CAN */
+        goto end;
+      case '\032':  /* SUB */
+        st = DCS_IGNORE;
+        break;
+      case '\033':
+        st = DCS_ESC;
+        break;
+      case ' ' ... '/':
+        cmd = cmd << 8 | c;
+        st = cmd > (0xff << 16) ? DCS_IGNORE : DCS_INTERMEDIATE;
+        break;
+      case '0' ... '9':
+        params[nparams] = params[nparams] * 10 + c - '0';
+        st = params[nparams] > 256 ? DCS_IGNORE : DCS_PARAM;
+        break;
+      case ';':
+        if (++nparams == max_params)
+          st = DCS_IGNORE;
+        else
+          params[nparams] = 0;
+        break;
+      case ':':
+        st = DCS_IGNORE;
+        break;
+      case '<' ... '?':
+        cmd = cmd << 8 | c;
+        st = cmd > (0xff << 16) ? DCS_IGNORE : DCS_PARAM;
+        break;
+      case '@' ... '~':
+        cmd = cmd << 8 | c;
+        st = cmd > (0xff << 16) ? DCS_IGNORE : DCS_PASSTHROUGH;
+        break;
+      default:
+        st = DCS_IGNORE;
+        break;
+      }
+      break;
+    case DCS_INTERMEDIATE:
+      switch (c) {
+      case '\030':  /* CAN */
+        goto end;
+      case '\032':  /* SUB */
+        st = DCS_IGNORE;
+        break;
+      case '\033':
+        st = DCS_ESC;
+        break;
+      case ' ' ... '/':
+        cmd = cmd << 8 | c;
+        st = cmd > (0xff << 16) ? DCS_IGNORE : DCS_INTERMEDIATE;
+        break;
+      case '@' ... '~':
+        cmd = cmd << 8 | c;
+        st = cmd > (0xff << 16) ? DCS_IGNORE : DCS_PASSTHROUGH;
+        break;
+      default:
+        st = DCS_IGNORE;
+        break;
+      }
+      break;
+    case DCS_PASSTHROUGH:
+      switch (c) {
+      case '\030':  /* CAN */
+        goto end;
+      case '\032':  /* SUB */
+        st = DCS_IGNORE;
+        break;
+      case '\033':
+        st = DCS_ESC;
+        break;
+      default:
+        switch (cmd) {
+        case 'q':  /* DECSIXEL */
+          switch (sixel_st.state) {
+            case PS_GROUND:
+              {
+                rgba fg = pix_colors[Color_fg];
+                rgba bg = pix_colors[Color_bg];
+                sixel_parser_init(&sixel_st,
+                                  fg.b >> 8 << 16 | fg.g >> 8 << 8 | fg.r >> 8,
+                                  bg.b >> 8 << 16 | bg.g >> 8 << 8 | bg.r >> 8,
+                                  1, fwidth, fheight);
+              }
+              break;
+            default:
+              sixel_parser_parse(&sixel_st, &c, 1);
+              break;
+          }
+          break;
+        default:
+          break;
+        }
+        break;
+      }
+      break;
+    case DCS_IGNORE:
+      switch (c) {
+      case '\030':  /* CAN */
+        goto end;
+      case '\032':  /* SUB */
+        st = DCS_IGNORE;
+        break;
+      case '\033':
+        st = DCS_ESC;
+        break;
+      default:
+        st = DCS_IGNORE;
+        break;
+      }
+      break;
+    case DCS_ESC:
+      switch (c) {
+      case '\\':
+        switch (cmd) {
+        case 'q':  /* DECSIXEL */
+          new_image = (imagelist_t *)rxvt_calloc (1, sizeof(imagelist_t));
+          new_image->pixels = (unsigned char *)rxvt_malloc (sixel_st.image.width * sixel_st.image.height * 4);
+          (void) sixel_parser_finalize (&sixel_st, new_image->pixels);
+          sixel_parser_deinit(&sixel_st);
+          new_image->col = screen.cur.col;
+          new_image->row = screen.cur.row + virtual_lines;
+          new_image->pxwidth = sixel_st.image.width;
+          new_image->pxheight = sixel_st.image.height;
+          if (this->images) {
+            imagelist_t *im;
+            for (im = this->images; im->next; im = im->next)
+              ;
+            new_image->prev = im;
+            im->next = new_image;
+          } else {
+            this->images = new_image;
+          }
 
+          for (y = 0; y < Pixel2Row (new_image->pxheight + fheight - 1); ++y)
+            {
+              if ((priv_modes & PrivMode_SixelDisplay))
+                l = ROW(screen.cur.row + y);
+              else
+                l = ROW(screen.cur.row);
+              for (x = 0; x < min (ncol - screen.cur.col, Pixel2Col (new_image->pxwidth + fwidth - 1)); ++x)
+                {
+                  l.t[screen.cur.col + x] = CHAR_IMAGE;
+                  l.r[screen.cur.col + x] = RS_None;
+                }
+              if (!(priv_modes & PrivMode_SixelDisplay))
+                {
+                  if (y == Pixel2Row (new_image->pxheight + fheight - 1) - 1)  // on last row
+                    {
+                      if ((priv_modes & PrivMode_SixelScrsRight))
+                        {
+                          screen.cur.col += x;
+                        }
+                      else
+                        {
+                          scr_index (UP);
+                          if ((priv_modes & PrivMode_SixelScrsLeft))
+                            scr_gotorc (0, 0, R_RELATIVE);
+                        }
+                    }
+                  else
+                    {
+                      scr_index (UP);
+                    }
+                }
+            }
+          break;
+        default:
+          break;
+        }
+        goto end;
+      default:
+        goto end;
+      }
+    default:
+      break;
+    }
+  }
+end:
   return;
 }
 
@@ -4260,6 +4901,7 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
 #ifndef NO_BACKSPACE_KEY
                   { 67, PrivMode_BackSpace },   // DECBKM
 #endif
+                  { 80, PrivMode_SixelDisplay },   // DECSDM sixel display mode
                   { 1000, PrivMode_MouseX11 },
                   { 1002, PrivMode_MouseBtnEvent },
                   { 1003, PrivMode_MouseAnyEvent },
@@ -4281,6 +4923,10 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
                   { 1049, PrivMode_Screen }, /* xterm extension, clear screen on ti rather than te */
                  // 1051, 1052, 1060, 1061 keyboard emulation NYI
                   { 2004, PrivMode_BracketPaste },
+                 // 7730 sixel-scrolls-left mode, originally proposed by mintty
+                  { 7730, PrivMode_SixelScrsLeft },
+                 // 8452 sixel-scrolls-right mode, originally proposed by RLogin
+                  { 8452, PrivMode_SixelScrsRight },
                 };
 
   if (nargs == 0)
@@ -4353,7 +4999,6 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             /* case 8:	- auto repeat, can't do on a per window basis */
             case 9:			/* X10 mouse reporting */
-              printf("mouse reporting!\n");
               if (state)		/* orthogonal */
                 priv_modes &= ~(PrivMode_MouseX11|PrivMode_MouseBtnEvent|PrivMode_MouseAnyEvent);
               break;
@@ -4599,6 +5244,62 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
             break;
 #endif
         }
+    }
+}
+
+void
+rxvt_term::process_graphics_attributes (unsigned int nargs, const int *arg)
+{
+  if (nargs != 3)
+    return;
+  switch (arg[0])
+    {
+      case 1:  /* number of sixel color palette */
+        switch (arg[1])
+          {
+            case 1:  /* read */
+              tt_printf ("\033[?%d;%d;%dS", arg[0], 0, DECSIXEL_PALETTE_MAX);
+              break;
+            case 2:  /* reset to default */
+              tt_printf ("\033[?%d;%d;%dS", arg[0], 0, DECSIXEL_PALETTE_MAX);
+              break;
+            case 3:  /* set */
+              if (arg[2] == DECSIXEL_PALETTE_MAX)
+                tt_printf ("\033[?%d;%d;%dS", arg[0], 0, DECSIXEL_PALETTE_MAX);
+              else
+                tt_printf ("\033[?%d;%d;%dS", arg[0], 3, 0);
+              break;
+            case 4:  /* read the maximum value */
+              tt_printf ("\033[?%d;%d;%dS", arg[0], 0, DECSIXEL_PALETTE_MAX);
+              break;
+            default:
+              tt_printf ("\033[?%d;%d;%dS", arg[0], 2, 0);
+              break;
+          }
+        break;
+      case 2:  /* geometory of sixel graphics */
+        switch (arg[1])
+          {
+            case 1:  /* read */
+              tt_printf ("\033[?%d;%d;%d;%dS", arg[0], 0, ncol * fwidth, nrow * fheight);
+              break;
+            case 2:  /* reset to default */
+              tt_printf ("\033[?%d;%d;%d;%dS", arg[0], 3, 0, 0);
+              break;
+            case 3:  /* set */
+              tt_printf ("\033[?%d;%d;%d;%dS", arg[0], 3, 0, 0);
+              break;
+            case 4:  /* read the maximum value */
+              tt_printf ("\033[?%d;%d;%d;%dS", arg[0], 3, 0, 0);
+              break;
+            default:
+              tt_printf ("\033[?%d;%d;%d;%dS", arg[0], 2, 0, 0);
+              break;
+          }
+        break;
+      default:
+        tt_printf ("\033[?%d;%d;%dS", arg[0], 1, 0);
+        break;
     }
 }
 

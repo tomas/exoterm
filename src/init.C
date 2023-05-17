@@ -1467,6 +1467,14 @@ done:
 #ifdef ENABLE_DND
 
 void
+rxvt_term::xdnd_deinit(void) {
+  dLocal (Display *, dpy);
+  Window win = this->parent;
+  // Window win = this->vt;
+  XDeleteProperty(dpy, win, xdndaware);
+}
+
+void
 rxvt_term::xdnd_init(void) {
   dLocal (Display *, dpy);
   Window win = this->parent;

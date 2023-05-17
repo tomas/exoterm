@@ -187,8 +187,16 @@ sub refresh {
 
    my $xor = urxvt::RS_RVid | urxvt::RS_Blink;
    for (@{ $self->{found} }) {
-      $self->scr_xor_span (@$_, $xor);
-      $xor = urxvt::RS_RVid;
+      # $self->scr_xor_span (@$_, $xor);
+      # $xor = urxvt::RS_RVid;
+
+      my ($br, $bc, $er, $ec) = @$_;
+
+      for (my $r = $br; $r <= $er; $r++) {
+         my $rend = $self->ROW_r($r);
+         my @arend = map { urxvt::SET_COLOR($_, '#ffffff', '#ffffff') } @$rend;
+         $self->ROW_r($r, \@arend);
+      }
    }
 
    ()
