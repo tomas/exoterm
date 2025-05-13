@@ -415,6 +415,7 @@ vector<char> search_chars;
 // #define MATCH_BGCOLOR 54 // purple
 #define MATCH_BGCOLOR 244
 #define MATCH_BGCOLOR_SELECTED 62
+#define MAX_SEARCH_SCROLLBACK -1000
 
 struct search_match {
   int row;
@@ -491,20 +492,7 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
 }
 
 int ecb_cold
-rxvt_term::run_search(int row_start, int row_end) {
-
-  int len = search_chars.size();
-  char query[len];
-
-  int i;
-  for (i = 0; i < len; i++) {
-    query[i] = search_chars[i];
-  }
-  query[len] = '\0';
-
-  scr_overlay_new (-1, -1, 10 + len, 1);
-  scr_overlay_set (1, 0, "Search: ");
-  scr_overlay_set (9, 0, query);
+rxvt_term::run_search(char * query, uint8_t len, int row_start, int row_end) {
 
   if (row_start >= row_end) {
     printf("invalid search rows given - row_start: %d -> row_end: %d\n", row_start, row_end);
@@ -514,7 +502,7 @@ rxvt_term::run_search(int row_start, int row_end) {
   int num_matches = 0;
   int row = row_end;
 
-  // printf("running search for %s (%d) from row_start: %d -> row_end: %d\n", query, len, row_start, row_end);
+  // printf("running search for %s (%d), from row_start: %d -> row_end: %d\n", query, len, row_start, row_end);
 
   // while (row > top_row && ROW (row - 1).is_longer()) {
   //   --row;
@@ -581,7 +569,9 @@ void ecb_cold
 rxvt_term::update_search(void) {
 
   char * label = "Search:";
-  if (search_chars.size() == 0) {
+  int len = search_chars.size();
+
+  if (len == 0) {
     scr_overlay_new (-1, -1, sizeof("Search:") + 1, 1);
     scr_overlay_set (1, 0, "Search:");
     dehighlight_selected();
@@ -595,15 +585,35 @@ rxvt_term::update_search(void) {
   dehighlight_selected();
   selected_search = -1;
 
-  if (search_chars.size() > 2) {
-    run_search(view_start, view_start + nrow);
-  } else {
+  char query[len];
+  int i;
+  for (i = 0; i < len; i++) {
+    query[i] = search_chars[i];
+  }
+  query[len] = '\0';
+
+  scr_overlay_new (-1, -1, 10 + len, 1);
+  scr_overlay_set (1, 0, "Search: ");
+  scr_overlay_set (9, 0, query);
+
+  if (len < 3) {
     hide_search_matches();
+    return;
   }
 
-  printf("matches: %d\n", search_matches.size());
-  // for (i = 0, len = songs.size(); i < len; i++) {
-  // }
+  int matches = run_search(query, len, view_start, view_start + nrow);
+
+  if (!matches) { // no match found in current view, so search backwards
+    bool found = find_previous_match();
+    if (found) {
+      int num_matches = search_matches.size();
+      printf("found %d matches\n", num_matches);
+      // struct search_match match = search_matches[num_matches-1];
+      struct search_match match = search_matches[0];
+      printf("found match %d, moving to %d\n", match.index, match.row);
+      scr_changeview(match.row - 1);
+    }
+  }
 }
 
 void ecb_cold
@@ -666,16 +676,25 @@ bool ecb_cold rxvt_term::find_previous_match() {
   int row_start = view_start - nrow;
   int row_end = view_start;
 
-  // printf("top_row: %d\n", top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
-  // printf("nrow: %d\n", nrow); // num of rows in view
-  // printf("view_start: %d\n", view_start); // position
+  int max_top_row = max(top_row, MAX_SEARCH_SCROLLBACK);
+  printf("top_row: %d\n", max_top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
+  printf("nrow: %d\n", nrow); // num of rows in view
+  printf("view_start: %d\n", view_start); // position
 
-  while (top_row < row_end) {
-    if (top_row > row_start) {
-      row_start = top_row;
+  int len = search_chars.size();
+  char query[len];
+  int i;
+  for (i = 0; i < len; i++) {
+    query[i] = search_chars[i];
+  }
+  query[len] = '\0';
+
+  while (max_top_row < row_end) {
+    if (max_top_row > row_start) {
+      row_start = max_top_row;
     }
 
-    int num_matches = run_search(row_start, row_end);
+    int num_matches = run_search(query, len, row_start, row_end);
     if (num_matches > 0) {
       found = true;
       break;
@@ -694,8 +713,8 @@ void ecb_cold rxvt_term::prev_search_result() {
   want_refresh = 1;
   dehighlight_selected();
 
-  if (selected_search != -1 && selected_search >= search_matches.size()) {
-    // reached the top searching, so return
+  if (search_matches.size() == 0 || selected_search != -1 && selected_search >= search_matches.size()) {
+    // no results or reached the top searching, so return
     return;
   }
 

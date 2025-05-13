@@ -1432,7 +1432,7 @@ Pixmap icon_mask; //  = None;
 #endif
 
   // command.C
-  int run_search(int row_start, int row_end);
+  int run_search(char * query, uint8_t len, int row_start, int row_end);
   void hide_search_matches(void);
   bool find_previous_match(void);
   bool dehighlight_selected(void);
