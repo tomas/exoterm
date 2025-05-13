@@ -6,7 +6,7 @@ An up-to-date fork of rxvt-unicode. In progress but usable.
 
 Install the following if on Ubuntu or use equivalent on other OSes:
 
-    sudo apt install libperl-dev libxpm-dev libxft-dev libxrender-dev
+    sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
 Initialize submodules:
 
