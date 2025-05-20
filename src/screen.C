@@ -2200,6 +2200,10 @@ rxvt_term::scr_changeview (int new_view_start) NOTHROW
   view_start = new_view_start;
   want_refresh = 1;
 
+  if (minimap.enabled && mapped) {
+      render_minimap();
+  }
+
   HOOK_INVOKE ((this, HOOK_VIEW_CHANGE, DT_INT, view_start, DT_END));
 
   return true;
@@ -4335,148 +4339,120 @@ rxvt_term::scr_swap_overlay () NOTHROW
 
 #ifdef ENABLE_MINIMAP
 
-void
-rxvt_term::render_minimap()
+void rxvt_term::render_minimap()
 {
-    // Perform safety checks
-    if (!minimap.enabled || !minimap.win || !mapped || !minimap.pixmap || !minimap.gc)
+    // Basic checks
+    if (!minimap.enabled || !minimap.win || !minimap.gc || !mapped)
         return;
 
-    // If we need a full redraw, clear the pixmap
-    if (minimap.needs_full_redraw) {
-        XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
-        XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width, vt_height);
-        minimap.needs_full_redraw = false;
-    }
+    // Get actual window attributes to ensure dimensions are correct
+    XWindowAttributes winattr;
+    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
+        return;
 
-    // Calculate visible area
-    int visible_start = view_start;
-    int visible_end = view_start + nrow;
+    // Clear the minimap
+    XClearWindow(dpy, minimap.win);
 
-    // Determine the total content length in buffer
-    int total_lines = total_rows;  // Safe value that should always be valid
+    // Current view area
+    int view_top = view_start;
+    int view_bottom = view_start + nrow - 1;
 
-    // Calculate pixel scaling factors
-    double content_height = total_lines * minimap.line_height;
-    double scale_factor = (double)(vt_height - 2 * minimap.padding) / content_height;
+    // Calculate scaling factors
+    int total_buffer_lines = total_rows;
+    int minimap_height = winattr.height;
 
-    // Draw the background
-    XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
-    XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width, vt_height);
+    // How many terminal lines fit in minimap's height
+    double lines_per_pixel = (double)total_buffer_lines / (minimap_height / minimap.line_height);
 
-    // Draw each line with the configurable height
-    for (int row = top_row; row < total_rows + top_row; row++) {
-        // Calculate y position in minimap
-        int y = minimap.padding + (int)((row - top_row) * minimap.line_height * scale_factor);
+    // Calculate the visible viewport indicator position
+    int viewport_y = (int)((view_top - top_row) / lines_per_pixel);
+    int viewport_height = (int)(nrow / lines_per_pixel);
 
-        // Skip if outside visible area
-        if (y < 0 || y >= vt_height - minimap.padding)
+    // Make sure viewport is visible
+    if (viewport_height < 5) viewport_height = 5;
+    if (viewport_y < 0) viewport_y = 0;
+    if (viewport_y + viewport_height > minimap_height)
+        viewport_y = minimap_height - viewport_height;
+
+    // Draw content - character by character
+    for (int row = top_row; row < top_row + total_buffer_lines; row++) {
+        // Skip if outside the buffer
+        if (row < top_row || row >= top_row + total_rows)
             continue;
 
-        // Check row bounds
-        if (row < 0 || row >= total_rows + top_row)
+        // Calculate minimap y position
+        int y = (int)((row - top_row) / lines_per_pixel);
+
+        // Skip if outside drawable area
+        if (y < 0 || y >= minimap_height - minimap.line_height)
             continue;
 
-        // Get the line safely
+        // Get line content
         line_t &line = ROW(row);
         if (!line.valid())
             continue;
 
-        // Determine the dominant color for this line - safely
-        int most_prevalent_bg = Color_bg; // Default background
-        bool has_content = false;
+        // Draw each character in the line
+        for (int col = 0; col < ncol && col < line.l; col++) {
+            // Skip NOCHAR
+            if (line.t[col] == NOCHAR)
+                continue;
 
-        // Simple check - if line has content, use a different color
-        if (line.l > 0) {
-            has_content = true;
+            // Calculate x position in minimap
+            int x = (int)(col * minimap.char_width);
 
-            // Safely determine a color to use
-            for (int col = 0; col < min(ncol, line.l); col++) {
-                // Only sample every few characters for performance
-                if (col % 5 == 0 && col < line.l) {
-                    if (line.r && line.t) {
-                        if (line.t[col] != ' ' && line.t[col] != NOCHAR) {
-                            // Found non-empty content, use its background color
-                            most_prevalent_bg = bgcolor_of(line.r[col]);
-                            break;
-                        }
-                    }
+            // Skip if outside drawable area
+            if (x < 0 || x >= minimap.width)
+                continue;
+
+            // Get character foreground and background colors
+            int fg = fgcolor_of(line.r[col]);
+            int bg = bgcolor_of(line.r[col]);
+
+            // Determine whether to use fg or bg color
+            // Use fg color for non-space characters, bg color for spaces
+            unsigned long color;
+            if (line.t[col] != ' ') {
+                color = lookup_color(fg, pix_colors);
+            } else {
+                // For spaces, use bg color, but only if it's not the default bg
+                if (bg != Color_bg) {
+                    color = lookup_color(bg, pix_colors);
+                } else {
+                    // Skip drawing default background spaces
+                    continue;
                 }
             }
-        }
 
-        // Use a brighter color for the current view area
-        if (row >= visible_start && row < visible_end) {
-            // Make color brighter for visible area
-            if (most_prevalent_bg == Color_bg) {
-                most_prevalent_bg = Color_fg; // Use foreground color for contrast
+            // If character is in visible area, make it a bit brighter
+            if (row >= view_top && row <= view_bottom) {
+                // For characters in the viewport, ensure they're visible
+                if (color == lookup_color(Color_bg, pix_colors)) {
+                    // If color would be invisible, use a subtle gray
+                    color = lookup_color(Color_scroll, pix_colors);
+                }
             }
+
+            // Draw the character as a small rectangle
+            XSetForeground(dpy, minimap.gc, color);
+
+            // Calculate width - make sure we don't overflow
+            double char_width = minimap.char_width;
+            if (x + char_width > minimap.width)
+                char_width = minimap.width - x;
+
+            // Draw the character pixel
+            XFillRectangle(dpy, minimap.win, minimap.gc,
+                          x, y * minimap.line_height,
+                          (int)char_width, minimap.line_height);
         }
-
-        // If no content or default color, use a subtle gray for minimap lines
-        if (!has_content || most_prevalent_bg == Color_bg) {
-            // Use a slightly different color than background
-            if (row >= visible_start && row < visible_end) {
-                most_prevalent_bg = Color_fg;
-            } else {
-                most_prevalent_bg = Color_scroll; // Use scrollbar color for non-visible, empty lines
-            }
-        }
-
-        // Draw the line with the configured height
-        XSetForeground(dpy, minimap.gc, lookup_color(most_prevalent_bg, pix_colors));
-        XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, y,
-                      minimap.width, max(1, (int)(minimap.line_height * scale_factor)));
     }
 
-    // Draw a border around the minimap
-    XSetForeground(dpy, minimap.gc, lookup_color(Color_fg, pix_colors));
-    XDrawRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width-1, vt_height-1);
-
-    // Draw viewport indicator rectangle
-    update_minimap_viewport();
-    XSetForeground(dpy, minimap.gc, lookup_color(Color_fg, pix_colors));
-    XSetLineAttributes(dpy, minimap.gc, 1, LineOnOffDash, CapButt, JoinMiter);
-
-    XDrawRectangle(dpy, minimap.pixmap, minimap.gc,
-                  0, minimap.view_start_px,
-                  minimap.width-1, minimap.view_height_px);
-
-    // Copy the pixmap to the window safely
-    XCopyArea(dpy, minimap.pixmap, minimap.win, gc,
-             0, 0, minimap.width, vt_height, 0, 0);
-}
-
-void
-rxvt_term::update_minimap_viewport()
-{
-    if (!minimap.enabled)
-        return;
-
-    // Calculate total content length
-    int total_lines = total_rows;
-
-    // Calculate pixel scaling with line height
-    double content_height = total_lines * minimap.line_height;
-    double scale_factor = (double)(vt_height - 2 * minimap.padding) / content_height;
-
-    // Calculate viewport position and size
-    minimap.view_start_px = minimap.padding + (int)((view_start - top_row) * minimap.line_height * scale_factor);
-    minimap.view_height_px = (int)(nrow * minimap.line_height * scale_factor);
-
-    // Ensure viewport is visible
-    if (minimap.view_start_px < minimap.padding) {
-        minimap.view_height_px += (minimap.view_start_px - minimap.padding);
-        minimap.view_start_px = minimap.padding;
-    }
-
-    if (minimap.view_start_px + minimap.view_height_px > vt_height - minimap.padding) {
-        minimap.view_height_px = vt_height - minimap.padding - minimap.view_start_px;
-    }
-
-    // Ensure minimum size
-    if (minimap.view_height_px < 2)
-        minimap.view_height_px = 2;
+    // Draw viewport indicator
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_pointer_fg, pix_colors));
+    XDrawRectangle(dpy, minimap.win, minimap.gc,
+                  0, viewport_y * minimap.line_height,
+                  minimap.width - 1, viewport_height * minimap.line_height);
 }
 
 #endif

@@ -1520,59 +1520,41 @@ void set_wm_name(Display * display, Window win, char * name) {
 
 #ifdef ENABLE_MINIMAP
 
-void
-rxvt_term::init_minimap()
+void rxvt_term::init_minimap()
 {
+    // Initialize structure
+    minimap.enabled = false;
+    minimap.win = None;
+    minimap.gc = None;
+    minimap.line_height = 2;  // Default line height (2 pixels per line)
+    minimap.char_width = 1.0;  // Default 1 pixel per character
+    minimap.width = (int)(ncol * minimap.char_width);
 
     // // Check if minimap is enabled in settings
     // if (!option(Opt_minimap))
     //     return;
 
-    // // Initialize all fields to safe defaults first to prevent segfaults
-    minimap.enabled = false;
-    minimap.width = 0;
-    minimap.x = 0;
-    minimap.win = None;
-    minimap.pixmap = None;
-    minimap.gc = None;
-    minimap.view_start_px = 0;
-    minimap.view_height_px = 0;
-    minimap.needs_full_redraw = true;
-    minimap.line_height = 1; // Default is 1 pixel per line
-    minimap.padding = 1;     // 1 pixel padding
-
-    // Parse line height from resources if available
+    // Get line height from resources if available
     // const char* line_height_str = rs[Rs_minimapLineHeight];
     // if (line_height_str && *line_height_str) {
     //     int height = atoi(line_height_str);
-    //     if (height > 0 && height <= 10) // Reasonable limits
+    //     if (height > 0 && height <= 10)
     //         minimap.line_height = height;
     // }
 
-    // Make minimap width appropriate
-    minimap.width = 30;
+    // Position minimap on the right side of terminal
+    int minimap_x = vt_width;
 
-    // Parse width from resources if available
-    // const char* width_str = rs[Rs_minimapWidth];
-    // if (width_str && *width_str) {
-    //     int width = atoi(width_str);
-    //     if (width > 0)
-    //         minimap.width = width;
-    // }
-
-    // Calculate position
-    minimap.x = vt_width;
-
-    // Create window for minimap
+    // Create window
     XSetWindowAttributes attr;
     attr.background_pixel = lookup_color(Color_bg, pix_colors);
-    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask;
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonMotionMask;
 
     minimap.win = XCreateWindow(
         dpy,
         parent,
-        minimap.x, int_bwidth, // x, y
-        minimap.width, vt_height, // width, height
+        minimap_x, int_bwidth,
+        minimap.width, vt_height,
         0, // border width
         CopyFromParent, // depth
         InputOutput, // class
@@ -1582,26 +1564,17 @@ rxvt_term::init_minimap()
     );
 
     if (minimap.win) {
-        // Create pixmap and GC
-        minimap.pixmap = XCreatePixmap(dpy, minimap.win, minimap.width, vt_height,
-                                      DefaultDepth(dpy, display->screen));
+        // Create GC
+        XGCValues gcv;
+        gcv.foreground = lookup_color(Color_fg, pix_colors);
+        minimap.gc = XCreateGC(dpy, minimap.win, GCForeground, &gcv);
 
-        if (minimap.pixmap != None) {
-            minimap.gc = XCreateGC(dpy, minimap.pixmap, 0, NULL);
+        if (minimap.gc) {
+            XMapWindow(dpy, minimap.win);
+            minimap.enabled = true;
 
-            if (minimap.gc != None) {
-                XMapWindow(dpy, minimap.win);
-                minimap.enabled = true;
-            } else {
-                // Failed to create GC
-                if (minimap.pixmap != None) {
-                    XFreePixmap(dpy, minimap.pixmap);
-                    minimap.pixmap = None;
-                }
-            }
-        } else {
-            // Failed to create pixmap
-            minimap.win = None;
+            // Force an initial render
+            render_minimap();
         }
     }
 }

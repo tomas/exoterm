@@ -275,17 +275,12 @@ struct image_effects
 #ifdef ENABLE_MINIMAP
 
 struct minimap_t {
-    bool enabled;           // whether minimap is currently shown
-    int width;              // width in pixels
-    int x;                  // x position of minimap
-    Window win;             // X window for minimap
-    Pixmap pixmap;          // Pixmap for rendering
-    GC gc;                  // Graphics context for minimap
-    int view_start_px;      // start pixel of viewport indicator
-    int view_height_px;     // height in pixels of viewport indicator
-    bool needs_full_redraw; // Flag for full redraw
-    int line_height;        // Height of each line in pixels (configurable)
-    int padding;            // Padding around the minimap
+    bool enabled;       // Whether minimap is currently enabled
+    int width;          // Width of minimap in pixels
+    Window win;         // X Window for the minimap
+    GC gc;              // Graphics context
+    int line_height;    // Height of each line in pixels
+    double char_width;  // Width of each character in minimap pixels
 };
 
 #endif
