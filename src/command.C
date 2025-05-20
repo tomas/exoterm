@@ -60,6 +60,8 @@
 #define CTX_PARSER 0
 #define CTX_FORMATTER 0
 #define CTX_MATH 0
+// #define CTX_SCREENSHOT 1
+// #define CTX_IMAGE_WRITE 1
 // #define CTX_HARFBUZZ 0
 #include "ctx.h"
 
@@ -4917,18 +4919,17 @@ void rxvt_term::start_canvas_draw() {
   ctx_round_rectangle(ctx, (int)w/4, (int)h/4, (int)w/2, (int)h/2, 10.0);
   ctx_fill(ctx);
 
+  // ctx_screenshot(ctx, "/tmp/out.png");
+
   imagelist_t *new_image;
   new_image = (imagelist_t *)rxvt_calloc (1, sizeof(imagelist_t));
-  new_image->pixels = (unsigned char *)rxvt_malloc (w * h * 4);
+  new_image->pixels = (uint8_t *)rxvt_malloc (w * h * 4);
   // memset (new_image->pixels, 0, sizeof (new_image->pixels) );
-
-  Ctx *dctx = ctx_new_for_framebuffer (new_image->pixels, w, h, w * 4, CTX_FORMAT_RGBA8);
-  ctx_render_ctx (ctx, dctx);
-  ctx_destroy (dctx);
+  ctx_get_image_data (ctx, 0, 0, w, h, CTX_FORMAT_RGBA8, w * 4, new_image->pixels);
   ctx_destroy (ctx);
 
-  new_image->col = screen.cur.col;
-  new_image->row = screen.cur.row + virtual_lines;
+  new_image->col = 0;
+  new_image->row = screen.cur.row + 1 + virtual_lines;
   new_image->pxwidth = w;
   new_image->pxheight = h;
 
@@ -4942,13 +4943,15 @@ void rxvt_term::start_canvas_draw() {
     this->images = new_image;
   }
 
+  scr_index (UP);
+
   int x, y;
   for (y = 0; y < Pixel2Row (new_image->pxheight + fheight - 1); ++y) {
     line_t l = ROW(screen.cur.row);
 
     for (x = 0; x < min (ncol - screen.cur.col, Pixel2Col (new_image->pxwidth + fwidth - 1)); ++x) {
-      l.t[screen.cur.col + x] = CHAR_IMAGE;
-      l.r[screen.cur.col + x] = RS_None;
+      l.t[x] = CHAR_IMAGE;
+      l.r[x] = RS_None;
       // l.t[x] = CHAR_IMAGE;
       // l.r[x] = RS_None;
     }
