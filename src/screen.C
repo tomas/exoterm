@@ -2826,17 +2826,29 @@ rxvt_term::scr_refresh () NOTHROW
               // create the pixmap object(im->drawable).
               XInitImage (&xi);
               xi.format = ZPixmap;
-              xi.data = (char *)im->pixels;
+              xi.data = (unsigned char *)im->pixels;
               xi.width = im->pxwidth;
               xi.height = im->pxheight;
               xi.xoffset = 0;
-              xi.byte_order = LSBFirst;
-              xi.bitmap_bit_order = MSBFirst;
-              xi.bits_per_pixel = 32;
+              // xi.byte_order = LSBFirst;
+              // xi.bitmap_bit_order = MSBFirst;
+              // xi.bits_per_pixel = 32;
               xi.bytes_per_line = im->pxwidth * 4;
-              xi.bitmap_unit = 32;
-              xi.bitmap_pad = 32;
+              // xi.bitmap_unit = 32;
+              // xi.bitmap_pad = 32;
               xi.depth = 24;
+
+              // xi.depth            = 32;
+              xi.byte_order       = ImageByteOrder (dpy);
+              xi.bitmap_unit      = 0;         //XY only, unused
+              xi.bitmap_bit_order = 0;         //XY only, unused
+              xi.bitmap_pad       = 0; // BitmapPad (dpy);
+              xi.bits_per_pixel   = 32;         //Z only
+              // xi.red_mask         = 0x00000000; //Z only, unused
+              // xi.green_mask       = 0x00000000; //Z only, unused
+              // xi.blue_mask        = 0x00000000; //Z only, unused
+              // xi.obdata           = 0;          // probably unused
+
               im->drawable = XCreatePixmap(dpy, vt, im->pxwidth, im->pxheight, DefaultDepth (dpy, 0));
               XPutImage (dpy, im->drawable, gc, &xi, 0, 0, 0, 0, im->pxwidth, im->pxheight);
             }
