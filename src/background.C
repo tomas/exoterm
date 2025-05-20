@@ -467,7 +467,7 @@ Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out)
   shade.tintColor.blue  = 0xFFFF;
   Pixmap pix = ShadePixmap(dpy, win, bg, 0, 0, w, h, gc, &shade, depth);
 
-  printf("freeing pixmap\n");
+  // printf("freeing pixmap\n");
   // XFreePixmap(dpy, bg);
 
   *w_out = w;

@@ -1446,6 +1446,8 @@ Pixmap icon_mask; //  = None;
   void hide_search_bar(void);
   void append_to_search (char * buf, int len);
 
+  void start_canvas_draw();
+
   void key_press (XKeyEvent &ev);
   void key_release (XKeyEvent &ev);
 

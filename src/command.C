@@ -53,6 +53,16 @@
 #include "command.h"
 #include "sixel.h"
 
+#define CTX_IMPLEMENTATION
+#define CTX_PTY 0
+#define CTX_EVENTS 0
+#define CTX_RASTERIZER 1
+#define CTX_PARSER 0
+#define CTX_FORMATTER 0
+#define CTX_MATH 0
+// #define CTX_HARFBUZZ 0
+#include "ctx.h"
+
 #ifdef KEYSYM_RESOURCE
 # include "keyboard.h"
 #endif
@@ -1217,6 +1227,11 @@ rxvt_term::key_press (XKeyEvent &ev)
         // Alt + S
         if (meta && (keysym == 115)) {
           show_search_bar();
+          return;
+        }
+
+        if (meta && (keysym == 117)) {
+          start_canvas_draw();
           return;
         }
 
@@ -4879,6 +4894,67 @@ rxvt_term::privcases (int mode, unsigned long bit)
     }
 
   return state;
+}
+
+static int ctx_rgba8_manhattan_diff (const uint8_t *a, const uint8_t *b)
+{
+  int c;
+  int diff = 0;
+  for (c = 0; c<3;c++)
+    diff += ctx_pow2(a[c]-b[c]);
+
+  return diff;
+}
+
+void rxvt_term::start_canvas_draw() {
+  int w = width/2;
+  int h = height/2;
+
+  printf("drawing canvas %d/%d\n", w, h);
+
+  Ctx *ctx = ctx_new_drawlist (w, w);
+  ctx_rgb(ctx, 1, 0, 0);
+  ctx_round_rectangle(ctx, (int)w/4, (int)h/4, (int)w/2, (int)h/2, 10.0);
+  ctx_fill(ctx);
+
+  imagelist_t *new_image;
+  new_image = (imagelist_t *)rxvt_calloc (1, sizeof(imagelist_t));
+  new_image->pixels = (unsigned char *)rxvt_malloc (w * h * 4);
+  // memset (new_image->pixels, 0, sizeof (new_image->pixels) );
+
+  Ctx *dctx = ctx_new_for_framebuffer (new_image->pixels, w, h, w * 4, CTX_FORMAT_RGBA8);
+  ctx_render_ctx (ctx, dctx);
+  ctx_destroy (dctx);
+  ctx_destroy (ctx);
+
+  new_image->col = screen.cur.col;
+  new_image->row = screen.cur.row + virtual_lines;
+  new_image->pxwidth = w;
+  new_image->pxheight = h;
+
+  if (this->images) {
+    imagelist_t *im;
+    for (im = this->images; im->next; im = im->next)
+      ;
+    new_image->prev = im;
+    im->next = new_image;
+  } else {
+    this->images = new_image;
+  }
+
+  int x, y;
+  for (y = 0; y < Pixel2Row (new_image->pxheight + fheight - 1); ++y) {
+    line_t l = ROW(screen.cur.row);
+
+    for (x = 0; x < min (ncol - screen.cur.col, Pixel2Col (new_image->pxwidth + fwidth - 1)); ++x) {
+      l.t[screen.cur.col + x] = CHAR_IMAGE;
+      l.r[screen.cur.col + x] = RS_None;
+      // l.t[x] = CHAR_IMAGE;
+      // l.r[x] = RS_None;
+    }
+
+    scr_index (UP);
+  }
 }
 
 /* we're not using priv _yet_ */
