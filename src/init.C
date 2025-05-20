@@ -1518,6 +1518,49 @@ void set_wm_name(Display * display, Window win, char * name) {
 }
 */
 
+#ifdef ENABLE_MINIMAP
+
+void
+rxvt_term::init_minimap()
+{
+    // if (!option(Opt_minimap))
+    //     return;
+
+    // Default width for minimap (adjust as needed)
+    minimap.width = 100;
+
+    // Calculate position
+    minimap.x = vt_width;
+
+    // Create window for minimap
+    XSetWindowAttributes attr;
+    attr.background_pixel = lookup_color(Color_bg, pix_colors);
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask;
+
+    minimap.win = XCreateWindow(
+        dpy,
+        parent,
+        minimap.x, int_bwidth, // x, y
+        minimap.width, vt_height, // width, height
+        0, // border width
+        CopyFromParent, // depth
+        InputOutput, // class
+        CopyFromParent, // visual
+        CWBackPixel | CWEventMask, // value mask
+        &attr // attributes
+    );
+
+    if (minimap.win) {
+        XMapWindow(dpy, minimap.win);
+        minimap.enabled = true;
+        minimap.scale_factor = 0.25; // Content will be 1/4 size
+    } else {
+      printf("Failed to initialize minimap window.\n");
+    }
+}
+
+#endif
+
 void
 rxvt_term::create_windows (int argc, const char *const *argv)
 {
@@ -1726,6 +1769,10 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   // initially we are in unfocused state
   if (rs[Rs_fade])
     pix_colors = pix_colors_unfocused;
+#endif
+
+#ifdef ENABLE_MINIMAP
+  init_minimap();
 #endif
 
 #ifdef ENABLE_DND

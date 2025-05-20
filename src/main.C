@@ -265,6 +265,13 @@ rxvt_term::~rxvt_term ()
   xdnd_deinit();
 #endif
 
+#ifdef ENABLE_MINIMAP
+if (minimap.enabled && minimap.win != None) {
+    XDestroyWindow(dpy, minimap.win);
+    minimap.win = None;
+}
+#endif
+
   if (display) {
       selection_clear ();
       selection_clear (true);
@@ -1141,6 +1148,27 @@ get_parent_bw (Display *dpy, Window w)
 /* -------------------------------------------------------------------- *
  * -                         WINDOW RESIZING                          - *
  * -------------------------------------------------------------------- */
+
+#ifdef ENABLE_MINIMAP
+void
+rxvt_term::resize_minimap()
+{
+    if (!minimap.enabled || !minimap.win)
+        return;
+
+    // Position at the right side of the terminal
+    minimap.x = vt_width;
+
+    // Update viewport indicator
+    update_minimap_viewport();
+
+    // Move and resize the minimap window
+    XMoveResizeWindow(dpy, minimap.win,
+                     minimap.x, int_bwidth,
+                     minimap.width, vt_height);
+}
+#endif
+
 void
 rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, int ignoreparent)
 {

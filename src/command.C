@@ -2498,6 +2498,13 @@ rxvt_term::x_cb (XEvent &ev)
 
             want_refresh = 1;
           }
+#ifdef ENABLE_MINIMAP
+        else if (ev.xany.window == minimap.win) {
+            render_minimap();
+            break;
+        }
+#endif
+
         else
           {
             XEvent unused_event;

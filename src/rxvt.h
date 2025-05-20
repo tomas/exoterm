@@ -98,6 +98,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 # endif
 #endif
 
+#define ENABLE_MINIMAP 1
+
 #define ENABLE_DND 1
 
 #ifdef ENABLE_DND
@@ -268,6 +270,20 @@ struct image_effects
   bool set_shade (const char *shade_str);
   bool set_blur (const char *geom);
 };
+#endif
+
+#ifdef ENABLE_MINIMAP
+
+struct minimap_t {
+    bool enabled;           // whether minimap is currently shown
+    int width;              // width in pixels
+    int x;                  // x position of minimap
+    Window win;             // X window for minimap
+    double scale_factor;    // scaling factor for content
+    int view_start_px;      // start pixel of viewport indicator
+    int view_height_px;     // height in pixels of viewport indicator
+};
+
 #endif
 
 /*
@@ -1114,6 +1130,11 @@ struct rxvt_vars : TermWin_t
 #ifdef OFF_FOCUS_FADING
   rxvt_color      pix_colors_unfocused[TOTAL_COLORS];
 #endif
+
+#ifdef ENABLE_MINIMAP
+  minimap_t       minimap;
+#endif
+
   imagelist_t     *images;
 };
 
@@ -1326,6 +1347,13 @@ Pixmap icon_mask; //  = None;
   void send_dnd_finished(XEvent ev, Window win);
   void handle_uri(char * uri, uint16_t len);
 
+#endif
+
+#ifdef ENABLE_MINIMAP
+  void init_minimap();
+  void resize_minimap();
+  void render_minimap();
+  void update_minimap_viewport();
 #endif
 
   long vt_emask, vt_emask_perl, vt_emask_xim, vt_emask_mouse;
