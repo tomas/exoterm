@@ -1523,11 +1523,42 @@ void set_wm_name(Display * display, Window win, char * name) {
 void
 rxvt_term::init_minimap()
 {
+
+    // // Check if minimap is enabled in settings
     // if (!option(Opt_minimap))
     //     return;
 
-    // Default width for minimap (adjust as needed)
-    minimap.width = 100;
+    // // Initialize all fields to safe defaults first to prevent segfaults
+    minimap.enabled = false;
+    minimap.width = 0;
+    minimap.x = 0;
+    minimap.win = None;
+    minimap.pixmap = None;
+    minimap.gc = None;
+    minimap.view_start_px = 0;
+    minimap.view_height_px = 0;
+    minimap.needs_full_redraw = true;
+    minimap.line_height = 1; // Default is 1 pixel per line
+    minimap.padding = 1;     // 1 pixel padding
+
+    // Parse line height from resources if available
+    // const char* line_height_str = rs[Rs_minimapLineHeight];
+    // if (line_height_str && *line_height_str) {
+    //     int height = atoi(line_height_str);
+    //     if (height > 0 && height <= 10) // Reasonable limits
+    //         minimap.line_height = height;
+    // }
+
+    // Make minimap width appropriate
+    minimap.width = 30;
+
+    // Parse width from resources if available
+    // const char* width_str = rs[Rs_minimapWidth];
+    // if (width_str && *width_str) {
+    //     int width = atoi(width_str);
+    //     if (width > 0)
+    //         minimap.width = width;
+    // }
 
     // Calculate position
     minimap.x = vt_width;
@@ -1551,11 +1582,27 @@ rxvt_term::init_minimap()
     );
 
     if (minimap.win) {
-        XMapWindow(dpy, minimap.win);
-        minimap.enabled = true;
-        minimap.scale_factor = 0.25; // Content will be 1/4 size
-    } else {
-      printf("Failed to initialize minimap window.\n");
+        // Create pixmap and GC
+        minimap.pixmap = XCreatePixmap(dpy, minimap.win, minimap.width, vt_height,
+                                      DefaultDepth(dpy, display->screen));
+
+        if (minimap.pixmap != None) {
+            minimap.gc = XCreateGC(dpy, minimap.pixmap, 0, NULL);
+
+            if (minimap.gc != None) {
+                XMapWindow(dpy, minimap.win);
+                minimap.enabled = true;
+            } else {
+                // Failed to create GC
+                if (minimap.pixmap != None) {
+                    XFreePixmap(dpy, minimap.pixmap);
+                    minimap.pixmap = None;
+                }
+            }
+        } else {
+            // Failed to create pixmap
+            minimap.win = None;
+        }
     }
 }
 

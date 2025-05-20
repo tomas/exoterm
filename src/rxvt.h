@@ -279,9 +279,13 @@ struct minimap_t {
     int width;              // width in pixels
     int x;                  // x position of minimap
     Window win;             // X window for minimap
-    double scale_factor;    // scaling factor for content
+    Pixmap pixmap;          // Pixmap for rendering
+    GC gc;                  // Graphics context for minimap
     int view_start_px;      // start pixel of viewport indicator
     int view_height_px;     // height in pixels of viewport indicator
+    bool needs_full_redraw; // Flag for full redraw
+    int line_height;        // Height of each line in pixels (configurable)
+    int padding;            // Padding around the minimap
 };
 
 #endif

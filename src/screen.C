@@ -4334,77 +4334,117 @@ rxvt_term::scr_swap_overlay () NOTHROW
 }
 
 #ifdef ENABLE_MINIMAP
+
 void
 rxvt_term::render_minimap()
 {
-    if (!minimap.enabled || !minimap.win)
+    // Perform safety checks
+    if (!minimap.enabled || !minimap.win || !mapped || !minimap.pixmap || !minimap.gc)
         return;
 
-    // Create a pixmap to draw the scaled content
-    Pixmap pm = XCreatePixmap(dpy, minimap.win, minimap.width, vt_height, DefaultDepth(dpy, display->screen));
-    GC pmgc = XCreateGC(dpy, pm, 0, NULL);
+    // If we need a full redraw, clear the pixmap
+    if (minimap.needs_full_redraw) {
+        XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
+        XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width, vt_height);
+        minimap.needs_full_redraw = false;
+    }
 
-    // Fill background
-    XSetForeground(dpy, pmgc, lookup_color(Color_bg, pix_colors));
-    XFillRectangle(dpy, pm, pmgc, 0, 0, minimap.width, vt_height);
+    // Calculate visible area
+    int visible_start = view_start;
+    int visible_end = view_start + nrow;
 
-    // Calculate how many rows we can display
-    int min_line_height = 1; // Minimum height for a line
-    int line_height = max(min_line_height, (int)(fheight * minimap.scale_factor));
+    // Determine the total content length in buffer
+    int total_lines = total_rows;  // Safe value that should always be valid
 
-    // Calculate how many columns we can display
-    int col_width = max(1, (int)(fwidth * minimap.scale_factor));
-    int cols_fit = minimap.width / col_width;
+    // Calculate pixel scaling factors
+    double content_height = total_lines * minimap.line_height;
+    double scale_factor = (double)(vt_height - 2 * minimap.padding) / content_height;
 
-    // Start rendering from the top of scrollback that's reachable
-    int start_row = top_row;
-    int end_row = min(top_row + total_rows, start_row + vt_height / line_height);
+    // Draw the background
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
+    XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width, vt_height);
 
-    // Render each line
-    for (int row = start_row; row < end_row; row++) {
-        int y = (row - top_row) * line_height;
+    // Draw each line with the configurable height
+    for (int row = top_row; row < total_rows + top_row; row++) {
+        // Calculate y position in minimap
+        int y = minimap.padding + (int)((row - top_row) * minimap.line_height * scale_factor);
 
         // Skip if outside visible area
-        if (y >= vt_height)
-            break;
+        if (y < 0 || y >= vt_height - minimap.padding)
+            continue;
 
+        // Check row bounds
+        if (row < 0 || row >= total_rows + top_row)
+            continue;
+
+        // Get the line safely
         line_t &line = ROW(row);
         if (!line.valid())
             continue;
 
-        // Render each character as a colored block
-        for (int col = 0; col < min(cols_fit, ncol); col++) {
-            // Skip if column is beyond the line length
-            if (col >= line.l && !line.is_longer())
-                break;
+        // Determine the dominant color for this line - safely
+        int most_prevalent_bg = Color_bg; // Default background
+        bool has_content = false;
 
-            int x = col * col_width;
+        // Simple check - if line has content, use a different color
+        if (line.l > 0) {
+            has_content = true;
 
-            // Get background color
-            int bg = bgcolor_of(line.r[col]);
-            XSetForeground(dpy, pmgc, lookup_color(bg, pix_colors));
-
-            // Draw rectangle representing the character
-            XFillRectangle(dpy, pm, pmgc, x, y, col_width, line_height);
+            // Safely determine a color to use
+            for (int col = 0; col < min(ncol, line.l); col++) {
+                // Only sample every few characters for performance
+                if (col % 5 == 0 && col < line.l) {
+                    if (line.r && line.t) {
+                        if (line.t[col] != ' ' && line.t[col] != NOCHAR) {
+                            // Found non-empty content, use its background color
+                            most_prevalent_bg = bgcolor_of(line.r[col]);
+                            break;
+                        }
+                    }
+                }
+            }
         }
+
+        // Use a brighter color for the current view area
+        if (row >= visible_start && row < visible_end) {
+            // Make color brighter for visible area
+            if (most_prevalent_bg == Color_bg) {
+                most_prevalent_bg = Color_fg; // Use foreground color for contrast
+            }
+        }
+
+        // If no content or default color, use a subtle gray for minimap lines
+        if (!has_content || most_prevalent_bg == Color_bg) {
+            // Use a slightly different color than background
+            if (row >= visible_start && row < visible_end) {
+                most_prevalent_bg = Color_fg;
+            } else {
+                most_prevalent_bg = Color_scroll; // Use scrollbar color for non-visible, empty lines
+            }
+        }
+
+        // Draw the line with the configured height
+        XSetForeground(dpy, minimap.gc, lookup_color(most_prevalent_bg, pix_colors));
+        XFillRectangle(dpy, minimap.pixmap, minimap.gc, 0, y,
+                      minimap.width, max(1, (int)(minimap.line_height * scale_factor)));
     }
 
-    // Draw viewport indicator (shows current visible area)
+    // Draw a border around the minimap
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_fg, pix_colors));
+    XDrawRectangle(dpy, minimap.pixmap, minimap.gc, 0, 0, minimap.width-1, vt_height-1);
+
+    // Draw viewport indicator rectangle
     update_minimap_viewport();
-    XSetForeground(dpy, pmgc, lookup_color(Color_fg, pix_colors));
-    XSetLineAttributes(dpy, pmgc, 1, LineOnOffDash, CapButt, JoinMiter);
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_fg, pix_colors));
+    XSetLineAttributes(dpy, minimap.gc, 1, LineOnOffDash, CapButt, JoinMiter);
 
-    XDrawRectangle(dpy, pm, pmgc,
-                   0, minimap.view_start_px,
-                   minimap.width - 1, minimap.view_height_px);
+    XDrawRectangle(dpy, minimap.pixmap, minimap.gc,
+                  0, minimap.view_start_px,
+                  minimap.width-1, minimap.view_height_px);
 
-    // Copy the pixmap to the minimap window
-    XCopyArea(dpy, pm, minimap.win, gc,
-              0, 0, minimap.width, vt_height, 0, 0);
-
-    // Clean up
-    XFreeGC(dpy, pmgc);
-    XFreePixmap(dpy, pm);
+    // Copy the pixmap to the window safely
+    XCopyArea(dpy, minimap.pixmap, minimap.win, gc,
+             0, 0, minimap.width, vt_height, 0, 0);
 }
 
 void
@@ -4413,21 +4453,32 @@ rxvt_term::update_minimap_viewport()
     if (!minimap.enabled)
         return;
 
-    // Calculate how many rows we can display
-    int min_line_height = 1;
-    int line_height = max(min_line_height, (int)(fheight * minimap.scale_factor));
+    // Calculate total content length
+    int total_lines = total_rows;
 
-    // Calculate viewport start and height
-    int total_visible_lines = top_row == 0 ? nrow : -top_row + nrow;
-    int total_rendered_height = total_visible_lines * line_height;
+    // Calculate pixel scaling with line height
+    double content_height = total_lines * minimap.line_height;
+    double scale_factor = (double)(vt_height - 2 * minimap.padding) / content_height;
 
-    double view_percentage = (double)nrow / total_visible_lines;
-    minimap.view_height_px = (int)(vt_height * view_percentage);
+    // Calculate viewport position and size
+    minimap.view_start_px = minimap.padding + (int)((view_start - top_row) * minimap.line_height * scale_factor);
+    minimap.view_height_px = (int)(nrow * minimap.line_height * scale_factor);
 
-    // Calculate the start position of the viewport indicator
-    double view_start_percentage = (double)(view_start - top_row) / total_visible_lines;
-    minimap.view_start_px = (int)(vt_height * view_start_percentage);
+    // Ensure viewport is visible
+    if (minimap.view_start_px < minimap.padding) {
+        minimap.view_height_px += (minimap.view_start_px - minimap.padding);
+        minimap.view_start_px = minimap.padding;
+    }
+
+    if (minimap.view_start_px + minimap.view_height_px > vt_height - minimap.padding) {
+        minimap.view_height_px = vt_height - minimap.padding - minimap.view_start_px;
+    }
+
+    // Ensure minimum size
+    if (minimap.view_height_px < 2)
+        minimap.view_height_px = 2;
 }
+
 #endif
 
 /* ------------------------------------------------------------------------- */

@@ -266,10 +266,22 @@ rxvt_term::~rxvt_term ()
 #endif
 
 #ifdef ENABLE_MINIMAP
-if (minimap.enabled && minimap.win != None) {
-    XDestroyWindow(dpy, minimap.win);
-    minimap.win = None;
-}
+  if (minimap.enabled) {
+    if (minimap.pixmap != None) {
+        XFreePixmap(dpy, minimap.pixmap);
+        minimap.pixmap = None;
+    }
+
+    if (minimap.gc != None) {
+        XFreeGC(dpy, minimap.gc);
+        minimap.gc = None;
+    }
+
+    if (minimap.win != None) {
+        XDestroyWindow(dpy, minimap.win);
+        minimap.win = None;
+    }
+  }
 #endif
 
   if (display) {
@@ -1150,6 +1162,7 @@ get_parent_bw (Display *dpy, Window w)
  * -------------------------------------------------------------------- */
 
 #ifdef ENABLE_MINIMAP
+
 void
 rxvt_term::resize_minimap()
 {
@@ -1159,6 +1172,19 @@ rxvt_term::resize_minimap()
     // Position at the right side of the terminal
     minimap.x = vt_width;
 
+    // Free old pixmap and GC safely
+    if (minimap.pixmap != None) {
+        XFreePixmap(dpy, minimap.pixmap);
+        minimap.pixmap = None;
+    }
+
+    // Create new pixmap
+    minimap.pixmap = XCreatePixmap(dpy, minimap.win, minimap.width, vt_height,
+                                  DefaultDepth(dpy, display->screen));
+
+    // Set flag for full redraw
+    minimap.needs_full_redraw = true;
+
     // Update viewport indicator
     update_minimap_viewport();
 
@@ -1167,6 +1193,7 @@ rxvt_term::resize_minimap()
                      minimap.x, int_bwidth,
                      minimap.width, vt_height);
 }
+
 #endif
 
 void
