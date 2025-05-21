@@ -233,7 +233,7 @@ rxvt_term::~rxvt_term ()
 {
 
   termlist.erase (find (termlist.begin(), termlist.end(), this));
-  printf("destroying term instance. current term count: %d\n", termlist.size());
+  // printf("destroying term instance. current term count: %d\n", termlist.size());
 
   int count = rxvt_reassign_tab_indexes();
 
@@ -275,6 +275,15 @@ rxvt_term::~rxvt_term ()
     //     XFreePixmap(dpy, minimap.pixmap);
     //     minimap.pixmap = None;
     // }
+
+    if (minimap.color_cache) {
+        free(minimap.color_cache);
+        minimap.color_cache = NULL;
+    }
+    if (minimap.shadow_color_cache) {
+        free(minimap.shadow_color_cache);
+        minimap.shadow_color_cache = NULL;
+    }
 
     if (minimap.gc != None) {
         XFreeGC(dpy, minimap.gc);

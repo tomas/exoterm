@@ -2349,6 +2349,18 @@ rxvt_term::x_minimap_cb (XEvent &ev)
           minimap_handle_click(ev.xmotion.y, false);
       }
       break;
+
+      case EnterNotify:
+          // Mouse entered the minimap
+          minimap.is_hovered = true;
+          render_minimap();
+          break;
+
+      case LeaveNotify:
+          // Mouse left the minimap
+          minimap.is_hovered = false;
+          render_minimap();
+          break;
   }
 
   GET_R->refresh_check ();

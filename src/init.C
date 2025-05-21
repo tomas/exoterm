@@ -1520,6 +1520,44 @@ void set_wm_name(Display * display, Window win, char * name) {
 
 #ifdef ENABLE_MINIMAP
 
+void rxvt_term::initialize_minimap_colors()
+{
+    if (minimap.colors_initialized)
+        return;
+
+    // Cache common colors for performance
+    unsigned long default_bg = lookup_color(Color_bg, pix_colors);
+
+    minimap.color_cache = (unsigned long *)rxvt_calloc(TOTAL_COLORS, sizeof(unsigned long));
+    minimap.shadow_color_cache = (unsigned long *)rxvt_calloc(TOTAL_COLORS, sizeof(unsigned long));
+
+
+    for (int i = 0; i < TOTAL_COLORS; i++) {
+        minimap.color_cache[i] = lookup_color(i, pix_colors);
+
+        // Pre-compute shadow colors (50% blend with background)
+        XColor xc, bg_xc, result;
+        xc.pixel = minimap.color_cache[i];
+        bg_xc.pixel = default_bg;
+
+        XQueryColor(dpy, DefaultColormap(dpy, 0), &xc);
+        XQueryColor(dpy, DefaultColormap(dpy, 0), &bg_xc);
+
+        // Blend with background color
+        result.red = (xc.red + bg_xc.red) / 2;
+        result.green = (xc.green + bg_xc.green) / 2;
+        result.blue = (xc.blue + bg_xc.blue) / 2;
+
+        if (XAllocColor(dpy, DefaultColormap(dpy, 0), &result)) {
+            minimap.shadow_color_cache[i] = result.pixel;
+        } else {
+            minimap.shadow_color_cache[i] = minimap.color_cache[i]; // Fallback to regular color
+        }
+    }
+
+    minimap.colors_initialized = true;
+}
+
 void rxvt_term::init_minimap()
 {
 
@@ -1534,6 +1572,11 @@ void rxvt_term::init_minimap()
     minimap.drag_offset = 0;
     minimap.display_start = top_row;
     minimap.display_lines = 0; // Will be calculated in render_minimap
+    minimap.is_hovered = false;
+    minimap.opacity_normal = 0.5; // 50% visual opacity when not hovered
+    minimap.colors_initialized = false;
+    minimap.color_cache = NULL;
+    minimap.shadow_color_cache = NULL;
 
     if (minimap.width < 20) minimap.width = 20;
 
@@ -1556,8 +1599,8 @@ void rxvt_term::init_minimap()
     XSetWindowAttributes attr;
     // attr.background_pixel = lookup_color(Color_bg, pix_colors);
     attr.background_pixmap = ParentRelative;
-    attr.border_pixel = lookup_color(Color_scroll, pix_colors);
-    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask;
+    attr.border_pixel = lookup_color(Color_Grey25, pix_colors);
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | EnterWindowMask | LeaveWindowMask;
 
     minimap.win = XCreateWindow(
         dpy,
@@ -1577,12 +1620,14 @@ void rxvt_term::init_minimap()
     //     parent,
     //     minimap_x, int_bwidth,
     //     minimap.width, vt_height,
-    //     0, // border width
-    //     lookup_color(Color_fg, pix_colors_focused),
+    //     1, // border width
+    //     lookup_color(Color_Grey25, pix_colors_focused),
     //     lookup_color(Color_bg, pix_colors_focused)
     // );
 
     if (minimap.win) {
+        initialize_minimap_colors();
+
         // Create GC
         XGCValues gcv;
         gcv.foreground = lookup_color(Color_fg, pix_colors);
@@ -1813,7 +1858,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 #ifdef ENABLE_MINIMAP
   init_minimap();
   if (minimap.enabled) {
-    XSelectInput (dpy, minimap.win, vt_emask | vt_emask_mouse);
+    XSelectInput (dpy, minimap.win, vt_emask | vt_emask_mouse | EnterWindowMask | LeaveWindowMask);
     minimap_ev.start(display, minimap.win);
   }
 

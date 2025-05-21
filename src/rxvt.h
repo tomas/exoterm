@@ -287,6 +287,17 @@ struct minimap_t {
     int drag_offset;        // Drag offset from top of viewport
     int display_start;      // First line displayed in the minimap
     int display_lines;      // Number of lines displayed in the minimap
+
+    bool is_hovered;             // Whether mouse is currently over the minimap
+    double opacity_normal;       // Visual opacity when not hovered (0.0-1.0)
+    // unsigned long *normal_colors;  // Cache for normal colors
+    // unsigned long *dim_colors;     // Cache for dimmed colors
+
+    unsigned long *color_cache;
+    unsigned long *shadow_color_cache;
+
+
+    bool colors_initialized;     // Whether color caches are initialized
 };
 
 #endif
@@ -1354,6 +1365,7 @@ Pixmap icon_mask; //  = None;
   minimap_t minimap;
   xevent_watcher minimap_ev;
   void init_minimap();
+  void initialize_minimap_colors();
   void resize_minimap();
   void render_minimap();
   void update_minimap_viewport();
