@@ -4394,11 +4394,6 @@ void rxvt_term::render_minimap()
     unsigned long default_bg = lookup_color(Color_bg, pix_colors);
     unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors);
 
-    // Static cache for colors and their shadow versions
-    // static unsigned long color_cache[TOTAL_COLORS];
-    // static unsigned long shadow_color_cache[TOTAL_COLORS];
-    // static bool cache_initialized = false;
-
     // Draw each visible line in the minimap
     for (int i = 0; i < minimap.display_lines; i++) {
         int row = minimap.display_start + i;
@@ -4563,11 +4558,58 @@ void rxvt_term::render_minimap()
     if (viewport_y + viewport_height > winattr.height)
         viewport_y = winattr.height - viewport_height;
 
-    // Just draw a white rectangle around the viewport - no fill
+    // draw a white rectangle around the viewport
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
     XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 
-    // Copy the entire buffer to the window
+/*
+
+    // Now copy the pixmap to the window with the appropriate opacity
+    // Get the current opacity level based on hover state
+    double opacity = minimap.is_hovered ? 1.0 : 0.5; // Full or 50% opacity
+
+    // Use the X RENDER extension for alpha compositing if available
+    static int render_available = -1;
+
+    if (render_available == -1) {
+        // Check if RENDER extension is available
+        int event_base, error_base;
+        render_available = XRenderQueryExtension(dpy, &event_base, &error_base) ? 1 : 0;
+    }
+
+    if (render_available) {
+        // Create a Picture from the Pixmap
+        XRenderPictFormat *format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, 0));
+        if (format) {
+            Picture src = XRenderCreatePicture(dpy, buffer, format, 0, NULL);
+            Picture dst = XRenderCreatePicture(dpy, minimap.win, format, 0, NULL);
+
+            // Create a solid color with opacity
+            XRenderColor color;
+            color.red = color.green = color.blue = 0xffff;
+            color.alpha = (unsigned short)(opacity * 0xffff);
+
+            // Use the source pixmap alpha for blending
+            XRenderComposite(dpy, PictOpOver,
+                            src, None, dst,
+                            0, 0, 0, 0, 0, 0,
+                            minimap.width, winattr.height);
+
+            // Free resources
+            XRenderFreePicture(dpy, src);
+            XRenderFreePicture(dpy, dst);
+        } else {
+            // Fall back to regular copy if format not available
+            XCopyArea(dpy, buffer, minimap.win, minimap.gc,
+                     0, 0, minimap.width, winattr.height, 0, 0);
+        }
+    } else {
+        // If RENDER not available, just copy normally
+        XCopyArea(dpy, buffer, minimap.win, minimap.gc,
+                 0, 0, minimap.width, winattr.height, 0, 0);
+    }
+*/
+
     XCopyArea(dpy, buffer, minimap.win, minimap.gc,
              0, 0, minimap.width, winattr.height, 0, 0);
 

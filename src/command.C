@@ -2351,13 +2351,13 @@ rxvt_term::x_minimap_cb (XEvent &ev)
       break;
 
       case EnterNotify:
-          // Mouse entered the minimap
+          // printf("Mouse entered the minimap\n");
           minimap.is_hovered = true;
           render_minimap();
           break;
 
       case LeaveNotify:
-          // Mouse left the minimap
+          // printf("Mouse left the minimap\n");
           minimap.is_hovered = false;
           render_minimap();
           break;
