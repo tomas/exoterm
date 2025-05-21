@@ -677,9 +677,9 @@ bool ecb_cold rxvt_term::find_previous_match() {
   int row_end = view_start;
 
   int max_top_row = max(top_row, MAX_SEARCH_SCROLLBACK);
-  printf("top_row: %d\n", max_top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
-  printf("nrow: %d\n", nrow); // num of rows in view
-  printf("view_start: %d\n", view_start); // position
+  // printf("top_row: %d\n", max_top_row); // negative value (eg -1000 if first row is -1000 lines before current one)
+  // printf("nrow: %d\n", nrow); // num of rows in view
+  // printf("view_start: %d\n", view_start); // position
 
   int len = search_chars.size();
   char query[len];
@@ -2168,6 +2168,194 @@ void rxvt_term::send_dnd_finished(XEvent ev, Window src) {
   XSendEvent(dpy, (&ev)->xclient.data.l[0], 0, 0, &xevent);
 }
 
+#ifdef ENABLE_MINIMAP
+
+int rxvt_term::get_viewport_position(int minimap_height)
+{
+    // Calculate viewport position based on current view_start
+    XWindowAttributes winattr;
+    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
+        return 0;
+
+    int total_line_height = minimap.line_height + minimap.line_spacing;
+    int content_lines = total_rows;
+
+    // Direct mapping from scrollback position to minimap position
+    double position_ratio = (double)(view_start - top_row) / content_lines;
+
+    return (int)(position_ratio * minimap_height);
+}
+
+int rxvt_term::get_viewport_height(int minimap_height)
+{
+    // Calculate viewport height based on visible rows vs total rows
+    int content_lines = total_rows;
+
+    // Direct mapping from visible rows to minimap height
+    double height_ratio = (double)nrow / content_lines;
+
+    // Ensure minimum height for usability
+    int height = (int)(height_ratio * minimap_height);
+    return max(height, 10); // Minimum 10 pixels height
+}
+
+void rxvt_term::minimap_handle_click(int y, bool start_drag)
+{
+    if (!minimap.enabled || !minimap.win)
+        return;
+
+    // Get actual window dimensions
+    XWindowAttributes winattr;
+    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
+        return;
+
+    // Calculate the content range and viewport
+    // Calculate viewport position
+    double content_position = 0;
+    int content_lines = total_rows;
+
+    if (content_lines > minimap.display_lines) {
+        content_position = (double)(view_start - minimap.display_start) /
+                          min(minimap.display_lines,
+                             content_lines - (minimap.display_start - top_row));
+    } else {
+        content_position = (double)(view_start - top_row) / content_lines;
+    }
+
+    // Convert to pixel position
+    int viewport_y = (int)(content_position * winattr.height);
+
+    // Calculate viewport height
+    double height_ratio = (double)nrow / content_lines;
+    int viewport_height = (int)(height_ratio * winattr.height);
+    if (viewport_height < 10)
+        viewport_height = 10;
+
+    // Check if we're clicking on the viewport indicator
+    if (start_drag && y >= viewport_y && y <= viewport_y + viewport_height) {
+        minimap.dragging = true;
+        minimap.drag_offset = y - viewport_y;
+        return;
+    }
+
+    // Handle clicks outside the viewport
+    if (y < viewport_y) {
+        // Page up
+        scr_page(UP, nrow - 1);
+    } else if (y > viewport_y + viewport_height) {
+        // Page down
+        scr_page(DN, nrow - 1);
+    } else {
+        // Direct click on viewport area - start dragging
+        minimap.dragging = true;
+        minimap.drag_offset = viewport_height / 2;
+        minimap_handle_drag(y); // Process the drag immediately
+    }
+
+    render_minimap();
+}
+
+void rxvt_term::minimap_handle_drag(int y)
+{
+    if (!minimap.enabled || !minimap.win || !minimap.dragging)
+        return;
+
+    // Get actual window dimensions
+    XWindowAttributes winattr;
+    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
+        return;
+
+    // Calculate content info
+    int content_lines = total_rows;
+
+    // Adjust y position by drag offset
+    int new_viewport_y = y - minimap.drag_offset;
+
+    // Calculate viewport height
+    double height_ratio = (double)nrow / content_lines;
+    int viewport_height = (int)(height_ratio * winattr.height);
+    if (viewport_height < 10)
+        viewport_height = 10;
+
+    // Clamp to valid range
+    if (new_viewport_y < 0)
+        new_viewport_y = 0;
+    if (new_viewport_y + viewport_height > winattr.height)
+        new_viewport_y = winattr.height - viewport_height;
+
+    // Convert from visual position to content position
+    double position_percent = (double)new_viewport_y / (winattr.height - viewport_height);
+
+    // Convert to line number - map to full content range
+    int scrollable_lines = content_lines - nrow;
+    int new_view_start = top_row + (int)(position_percent * scrollable_lines);
+
+    // Clamp to valid range
+    new_view_start = max(top_row, min(new_view_start, top_row + content_lines - nrow));
+
+    // Only update if position changed
+    if (new_view_start != view_start) {
+        // Scroll to the new position
+        scr_changeview(new_view_start);
+
+        // Update the minimap
+        render_minimap();
+    }
+}
+
+void ecb_hot
+rxvt_term::x_minimap_cb (XEvent &ev)
+{
+
+  // make_current ();
+  dLocal (Display *, dpy);
+
+  // for XQueryPointer
+  // Window unused_root, unused_child;
+  // int unused_root_x, unused_root_y;
+  // unsigned int unused_mask;
+
+  switch (ev.type) {
+    case Expose:
+      render_minimap();
+      break;
+
+    case ButtonPress:
+      if (ev.xbutton.button == Button1) {
+          minimap_handle_click(ev.xbutton.y, true);
+      }
+      break;
+
+    case ButtonRelease:
+      if (minimap.dragging && ev.xbutton.button == Button1) {
+          minimap.dragging = false;
+      } else if (ev.xbutton.button == Button4 || ev.xbutton.button == Button5) {
+        int lines;
+        page_dirn dirn;
+        dirn = ev.xbutton.button == Button4 ? UP : DN;
+        lines = nrow - 1;
+        scr_page (dirn, lines);
+        // scrollBar.show (1);
+      }
+
+      break;
+
+    case MotionNotify:
+      if (minimap.dragging) {
+          // Handle drag motion
+          minimap_handle_drag(ev.xmotion.y);
+      } else if (ev.xmotion.state & Button1Mask) {
+          // Handle click and drag outside the viewport
+          minimap_handle_click(ev.xmotion.y, false);
+      }
+      break;
+  }
+
+  GET_R->refresh_check ();
+}
+#endif
+
+
 /*{{{ process an X event */
 void ecb_hot
 rxvt_term::x_cb (XEvent &ev)
@@ -2498,12 +2686,6 @@ rxvt_term::x_cb (XEvent &ev)
 
             want_refresh = 1;
           }
-#ifdef ENABLE_MINIMAP
-        else if (ev.xany.window == minimap.win) {
-            render_minimap();
-            break;
-        }
-#endif
 
         else
           {
@@ -2635,7 +2817,7 @@ rxvt_term::x_cb (XEvent &ev)
             scrollBar.show (1);
           }
         break;
-    }
+  }
 
 #if defined(CURSOR_BLINK)
   if (ev.type == KeyPress)
@@ -3198,6 +3380,7 @@ rxvt_term::button_release (XButtonEvent &ev)
           case Button4:
           case Button5:
             {
+
               int lines;
               page_dirn dirn;
 

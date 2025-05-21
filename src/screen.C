@@ -4339,6 +4339,7 @@ rxvt_term::scr_swap_overlay () NOTHROW
 
 #ifdef ENABLE_MINIMAP
 
+
 void rxvt_term::render_minimap()
 {
     // Basic checks
@@ -4350,112 +4351,265 @@ void rxvt_term::render_minimap()
     if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
         return;
 
-    // Clear the minimap
-    XClearWindow(dpy, minimap.win);
+    // Calculate total line height including spacing
+    int total_line_height = minimap.line_height + minimap.line_spacing;
 
-    // Current view area
-    int view_top = view_start;
-    int view_bottom = view_start + nrow - 1;
+    // Calculate how many lines we can display in the minimap
+    minimap.display_lines = winattr.height / total_line_height;
 
-    // Calculate scaling factors
-    int total_buffer_lines = total_rows;
-    int minimap_height = winattr.height;
+    // Calculate the total content range
+    int content_lines = total_rows;
 
-    // How many terminal lines fit in minimap's height
-    // double lines_per_pixel = (double)total_buffer_lines / (minimap_height / minimap.line_height);
+    // Calculate minimap display window
+    if (content_lines <= minimap.display_lines) {
+        // All content fits in the minimap
+        minimap.display_start = top_row;
+    } else {
+        // Calculate position of viewport within total content
+        double view_position = (double)(view_start - top_row) / (content_lines - nrow);
 
-    double lines_per_pixel = 1;
-    // printf("lines_per_pixel: %f\n", lines_per_pixel);
-    // Calculate the visible viewport indicator position
-    int viewport_y = (int)((view_top - top_row) / lines_per_pixel);
-    int viewport_height = (int)(nrow / lines_per_pixel);
-    // Make sure viewport is visible
-    if (viewport_height < 5) viewport_height = 5;
-    if (viewport_y < 0) viewport_y = 0;
-    if (viewport_y + viewport_height > minimap_height)
-        viewport_y = minimap_height - viewport_height;
+        // Calculate how many lines we need to scroll to center the viewport
+        int display_max = content_lines - minimap.display_lines;
+        minimap.display_start = top_row + (int)(view_position * display_max);
 
-    // Draw content - character by character
-    for (int row = top_row; row < top_row + total_buffer_lines; row++) {
-        // Skip if outside the buffer
+        // Ensure we stay within bounds
+        minimap.display_start = max(top_row, min(minimap.display_start,
+                                               top_row + content_lines - minimap.display_lines));
+    }
+
+    // Create a pixmap for drawing
+    Pixmap buffer = XCreatePixmap(dpy, minimap.win, minimap.width, winattr.height,
+                                  DefaultDepth(dpy, display->screen));
+
+    // Clear the buffer with a fully transparent background (no fill)
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
+    XFillRectangle(dpy, buffer, minimap.gc, 0, 0, minimap.width, winattr.height);
+
+    // Cache common colors for performance
+    unsigned long default_fg = lookup_color(Color_fg, pix_colors);
+    unsigned long default_bg = lookup_color(Color_bg, pix_colors);
+    unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors);
+
+    // Static cache for colors and their shadow versions
+    static unsigned long color_cache[TOTAL_COLORS];
+    static unsigned long shadow_color_cache[TOTAL_COLORS];
+    static bool cache_initialized = false;
+
+    if (!cache_initialized) {
+        for (int i = 0; i < TOTAL_COLORS; i++) {
+            color_cache[i] = lookup_color(i, pix_colors);
+
+            // Pre-compute shadow colors (50% blend with background)
+            XColor xc, bg_xc, result;
+            xc.pixel = color_cache[i];
+            bg_xc.pixel = default_bg;
+
+            XQueryColor(dpy, DefaultColormap(dpy, 0), &xc);
+            XQueryColor(dpy, DefaultColormap(dpy, 0), &bg_xc);
+
+            // Blend with background color
+            result.red = (xc.red + bg_xc.red) / 2;
+            result.green = (xc.green + bg_xc.green) / 2;
+            result.blue = (xc.blue + bg_xc.blue) / 2;
+
+            if (XAllocColor(dpy, DefaultColormap(dpy, 0), &result)) {
+                shadow_color_cache[i] = result.pixel;
+            } else {
+                shadow_color_cache[i] = color_cache[i]; // Fallback to regular color
+            }
+        }
+        cache_initialized = true;
+    }
+
+    // Draw each visible line in the minimap
+    for (int i = 0; i < minimap.display_lines; i++) {
+        int row = minimap.display_start + i;
+
+        // Skip if outside buffer
         if (row < top_row || row >= top_row + total_rows)
             continue;
 
-        // Calculate minimap y position
-        int y = (int)((row - top_row) / lines_per_pixel);
+        // Calculate y position
+        int y = i * total_line_height;
 
-        // Skip if outside drawable area
-        if (y < 0 || y >= minimap_height - minimap.line_height)
-            continue;
+        // Is this line in viewport?
+        bool in_viewport = (row >= view_start && row <= view_start + nrow - 1);
 
         // Get line content
         line_t &line = ROW(row);
         if (!line.valid())
             continue;
 
-        // Draw each character in the line
+        // We'll batch draw in two passes - first shadows, then main color
 
-        for (int col = 0; col < ncol && col < line.l; col++) {
-            // Skip NOCHAR
-            if (line.t[col] == NOCHAR)
-                continue;
+        // First pass: Draw the shadow (top part) of each character
+        if (minimap.line_height >= 2) {
+            int batch_start = 0;
+            unsigned long current_shadow = 0;
 
-            // Calculate x position in minimap
-            int x = (int)(col * minimap.char_width);
+            for (int col = 0; col <= min(ncol, line.l); col++) {
+                unsigned long shadow_color = default_bg; // Default to background
 
-            // Skip if outside drawable area
-            if (x < 0 || x >= minimap.width)
-                continue;
+                if (col < line.l) {
+                    // Skip space characters with default background
+                    if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg)
+                        continue;
 
-            // Get character foreground and background colors
-            int fg = fgcolor_of(line.r[col]);
-            int bg = bgcolor_of(line.r[col]);
+                    if (line.t[col] != NOCHAR && line.t[col] != ' ') {
+                        // Use foreground shadow color for non-space characters
+                        int fg = fgcolor_of(line.r[col]);
+                        shadow_color = shadow_color_cache[fg];
 
-            // Determine whether to use fg or bg color
-            // Use fg color for non-space characters, bg color for spaces
-            unsigned long color;
-            if (line.t[col] != ' ') {
-                color = lookup_color(fg, pix_colors);
-            } else {
-                // // For spaces, use bg color, but only if it's not the default bg
-                if (bg != Color_bg) {
-                    color = lookup_color(bg, pix_colors);
-                } else {
-                    // Skip drawing default background spaces
-                    continue;
+                        // If in viewport and color would be invisible, use highlight
+                        if (in_viewport && shadow_color == default_bg) {
+                            shadow_color = viewport_highlight;
+                        }
+
+                        // For better visibility against transparent background
+                        if (fg == Color_fg && in_viewport) {
+                            shadow_color = lookup_color(Color_White, pix_colors);
+                        }
+                    } else if (line.t[col] == ' ') {
+                        // For spaces, use bg shadow color only if not default
+                        int bg = bgcolor_of(line.r[col]);
+                        if (bg != Color_bg) {
+                            shadow_color = shadow_color_cache[bg];
+                        } else {
+                            // Skip drawing default background spaces
+                            continue;
+                        }
+                    }
+                }
+
+                // If color changed or at end of line, draw the batch
+                if (shadow_color != current_shadow || col == min(ncol, line.l)) {
+                    if (current_shadow != default_bg && col > batch_start) {
+                        XSetForeground(dpy, minimap.gc, current_shadow);
+                        XFillRectangle(dpy, buffer, minimap.gc,
+                                    (int)(batch_start * minimap.char_width), y,
+                                    (int)((col - batch_start) * minimap.char_width), 1);
+                    }
+
+                    // Start a new batch
+                    current_shadow = shadow_color;
+                    batch_start = col;
                 }
             }
+        }
 
-            // If character is in visible area, make it a bit brighter
-            if (row >= view_top && row <= view_bottom) {
-                // For characters in the viewport, ensure they're visible
-                if (color == lookup_color(Color_bg, pix_colors)) {
-                    // If color would be invisible, use a subtle gray
-                    color = lookup_color(Color_scroll, pix_colors);
+        // Second pass: Draw the main color (bottom part) of each character
+        if (minimap.line_height > 0) {
+            int batch_start = 0;
+            unsigned long current_color = 0;
+
+            for (int col = 0; col <= min(ncol, line.l); col++) {
+                unsigned long pixel_color = default_bg; // Default to background
+
+                if (col < line.l) {
+                    // Skip space characters with default background
+                    if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg)
+                        continue;
+
+                    if (line.t[col] != NOCHAR && line.t[col] != ' ') {
+                        // Use foreground color for non-space characters
+                        int fg = fgcolor_of(line.r[col]);
+                        pixel_color = color_cache[fg];
+
+                        // If in viewport and color would be invisible, use highlight
+                        if (in_viewport && pixel_color == default_bg) {
+                            pixel_color = viewport_highlight;
+                        }
+
+                        // For better visibility against transparent background
+                        if (fg == Color_fg && in_viewport) {
+                            pixel_color = lookup_color(Color_White, pix_colors);
+                        }
+                    } else if (line.t[col] == ' ') {
+                        // For spaces, use bg color only if not default
+                        int bg = bgcolor_of(line.r[col]);
+                        if (bg != Color_bg) {
+                            pixel_color = color_cache[bg];
+                        } else {
+                            // Skip drawing default background spaces
+                            continue;
+                        }
+                    }
+                }
+
+                // If color changed or at end of line, draw the batch
+                if (pixel_color != current_color || col == min(ncol, line.l)) {
+                    if (current_color != default_bg && col > batch_start) {
+                        XSetForeground(dpy, minimap.gc, current_color);
+                        XFillRectangle(dpy, buffer, minimap.gc,
+                                    (int)(batch_start * minimap.char_width),
+                                    y + (minimap.line_height >= 2 ? 1 : 0),
+                                    (int)((col - batch_start) * minimap.char_width),
+                                    minimap.line_height - (minimap.line_height >= 2 ? 1 : 0));
+                    }
+
+                    // Start a new batch
+                    current_color = pixel_color;
+                    batch_start = col;
                 }
             }
-
-            // Draw the character as a small rectangle
-            XSetForeground(dpy, minimap.gc, color);
-
-            // Calculate width - make sure we don't overflow
-            double char_width = minimap.char_width;
-            if (x + char_width > minimap.width)
-                char_width = minimap.width - x;
-
-            // Draw the character pixel
-            XFillRectangle(dpy, minimap.win, minimap.gc,
-                          x, y * minimap.line_height,
-                          (int)char_width, minimap.line_height);
         }
     }
 
-    // Draw viewport indicator
+    // Calculate viewport position and size based on actual terminal rows
+    // First accurately calculate what portion of the total content the viewport represents
+    double viewport_ratio = (double)nrow / content_lines;
+    int viewport_height = (int)(viewport_ratio * winattr.height);
+
+    // Ensure minimum height for usability
+    if (viewport_height < 10)
+        viewport_height = 10;
+
+    // Calculate the position based on where we are in the scroll buffer
+    double scroll_position = (double)(view_start - top_row) / (content_lines - nrow);
+    int viewport_y = (int)(scroll_position * (winattr.height - viewport_height));
+
+    // Ensure viewport stays within minimap bounds
+    if (viewport_y < 0)
+        viewport_y = 0;
+    if (viewport_y + viewport_height > winattr.height)
+        viewport_y = winattr.height - viewport_height;
+
+    // Draw viewport indicator with a light white background (10% opacity)
+    // Create a very light white color (10% opacity)
+    XColor white_color, bg_color, light_white;
+    white_color.pixel = lookup_color(Color_White, pix_colors);
+    bg_color.pixel = lookup_color(Color_bg, pix_colors);
+
+    XQueryColor(dpy, DefaultColormap(dpy, 0), &white_color);
+    XQueryColor(dpy, DefaultColormap(dpy, 0), &bg_color);
+
+    // Blend to create 10% white
+    light_white.red = bg_color.red + (white_color.red - bg_color.red) / 10;
+    light_white.green = bg_color.green + (white_color.green - bg_color.green) / 10;
+    light_white.blue = bg_color.blue + (white_color.blue - bg_color.blue) / 10;
+
+    if (XAllocColor(dpy, DefaultColormap(dpy, 0), &light_white)) {
+        // Fill the viewport area with light white
+        XSetForeground(dpy, minimap.gc, light_white.pixel);
+        XFillRectangle(dpy, buffer, minimap.gc,
+                      0, viewport_y,
+                      minimap.width, viewport_height);
+    }
+
+    // Draw a white border around the viewport
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
-    XDrawRectangle(dpy, minimap.win, minimap.gc,
-                  0, viewport_y * minimap.line_height,
-                  minimap.width - 1, viewport_height * minimap.line_height);
+    XDrawRectangle(dpy, buffer, minimap.gc,
+                  0, viewport_y,
+                  minimap.width - 1, viewport_height);
+
+    // Copy the entire buffer to the window
+    XCopyArea(dpy, buffer, minimap.win, minimap.gc,
+             0, 0, minimap.width, winattr.height, 0, 0);
+
+    // Free the buffer
+    XFreePixmap(dpy, buffer);
 }
+
 
 #endif
 

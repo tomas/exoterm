@@ -275,12 +275,18 @@ struct image_effects
 #ifdef ENABLE_MINIMAP
 
 struct minimap_t {
-    bool enabled;       // Whether minimap is currently enabled
-    int width;          // Width of minimap in pixels
-    Window win;         // X Window for the minimap
-    GC gc;              // Graphics context
-    int line_height;    // Height of each line in pixels
-    double char_width;  // Width of each character in minimap pixels
+    bool enabled;           // Whether minimap is currently enabled
+    int width;              // Width of minimap in pixels
+    Window win;             // X Window for the minimap
+    GC gc;                  // Graphics context
+    int line_height;        // Height of each line in pixels
+    double char_width;      // Width of each character in minimap pixels
+    int line_spacing;       // Additional space between lines in pixels
+    bool auto_scroll;       // Whether to auto-scroll with terminal output
+    bool dragging;          // Whether user is currently dragging the viewport
+    int drag_offset;        // Drag offset from top of viewport
+    int display_start;      // First line displayed in the minimap
+    int display_lines;      // Number of lines displayed in the minimap
 };
 
 #endif
@@ -1130,10 +1136,6 @@ struct rxvt_vars : TermWin_t
   rxvt_color      pix_colors_unfocused[TOTAL_COLORS];
 #endif
 
-#ifdef ENABLE_MINIMAP
-  minimap_t       minimap;
-#endif
-
   imagelist_t     *images;
 };
 
@@ -1349,10 +1351,17 @@ Pixmap icon_mask; //  = None;
 #endif
 
 #ifdef ENABLE_MINIMAP
+  minimap_t minimap;
+  xevent_watcher minimap_ev;
   void init_minimap();
   void resize_minimap();
   void render_minimap();
   void update_minimap_viewport();
+  int get_viewport_position(int minimap_height);
+  int get_viewport_height(int minimap_height);
+  void minimap_handle_click(int y, bool start_drag);
+  void minimap_handle_drag(int y);
+  void x_minimap_cb (XEvent &xev);
 #endif
 
   long vt_emask, vt_emask_perl, vt_emask_xim, vt_emask_mouse;

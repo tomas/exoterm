@@ -201,6 +201,10 @@ rxvt_term::rxvt_term ()
   termwin_ev.set          <rxvt_term, &rxvt_term::x_cb>       (this);
   vt_ev.set               <rxvt_term, &rxvt_term::x_cb>       (this);
 
+#ifdef ENABLE_MINIMAP
+  minimap_ev.set          <rxvt_term, &rxvt_term::x_minimap_cb> (this);
+#endif
+
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 
   termlist.push_back (this);
@@ -388,6 +392,10 @@ rxvt_term::destroy ()
       termwin_ev.stop (display);
       vt_ev.stop (display);
     }
+
+#ifdef ENABLE_MINIMAP
+  minimap_ev.stop(display);
+#endif
 
   flush_ev.stop ();
   pty_ev.stop ();
@@ -1169,14 +1177,24 @@ void rxvt_term::resize_minimap()
         return;
 
     // Position minimap at the right side of terminal
-    int minimap_x = vt_width;
+    int minimap_x = vt_width + int_bwidth - minimap.width;
 
-    // Move and resize
+    // For better transparency effect, ensure proper window attributes
+    XSetWindowAttributes attr;
+    attr.background_pixmap = ParentRelative;
+
+    // Change window attributes to ensure transparency
+    XChangeWindowAttributes(dpy, minimap.win, CWBackPixmap, &attr);
+
+    // Move and resize the window
     XMoveResizeWindow(dpy, minimap.win,
                      minimap_x, int_bwidth,
                      minimap.width, vt_height);
 
-    // Render with new dimensions
+    // Clear window to show parent background
+    XClearWindow(dpy, minimap.win);
+
+    // Update the minimap
     render_minimap();
 }
 
@@ -1245,12 +1263,11 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       else if (y == y1)       /* exact center */
         dy /= 2;
 
-      printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
-
+      // printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
       XMoveResizeWindow (dpy, parent, x + dx, y + dy,
                          szHint.width, szHint.height);
 #else
-      printf("resizing window to %dx%d\n", szHint.width, szHint.height);
+      // printf("resizing window to %dx%d\n", szHint.width, szHint.height);
       XResizeWindow (dpy, parent, szHint.width, szHint.height);
 #endif
     } else {
@@ -1270,7 +1287,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   if (fix_screen || newwidth != old_width || newheight != old_height) {
       if (scrollBar.state) scrollBar.resize();
 
-      printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
+      // printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
       XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
 
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));

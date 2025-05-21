@@ -80,6 +80,7 @@ scrollBar_t::resize ()
                    ExposureMask | ButtonPressMask | ButtonReleaseMask
                    | Button1MotionMask | Button2MotionMask
                    | Button3MotionMask);
+
       term->scrollbar_ev.start (term->display, win);
 
       delayed_init = 1;

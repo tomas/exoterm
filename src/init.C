@@ -1529,6 +1529,13 @@ void rxvt_term::init_minimap()
     minimap.line_height = 2;  // Default line height (2 pixels per line)
     minimap.char_width = 1.0;  // Default 1 pixel per character
     minimap.width = (int)(ncol * minimap.char_width);
+    minimap.auto_scroll = true;  // Auto-scroll with terminal by default
+    minimap.dragging = false;
+    minimap.drag_offset = 0;
+    minimap.display_start = top_row;
+    minimap.display_lines = 0; // Will be calculated in render_minimap
+
+    if (minimap.width < 20) minimap.width = 20;
 
     // // Check if minimap is enabled in settings
     // if (!option(Opt_minimap))
@@ -1543,25 +1550,37 @@ void rxvt_term::init_minimap()
     // }
 
     // Position minimap on the right side of terminal
-    int minimap_x = vt_width;
+    int minimap_x = vt_width + int_bwidth - minimap.width;
 
     // Create window
     XSetWindowAttributes attr;
-    attr.background_pixel = lookup_color(Color_bg, pix_colors);
-    attr.event_mask = ExposureMask | ButtonPressMask | ButtonMotionMask;
+    // attr.background_pixel = lookup_color(Color_bg, pix_colors);
+    attr.background_pixmap = ParentRelative;
+    attr.border_pixel = lookup_color(Color_scroll, pix_colors);
+    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask;
 
     minimap.win = XCreateWindow(
         dpy,
         parent,
-        minimap_x + int_bwidth - minimap.width, int_bwidth,
+        minimap_x, int_bwidth,
         minimap.width, vt_height,
-        0, // border width
+        1, // border width = 1 pixel
         CopyFromParent, // depth
         InputOutput, // class
         CopyFromParent, // visual
-        CWBackPixel | CWEventMask, // value mask
+        CWBackPixmap | CWEventMask | CWBorderPixel, // value mask
         &attr // attributes
     );
+
+    // minimap.win = XCreateSimpleWindow(
+    //     dpy,
+    //     parent,
+    //     minimap_x, int_bwidth,
+    //     minimap.width, vt_height,
+    //     0, // border width
+    //     lookup_color(Color_fg, pix_colors_focused),
+    //     lookup_color(Color_bg, pix_colors_focused)
+    // );
 
     if (minimap.win) {
         // Create GC
@@ -1793,6 +1812,11 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 
 #ifdef ENABLE_MINIMAP
   init_minimap();
+  if (minimap.enabled) {
+    XSelectInput (dpy, minimap.win, vt_emask | vt_emask_mouse);
+    minimap_ev.start(display, minimap.win);
+  }
+
 #endif
 
 #ifdef ENABLE_DND
