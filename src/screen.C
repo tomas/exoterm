@@ -4362,12 +4362,13 @@ void rxvt_term::render_minimap()
     int minimap_height = winattr.height;
 
     // How many terminal lines fit in minimap's height
-    double lines_per_pixel = (double)total_buffer_lines / (minimap_height / minimap.line_height);
+    // double lines_per_pixel = (double)total_buffer_lines / (minimap_height / minimap.line_height);
 
+    double lines_per_pixel = 1;
+    // printf("lines_per_pixel: %f\n", lines_per_pixel);
     // Calculate the visible viewport indicator position
     int viewport_y = (int)((view_top - top_row) / lines_per_pixel);
     int viewport_height = (int)(nrow / lines_per_pixel);
-
     // Make sure viewport is visible
     if (viewport_height < 5) viewport_height = 5;
     if (viewport_y < 0) viewport_y = 0;
@@ -4393,6 +4394,7 @@ void rxvt_term::render_minimap()
             continue;
 
         // Draw each character in the line
+
         for (int col = 0; col < ncol && col < line.l; col++) {
             // Skip NOCHAR
             if (line.t[col] == NOCHAR)
@@ -4415,7 +4417,7 @@ void rxvt_term::render_minimap()
             if (line.t[col] != ' ') {
                 color = lookup_color(fg, pix_colors);
             } else {
-                // For spaces, use bg color, but only if it's not the default bg
+                // // For spaces, use bg color, but only if it's not the default bg
                 if (bg != Color_bg) {
                     color = lookup_color(bg, pix_colors);
                 } else {
@@ -4449,7 +4451,7 @@ void rxvt_term::render_minimap()
     }
 
     // Draw viewport indicator
-    XSetForeground(dpy, minimap.gc, lookup_color(Color_pointer_fg, pix_colors));
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
     XDrawRectangle(dpy, minimap.win, minimap.gc,
                   0, viewport_y * minimap.line_height,
                   minimap.width - 1, viewport_height * minimap.line_height);

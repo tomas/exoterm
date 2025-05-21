@@ -1522,7 +1522,7 @@ void set_wm_name(Display * display, Window win, char * name) {
 
 void rxvt_term::init_minimap()
 {
-    // Initialize structure
+
     minimap.enabled = false;
     minimap.win = None;
     minimap.gc = None;
@@ -1553,7 +1553,7 @@ void rxvt_term::init_minimap()
     minimap.win = XCreateWindow(
         dpy,
         parent,
-        minimap_x, int_bwidth,
+        minimap_x + int_bwidth - minimap.width, int_bwidth,
         minimap.width, vt_height,
         0, // border width
         CopyFromParent, // depth
