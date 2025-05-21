@@ -4562,54 +4562,6 @@ void rxvt_term::render_minimap()
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
     XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 
-/*
-
-    // Now copy the pixmap to the window with the appropriate opacity
-    // Get the current opacity level based on hover state
-    double opacity = minimap.is_hovered ? 1.0 : 0.5; // Full or 50% opacity
-
-    // Use the X RENDER extension for alpha compositing if available
-    static int render_available = -1;
-
-    if (render_available == -1) {
-        // Check if RENDER extension is available
-        int event_base, error_base;
-        render_available = XRenderQueryExtension(dpy, &event_base, &error_base) ? 1 : 0;
-    }
-
-    if (render_available) {
-        // Create a Picture from the Pixmap
-        XRenderPictFormat *format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, 0));
-        if (format) {
-            Picture src = XRenderCreatePicture(dpy, buffer, format, 0, NULL);
-            Picture dst = XRenderCreatePicture(dpy, minimap.win, format, 0, NULL);
-
-            // Create a solid color with opacity
-            XRenderColor color;
-            color.red = color.green = color.blue = 0xffff;
-            color.alpha = (unsigned short)(opacity * 0xffff);
-
-            // Use the source pixmap alpha for blending
-            XRenderComposite(dpy, PictOpOver,
-                            src, None, dst,
-                            0, 0, 0, 0, 0, 0,
-                            minimap.width, winattr.height);
-
-            // Free resources
-            XRenderFreePicture(dpy, src);
-            XRenderFreePicture(dpy, dst);
-        } else {
-            // Fall back to regular copy if format not available
-            XCopyArea(dpy, buffer, minimap.win, minimap.gc,
-                     0, 0, minimap.width, winattr.height, 0, 0);
-        }
-    } else {
-        // If RENDER not available, just copy normally
-        XCopyArea(dpy, buffer, minimap.win, minimap.gc,
-                 0, 0, minimap.width, winattr.height, 0, 0);
-    }
-*/
-
     XCopyArea(dpy, buffer, minimap.win, minimap.gc,
              0, 0, minimap.width, winattr.height, 0, 0);
 

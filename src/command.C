@@ -2170,35 +2170,6 @@ void rxvt_term::send_dnd_finished(XEvent ev, Window src) {
 
 #ifdef ENABLE_MINIMAP
 
-int rxvt_term::get_viewport_position(int minimap_height)
-{
-    // Calculate viewport position based on current view_start
-    XWindowAttributes winattr;
-    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
-        return 0;
-
-    int total_line_height = minimap.line_height + minimap.line_spacing;
-    int content_lines = total_rows;
-
-    // Direct mapping from scrollback position to minimap position
-    double position_ratio = (double)(view_start - top_row) / content_lines;
-
-    return (int)(position_ratio * minimap_height);
-}
-
-int rxvt_term::get_viewport_height(int minimap_height)
-{
-    // Calculate viewport height based on visible rows vs total rows
-    int content_lines = total_rows;
-
-    // Direct mapping from visible rows to minimap height
-    double height_ratio = (double)nrow / content_lines;
-
-    // Ensure minimum height for usability
-    int height = (int)(height_ratio * minimap_height);
-    return max(height, 10); // Minimum 10 pixels height
-}
-
 void rxvt_term::minimap_handle_click(int y, bool start_drag)
 {
     if (!minimap.enabled || !minimap.win)
