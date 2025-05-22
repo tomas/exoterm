@@ -4339,6 +4339,10 @@ rxvt_term::scr_swap_overlay () NOTHROW
 
 #ifdef ENABLE_MINIMAP
 
+// In screen.C - replace the render_minimap() function
+
+// Also in command.C - replace the minimap_handle_drag() function
+
 void rxvt_term::render_minimap()
 {
     // Basic checks
@@ -4364,21 +4368,30 @@ void rxvt_term::render_minimap()
     // Calculate the total content range
     int content_lines = total_rows;
 
-    // Calculate minimap display window
+    // FIXED: Better display window calculation
+    // Keep minimap anchored to top until viewport indicator would go off bottom
     if (content_lines <= minimap.display_lines) {
-        // All content fits in the minimap
+        // All content fits - show from top
         minimap.display_start = top_row;
     } else {
-        // Calculate position of viewport within total content
-        double view_position = (double)(view_start - top_row) / (content_lines - nrow);
+        // Calculate where viewport bottom would be if minimap shows from top
+        int viewport_end_line = view_start + nrow - 1;
+        int viewport_end_position_in_minimap = viewport_end_line - top_row;
 
-        // Calculate how many lines we need to scroll to center the viewport
-        int display_max = content_lines - minimap.display_lines;
-        minimap.display_start = top_row + (int)(view_position * display_max);
+        // Only start moving minimap view when viewport would extend beyond minimap bottom
+        if (viewport_end_position_in_minimap < minimap.display_lines) {
+            // Viewport still fits when showing from top - keep minimap at top
+            minimap.display_start = top_row;
+        } else {
+            // Viewport would go beyond bottom - move minimap to keep viewport visible
+            // Position minimap so viewport bottom is at minimap bottom
+            minimap.display_start = viewport_end_line - minimap.display_lines + 1;
 
-        // Ensure we stay within bounds
-        minimap.display_start = max(top_row, min(minimap.display_start,
-                                               top_row + content_lines - minimap.display_lines));
+            // Clamp to valid range
+            minimap.display_start = max(top_row,
+                                      min(minimap.display_start,
+                                          top_row + content_lines - minimap.display_lines));
+        }
     }
 
     // Create a pixmap for drawing
@@ -4413,6 +4426,7 @@ void rxvt_term::render_minimap()
         if (!line.valid())
             continue;
 
+        // [Rest of the drawing code remains the same...]
         // We'll batch draw in two passes - first shadows, then main color
 
         // First pass: Draw the shadow (top part) of each character
@@ -4432,17 +4446,6 @@ void rxvt_term::render_minimap()
                         // Use foreground shadow color for non-space characters
                         int fg = fgcolor_of(line.r[col]);
                         shadow_color = minimap.shadow_color_cache[fg];
-
-                        // If in viewport and color would be invisible, use highlight
-                        // if (in_viewport && shadow_color == default_bg) {
-                        //     shadow_color = viewport_highlight;
-                        // }
-
-                        // // For better visibility against transparent background
-                        // if (fg == Color_fg && in_viewport) {
-                        //     shadow_color = lookup_color(Color_White, pix_colors);
-                        // }
-
                     } else if (line.t[col] == ' ') {
                         // For spaces, use bg shadow color only if not default
                         int bg = bgcolor_of(line.r[col]);
@@ -4488,17 +4491,6 @@ void rxvt_term::render_minimap()
                         // Use foreground color for non-space characters
                         int fg = fgcolor_of(line.r[col]);
                         pixel_color = minimap.color_cache[fg];
-
-                        // If in viewport and color would be invisible, use highlight
-                        // if (in_viewport && pixel_color == default_bg) {
-                        //     pixel_color = viewport_highlight;
-                        // }
-
-                        // For better visibility against transparent background
-                        // if (fg == Color_fg && in_viewport) {
-                        //     pixel_color = lookup_color(Color_White, pix_colors);
-                        // }
-
                     } else if (line.t[col] == ' ') {
                         // For spaces, use bg color only if not default
                         int bg = bgcolor_of(line.r[col]);
@@ -4532,33 +4524,31 @@ void rxvt_term::render_minimap()
 
     int viewport_height = nrow * total_line_height;
 
-    // if (content_lines > minimap.display_lines) {
-    //   double scale = (double)minimap.display_lines / content_lines;
-    //   viewport_height = (int)(viewport_height * scale);
-    // }
-
     // Ensure minimum height for usability
     if (viewport_height < 10)
         viewport_height = 10;
+    if (viewport_height > winattr.height)
+        viewport_height = winattr.height;
 
-    if (viewport_height > winattr.height) viewport_height = winattr.height;
-
-    // Calculate the position based on where we are in the scroll buffer
-    double scroll_position = 0;
-    if (content_lines > nrow) {
-        scroll_position = (double)(view_start - top_row) / (content_lines - nrow);
+    // Calculate viewport position
+    int viewport_y = 0;
+    if (content_lines > minimap.display_lines) {
+        // Calculate where viewport appears within the displayed content
+        double viewport_start_in_display = (double)(view_start - minimap.display_start) / minimap.display_lines;
+        viewport_y = (int)(viewport_start_in_display * winattr.height);
+    } else {
+        // All content fits - calculate position within full content
+        double viewport_position = (double)(view_start - top_row) / content_lines;
+        viewport_y = (int)(viewport_position * (winattr.height - viewport_height));
     }
 
-    int viewport_y = (int)(scroll_position * (winattr.height - viewport_height));
-
-    // Ensure viewport stays within minimap bounds
+    // Clamp viewport position
     if (viewport_y < 0)
         viewport_y = 0;
-
     if (viewport_y + viewport_height > winattr.height)
         viewport_y = winattr.height - viewport_height;
 
-    // draw a white rectangle around the viewport
+    // Draw viewport indicator
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
     XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 

@@ -2242,24 +2242,38 @@ void rxvt_term::minimap_handle_drag(int y)
     // Adjust y position by drag offset
     int new_viewport_y = y - minimap.drag_offset;
 
-    // Calculate viewport height
-    double height_ratio = (double)nrow / content_lines;
-    int viewport_height = (int)(height_ratio * winattr.height);
+    // Calculate viewport height in minimap pixels (use original calculation)
+    int total_line_height = minimap.line_height + minimap.line_spacing;
+    int viewport_height = nrow * total_line_height;
     if (viewport_height < 10)
         viewport_height = 10;
 
-    // Clamp to valid range
+    // Clamp viewport position to valid range
     if (new_viewport_y < 0)
         new_viewport_y = 0;
     if (new_viewport_y + viewport_height > winattr.height)
         new_viewport_y = winattr.height - viewport_height;
 
-    // Convert from visual position to content position
-    double position_percent = (double)new_viewport_y / (winattr.height - viewport_height);
+    // FIXED: Account for current minimap display window
+    int new_view_start;
 
-    // Convert to line number - map to full content range
-    int scrollable_lines = content_lines - nrow;
-    int new_view_start = top_row + (int)(position_percent * scrollable_lines);
+    if (content_lines <= nrow) {
+        // All content fits in viewport - no scrolling needed
+        new_view_start = top_row;
+    } else if (content_lines <= minimap.display_lines) {
+        // All content fits in minimap - direct mapping
+        double position_percent = (double)new_viewport_y / (winattr.height - viewport_height);
+        if (position_percent < 0.0) position_percent = 0.0;
+        if (position_percent > 1.0) position_percent = 1.0;
+
+        int scrollable_lines = content_lines - nrow;
+        new_view_start = top_row + (int)(position_percent * scrollable_lines + 0.5);
+    } else {
+        // Content exceeds minimap - need to account for minimap display window
+        // Convert viewport position in minimap to line number in display window
+        double line_position_in_display = (double)new_viewport_y / winattr.height * minimap.display_lines;
+        new_view_start = minimap.display_start + (int)(line_position_in_display + 0.5);
+    }
 
     // Clamp to valid range
     new_view_start = max(top_row, min(new_view_start, top_row + content_lines - nrow));
