@@ -2232,68 +2232,6 @@ void rxvt_term::minimap_handle_click(int y, bool start_drag)
     render_minimap();
 }
 
-void rxvt_term::minimap_handle_drag(int y)
-{
-    if (!minimap.enabled || !minimap.win || !minimap.dragging)
-        return;
-
-    // Get actual window dimensions
-    XWindowAttributes winattr;
-    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
-        return;
-
-    // Calculate content info
-    int content_lines = total_rows;
-
-    // Adjust y position by drag offset
-    int new_viewport_y = y - minimap.drag_offset;
-
-    // Calculate viewport height in minimap pixels (use original calculation)
-    int total_line_height = minimap.line_height + minimap.line_spacing;
-    int viewport_height = nrow * total_line_height;
-    if (viewport_height < 10)
-        viewport_height = 10;
-
-    // Clamp viewport position to valid range
-    if (new_viewport_y < 0)
-        new_viewport_y = 0;
-    if (new_viewport_y + viewport_height > winattr.height)
-        new_viewport_y = winattr.height - viewport_height;
-
-    double position_percent = (double)new_viewport_y / (winattr.height - viewport_height);
-    // double position_percent = (double)y / (winattr.height - viewport_height);
-    if (position_percent < 0.0) position_percent = 0.0;
-    if (position_percent > 1.0) position_percent = 1.0;
-
-    int new_view_start;
-
-    if (content_lines <= nrow) {
-        // All content fits in viewport - no scrolling needed
-        new_view_start = top_row;
-    } else if (content_lines <= minimap.display_lines) {
-        // All content fits in minimap - direct mapping
-        int scrollable_lines = content_lines - nrow;
-        new_view_start = top_row + (int)(position_percent * scrollable_lines + 0.5);
-    } else {
-        // double line_position_in_display = (double)position_percent * minimap.display_lines;
-        // new_view_start = top_row - (top_row * position_percent);
-
-        double line_position_in_display = (double)new_viewport_y / winattr.height * minimap.display_lines;
-        new_view_start = minimap.display_start + (int)(line_position_in_display + 0.5);
-    }
-
-    // Clamp to valid range
-    new_view_start = max(top_row, min(new_view_start, top_row + content_lines - nrow));
-
-    // Only update if position changed
-    if (new_view_start != view_start) {
-        // Scroll to the new position
-        scr_changeview(new_view_start);
-
-        // Update the minimap
-        render_minimap();
-    }
-}
 
 void ecb_hot
 rxvt_term::x_minimap_cb (XEvent &ev)
