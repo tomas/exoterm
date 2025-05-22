@@ -4396,10 +4396,14 @@ void rxvt_term::render_minimap()
 
     }
 
+    unsigned int depth = DefaultDepth(dpy, display->screen);
 
-
-
-    unsigned int depth = 32; // DefaultDepth(dpy, display->screen);
+#if ENABLE_FRILLS
+    if (rs[Rs_depth]) {
+      depth = rs[Rs_depth];
+      printf("Using depth: %d\n", depth);
+    }
+#endif
 
     // Create a pixmap for drawing
     Pixmap buffer = XCreatePixmap(dpy, minimap.win, minimap.width, winattr.height, depth);
@@ -4561,7 +4565,6 @@ void rxvt_term::render_minimap()
 
     // Free the buffer
     XFreePixmap(dpy, buffer);
-
 }
 
 #endif

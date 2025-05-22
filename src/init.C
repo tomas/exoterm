@@ -1584,10 +1584,6 @@ void rxvt_term::init_minimap()
 
     if (minimap.width < 20) minimap.width = 20;
 
-    // // Check if minimap is enabled in settings
-    // if (!option(Opt_minimap))
-    //     return;
-
     // Get line height from resources if available
     // const char* line_height_str = rs[Rs_minimapLineHeight];
     // if (line_height_str && *line_height_str) {
@@ -1600,34 +1596,34 @@ void rxvt_term::init_minimap()
     int minimap_x = vt_width + int_bwidth - minimap.width;
 
     // Create window
-    XSetWindowAttributes attr;
-    // attr.background_pixel = lookup_color(Color_bg, pix_colors);
-    attr.background_pixmap = ParentRelative;
-    attr.border_pixel = lookup_color(Color_Grey25, pix_colors);
-    attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | EnterWindowMask | LeaveWindowMask;
+    // XSetWindowAttributes attr;
+    // // attr.background_pixel = lookup_color(Color_bg, pix_colors);
+    // attr.background_pixmap = ParentRelative;
+    // attr.border_pixel = lookup_color(Color_Grey25, pix_colors);
+    // attr.event_mask = ExposureMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | EnterWindowMask | LeaveWindowMask;
 
-    minimap.win = XCreateWindow(
-        dpy,
-        parent,
-        minimap_x, int_bwidth,
-        minimap.width, vt_height,
-        1, // border width = 1 pixel
-        CopyFromParent, // depth
-        InputOutput, // class
-        CopyFromParent, // visual
-        CWBackPixmap | CWEventMask | CWBorderPixel, // value mask
-        &attr // attributes
-    );
-
-    // minimap.win = XCreateSimpleWindow(
+    // minimap.win = XCreateWindow(
     //     dpy,
     //     parent,
     //     minimap_x, int_bwidth,
     //     minimap.width, vt_height,
-    //     1, // border width
-    //     lookup_color(Color_Grey25, pix_colors_focused),
-    //     lookup_color(Color_bg, pix_colors_focused)
+    //     1, // border width = 1 pixel
+    //     CopyFromParent, // depth
+    //     InputOutput, // class
+    //     CopyFromParent, // visual
+    //     CWBackPixmap | CWEventMask | CWBorderPixel, // value mask
+    //     &attr // attributes
     // );
+
+    minimap.win = XCreateSimpleWindow(
+        dpy,
+        parent,
+        minimap_x, int_bwidth,
+        minimap.width, vt_height,
+        1, // border width
+        lookup_color(Color_Grey25, pix_colors_focused),
+        lookup_color(Color_bg, pix_colors_focused)
+    );
 
     if (minimap.win) {
         initialize_minimap_colors();

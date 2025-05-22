@@ -2310,7 +2310,6 @@ rxvt_term::x_minimap_cb (XEvent &ev)
         page_dirn dirn;
         dirn = ev.xbutton.button == Button4 ? UP : DN;
         lines = nrow - 1;
-        printf("minimap scroll\n");
         scr_page (dirn, lines);
         // scrollBar.show (1);
       }
