@@ -1531,6 +1531,9 @@ void rxvt_term::initialize_minimap_colors()
     minimap.color_cache = (unsigned long *)rxvt_calloc(TOTAL_COLORS, sizeof(unsigned long));
     minimap.shadow_color_cache = (unsigned long *)rxvt_calloc(TOTAL_COLORS, sizeof(unsigned long));
 
+    XVisualInfo vinfo;
+    XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
+    Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
     for (int i = 0; i < TOTAL_COLORS; i++) {
         minimap.color_cache[i] = lookup_color(i, pix_colors);
@@ -1540,21 +1543,22 @@ void rxvt_term::initialize_minimap_colors()
         xc.pixel = minimap.color_cache[i];
         bg_xc.pixel = default_bg;
 
-        XQueryColor(dpy, DefaultColormap(dpy, 0), &xc);
-        XQueryColor(dpy, DefaultColormap(dpy, 0), &bg_xc);
+        XQueryColor(dpy, cm, &xc);
+        XQueryColor(dpy, cm, &bg_xc);
 
         // Blend with background color
         result.red = (xc.red + bg_xc.red) / 2;
         result.green = (xc.green + bg_xc.green) / 2;
         result.blue = (xc.blue + bg_xc.blue) / 2;
 
-        if (XAllocColor(dpy, DefaultColormap(dpy, 0), &result)) {
+        if (XAllocColor(dpy, cm, &result)) {
             minimap.shadow_color_cache[i] = result.pixel;
         } else {
             minimap.shadow_color_cache[i] = minimap.color_cache[i]; // Fallback to regular color
         }
     }
 
+    XFreeColormap(dpy, cm);
     minimap.colors_initialized = true;
 }
 
@@ -1631,7 +1635,9 @@ void rxvt_term::init_minimap()
         // Create GC
         XGCValues gcv;
         gcv.foreground = lookup_color(Color_fg, pix_colors);
-        minimap.gc = XCreateGC(dpy, minimap.win, GCForeground, &gcv);
+        gcv.background = lookup_color(Color_bg, pix_colors);
+        gcv.graphics_exposures = 0;
+        minimap.gc = XCreateGC(dpy, minimap.win, GCForeground | GCBackground | GCGraphicsExposures, &gcv);
 
         if (minimap.gc) {
             XMapWindow(dpy, minimap.win);

@@ -4396,9 +4396,13 @@ void rxvt_term::render_minimap()
 
     }
 
+
+
+
+    unsigned int depth = 32; // DefaultDepth(dpy, display->screen);
+
     // Create a pixmap for drawing
-    Pixmap buffer = XCreatePixmap(dpy, minimap.win, minimap.width, winattr.height,
-                                  DefaultDepth(dpy, display->screen));
+    Pixmap buffer = XCreatePixmap(dpy, minimap.win, minimap.width, winattr.height, depth);
 
     // Clear the buffer with the background color
     XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
@@ -4408,6 +4412,7 @@ void rxvt_term::render_minimap()
     unsigned long default_fg = lookup_color(Color_fg, pix_colors);
     unsigned long default_bg = lookup_color(Color_bg, pix_colors);
     unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors);
+
 
     // Draw each visible line in the minimap
     if (minimap.display_lines > 0 && total_line_height > 0) { // Ensure valid drawing parameters
@@ -4441,8 +4446,11 @@ void rxvt_term::render_minimap()
                     if (col < line.l) {
                         if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg) {
                              // If it's a default bg space, force draw if previous wasn't default_bg
-                            if (current_shadow == default_bg && col != batch_start) { /* continue if still in default_bg run */ }
-                            else { /* color changes to default_bg, handle batch */ }
+                            if (current_shadow == default_bg && col != batch_start) {
+                              // continue if still in default_bg run
+                            } else {
+                              // color changes to default_bg, handle batch
+                            }
                         } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
                             int fg = fgcolor_of(line.r[col]);
                             shadow_color = minimap.shadow_color_cache[fg];
@@ -4488,8 +4496,11 @@ void rxvt_term::render_minimap()
                     if (col < line.l) {
                         if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg) {
                             // Similar logic to shadow pass for default_bg spaces
-                            if (current_color == default_bg && col != batch_start) { /* continue */ }
-                            else { /* color changes to default_bg */ }
+                            if (current_color == default_bg && col != batch_start) {
+                              // continue
+                            } else {
+                              // color changes to default_bg
+                            }
                         } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
                             int fg = fgcolor_of(line.r[col]);
                             pixel_color = minimap.color_cache[fg];
@@ -4519,7 +4530,6 @@ void rxvt_term::render_minimap()
             }
         }
     }
-
 
     int viewport_height = nrow * total_line_height;
 
@@ -4551,6 +4561,7 @@ void rxvt_term::render_minimap()
 
     // Free the buffer
     XFreePixmap(dpy, buffer);
+
 }
 
 #endif
