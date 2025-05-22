@@ -2210,7 +2210,7 @@ void rxvt_term::minimap_handle_click(int y, bool start_drag)
     if (start_drag && y >= viewport_y && y <= viewport_y + viewport_height) {
         minimap.dragging = true;
         minimap.drag_offset = y - viewport_y;
-        printf("start drag: %d, offset %d\n", y, minimap.drag_offset);
+        // printf("start drag: %d, offset %d\n", y, minimap.drag_offset);
         return;
     }
 
