@@ -4364,22 +4364,17 @@ void rxvt_term::render_minimap()
 
     // Calculate how many lines we can display in the minimap
     minimap.display_lines = winattr.height / total_line_height;
-    if (minimap.display_lines <= 0 && winattr.height > 0) { // Ensure at least one line if possible, prevent division by zero
-        minimap.display_lines = 1;
-    } else if (winattr.height <= 0) {
-        minimap.display_lines = 0; // No space to display anything
-    }
-
 
     // Calculate the total content range
-    int content_lines = total_rows; // total_rows is the total lines in buffer
+    int content_lines = total_rows;
 
     // Keep minimap anchored to top until viewport indicator would go off bottom
     if (content_lines <= minimap.display_lines) {
         // All content fits - show from top
         minimap.display_start = top_row;
     } else {
-        // Calculate where viewport bottom would be if minimap shows from top
+
+        // // Calculate where viewport bottom would be if minimap shows from top
         int viewport_end_line = view_start + nrow - 1;
         int viewport_end_position_in_minimap = viewport_end_line - top_row;
 
@@ -4387,6 +4382,7 @@ void rxvt_term::render_minimap()
         if (viewport_end_position_in_minimap < minimap.display_lines) {
             // Viewport still fits when showing from top - keep minimap at top
             minimap.display_start = top_row;
+
         } else {
             // Viewport would go beyond bottom - move minimap to keep viewport visible
             // Position minimap so viewport bottom is at minimap bottom
@@ -4397,6 +4393,7 @@ void rxvt_term::render_minimap()
                                       min(minimap.display_start,
                                           top_row + content_lines - minimap.display_lines));
         }
+
     }
 
     // Create a pixmap for drawing
@@ -4410,249 +4407,222 @@ void rxvt_term::render_minimap()
     // Cache common colors for performance
     unsigned long default_fg = lookup_color(Color_fg, pix_colors);
     unsigned long default_bg = lookup_color(Color_bg, pix_colors);
-    // unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors); // Not used directly for drawing viewport indicator itself
+    unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors);
 
     // Draw each visible line in the minimap
-    if (minimap.display_lines > 0 && total_line_height > 0) { // Ensure valid drawing parameters
-        for (int i = 0; i < minimap.display_lines; i++) {
-            int row = minimap.display_start + i;
+    for (int i = 0; i < minimap.display_lines; i++) {
+        int row = minimap.display_start + i;
 
-            // Skip if outside buffer
-            if (row < top_row || row >= top_row + total_rows)
-                continue;
+        // Skip if outside buffer
+        if (row < top_row || row >= top_row + total_rows)
+            continue;
 
-            // Calculate y position
-            int y = i * total_line_height;
+        // Calculate y position
+        int y = i * total_line_height;
 
-            // Is this line in viewport?
-            // bool in_viewport = (row >= view_start && row <= view_start + nrow - 1); // Not directly used for line drawing colors here
+        // Is this line in viewport?
+        bool in_viewport = (row >= view_start && row <= view_start + nrow - 1);
 
-            // Get line content
-            line_t &line = ROW(row);
-            if (!line.valid())
-                continue;
+        // Get line content
+        line_t &line = ROW(row);
+        if (!line.valid())
+            continue;
 
-            // [Rest of the drawing code for lines remains the same...]
-            // First pass: Draw the shadow (top part) of each character
-            if (minimap.line_height >= 2) {
-                int batch_start = 0;
-                unsigned long current_shadow = 0; // Initialize to a value that won't match default_bg if first char is default_bg
+        // [Rest of the drawing code remains the same...]
+        // We'll batch draw in two passes - first shadows, then main color
 
-                for (int col = 0; col <= min(ncol, line.l); col++) {
-                    unsigned long shadow_color = default_bg;
+        // First pass: Draw the shadow (top part) of each character
+        if (minimap.line_height >= 2) {
+            int batch_start = 0;
+            unsigned long current_shadow = 0;
 
-                    if (col < line.l) {
-                        if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg) {
-                             // If it's a default bg space, force draw if previous wasn't default_bg
-                            if (current_shadow == default_bg && col != batch_start) { /* continue if still in default_bg run */ }
-                            else { /* color changes to default_bg, handle batch */ }
-                        } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
-                            int fg = fgcolor_of(line.r[col]);
-                            shadow_color = minimap.shadow_color_cache[fg];
-                        } else if (line.t[col] == ' ') { // Non-default background space
-                            int bg = bgcolor_of(line.r[col]);
-                            if (bg != Color_bg) { // Should always be true if not the first case
-                                shadow_color = minimap.shadow_color_cache[bg];
-                            } else {
-                                // This case should ideally be caught by the first if,
-                                // but as a fallback, treat as default_bg.
-                            }
+            for (int col = 0; col <= min(ncol, line.l); col++) {
+                unsigned long shadow_color = default_bg; // Default to background
+
+                if (col < line.l) {
+                    // Skip space characters with default background
+                    if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg)
+                        continue;
+
+                    if (line.t[col] != NOCHAR && line.t[col] != ' ') {
+                        // Use foreground shadow color for non-space characters
+                        int fg = fgcolor_of(line.r[col]);
+                        shadow_color = minimap.shadow_color_cache[fg];
+                    } else if (line.t[col] == ' ') {
+                        // For spaces, use bg shadow color only if not default
+                        int bg = bgcolor_of(line.r[col]);
+                        if (bg != Color_bg) {
+                            shadow_color = minimap.shadow_color_cache[bg];
+                        } else {
+                            // Skip drawing default background spaces
+                            continue;
                         }
-                    } // else (col == min(ncol, line.l)) it's end of line, process current batch
-
-                    if (shadow_color != current_shadow || col == min(ncol, line.l)) {
-                        if (current_shadow != 0 && col > batch_start) { // Use current_shadow != 0 for uninitialized
-                             if (current_shadow != default_bg || (col == min(ncol, line.l) && batch_start != col)) { // Draw non-default or ensure last batch draws
-                                XSetForeground(dpy, minimap.gc, current_shadow);
-                                XFillRectangle(dpy, buffer, minimap.gc,
-                                               (int)(batch_start * minimap.char_width), y,
-                                               (int)((col - batch_start) * minimap.char_width), 1);
-                            }
-                        }
-                        current_shadow = shadow_color;
-                        batch_start = col;
-                         if (col == min(ncol, line.l) && current_shadow == default_bg && batch_start != col) {
-                            // If last segment is default_bg, and it wasn't just an empty line.
-                            // This condition needs to be carefully checked. The intent is to draw if it's a colored segment.
-                         }
-
                     }
                 }
+
+                // If color changed or at end of line, draw the batch
+                if (shadow_color != current_shadow || col == min(ncol, line.l)) {
+                    if (current_shadow != default_bg && col > batch_start) {
+                        XSetForeground(dpy, minimap.gc, current_shadow);
+                        XFillRectangle(dpy, buffer, minimap.gc,
+                                    (int)(batch_start * minimap.char_width), y,
+                                    (int)((col - batch_start) * minimap.char_width), 1);
+                    }
+
+                    // Start a new batch
+                    current_shadow = shadow_color;
+                    batch_start = col;
+                }
             }
+        }
 
-            // Second pass: Draw the main color (bottom part) of each character
-            if (minimap.line_height > 0) {
-                int batch_start = 0;
-                unsigned long current_color = 0; // Initialize
+        // Second pass: Draw the main color (bottom part) of each character
+        if (minimap.line_height > 0) {
+            int batch_start = 0;
+            unsigned long current_color = 0;
 
-                for (int col = 0; col <= min(ncol, line.l); col++) {
-                    unsigned long pixel_color = default_bg;
+            for (int col = 0; col <= min(ncol, line.l); col++) {
+                unsigned long pixel_color = default_bg; // Default to background
 
-                    if (col < line.l) {
-                        if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg) {
-                            // Similar logic to shadow pass for default_bg spaces
-                            if (current_color == default_bg && col != batch_start) { /* continue */ }
-                            else { /* color changes to default_bg */ }
-                        } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
-                            int fg = fgcolor_of(line.r[col]);
-                            pixel_color = minimap.color_cache[fg];
-                        } else if (line.t[col] == ' ') { // Non-default background space
-                            int bg = bgcolor_of(line.r[col]);
-                             if (bg != Color_bg) { // Should always be true
-                                pixel_color = minimap.color_cache[bg];
-                            }
+                if (col < line.l) {
+                    // Skip space characters with default background
+                    if (line.t[col] == ' ' && bgcolor_of(line.r[col]) == Color_bg)
+                        continue;
+
+                    if (line.t[col] != NOCHAR && line.t[col] != ' ') {
+                        // Use foreground color for non-space characters
+                        int fg = fgcolor_of(line.r[col]);
+                        pixel_color = minimap.color_cache[fg];
+                    } else if (line.t[col] == ' ') {
+                        // For spaces, use bg color only if not default
+                        int bg = bgcolor_of(line.r[col]);
+                        if (bg != Color_bg) {
+                            pixel_color = minimap.color_cache[bg];
+                        } else {
+                            // Skip drawing default background spaces
+                            continue;
                         }
                     }
+                }
 
-                    if (pixel_color != current_color || col == min(ncol, line.l)) {
-                        if (current_color != 0 && col > batch_start) {
-                            if (current_color != default_bg || (col == min(ncol, line.l) && batch_start != col)) {
-                                XSetForeground(dpy, minimap.gc, current_color);
-                                XFillRectangle(dpy, buffer, minimap.gc,
-                                               (int)(batch_start * minimap.char_width),
-                                               y + (minimap.line_height >= 2 ? 1 : 0),
-                                               (int)((col - batch_start) * minimap.char_width),
-                                               minimap.line_height - (minimap.line_height >= 2 ? 1 : 0));
-                            }
-                        }
-                        current_color = pixel_color;
-                        batch_start = col;
+                // If color changed or at end of line, draw the batch
+                if (pixel_color != current_color || col == min(ncol, line.l)) {
+                    if (current_color != default_bg && col > batch_start) {
+                        XSetForeground(dpy, minimap.gc, current_color);
+                        XFillRectangle(dpy, buffer, minimap.gc,
+                                    (int)(batch_start * minimap.char_width),
+                                    y + (minimap.line_height >= 2 ? 1 : 0),
+                                    (int)((col - batch_start) * minimap.char_width),
+                                    minimap.line_height - (minimap.line_height >= 2 ? 1 : 0));
                     }
+
+                    // Start a new batch
+                    current_color = pixel_color;
+                    batch_start = col;
                 }
             }
         }
     }
 
+    int viewport_height = nrow * total_line_height;
 
-    // Calculate viewport indicator height
-    int viewport_indicator_height = nrow * total_line_height;
-    if (viewport_indicator_height < 10) viewport_indicator_height = 10; // Ensure minimum height
-    if (winattr.height > 0 && viewport_indicator_height > winattr.height) { // Ensure not taller than minimap itself
-        viewport_indicator_height = winattr.height;
-    } else if (winattr.height <= 0) {
-        viewport_indicator_height = 0; // No space for indicator
-    }
+    // Ensure minimum height for usability
+    if (viewport_height < 10)
+        viewport_height = 10;
+    if (viewport_height > winattr.height)
+        viewport_height = winattr.height;
 
-
-    // **NEW LOGIC for viewport_y (indicator's top Y position)**
-    int viewport_y;
-    int scrollable_lines_in_buffer = content_lines - nrow; // Total lines minus lines visible in term
-
-    if (scrollable_lines_in_buffer <= 0 || winattr.height <= 0) {
-        // Content fits in terminal view, or no space in minimap: indicator at top.
-        viewport_y = 0;
+    // Calculate viewport position
+    int viewport_y = 0;
+    if (content_lines > minimap.display_lines) {
+        // For buffers larger than minimap, calculate position based on entire buffer
+        double viewport_position = (double)(view_start - top_row) / (content_lines - nrow);
+        viewport_y = (int)(viewport_position * (winattr.height - viewport_height));
     } else {
-        // Proportion of how far the current view_start is into the total scrollable line range.
-        // (view_start - top_row) is the number of lines scrolled from the very top.
-        double scroll_ratio = (double)(view_start - top_row) / scrollable_lines_in_buffer;
-
-        // The available pixel space for the *top* of the viewport indicator to move.
-        int indicator_draggable_pixel_range = winattr.height - viewport_indicator_height;
-        if (indicator_draggable_pixel_range < 0) indicator_draggable_pixel_range = 0;
-
-        viewport_y = (int)(scroll_ratio * indicator_draggable_pixel_range + 0.5); // Add 0.5 for rounding
+        // All content fits - calculate position within full content
+        double viewport_position = (double)(view_start - top_row) / content_lines;
+        viewport_y = (int)(viewport_position * (winattr.height - viewport_height));
     }
 
-    // Clamp viewport_y to ensure it's within drawable bounds (defensive)
-    if (viewport_y < 0) viewport_y = 0;
-    if (winattr.height > 0 && viewport_y + viewport_indicator_height > winattr.height) {
-        viewport_y = winattr.height - viewport_indicator_height;
-        if (viewport_y < 0) viewport_y = 0; // Safety if indicator is taller than window
-    } else if (winattr.height <= 0) {
-        viewport_y = 0; // No space
-    }
+    // Clamp viewport position
+    if (viewport_y < 0)
+        viewport_y = 0;
+    if (viewport_y + viewport_height > winattr.height)
+        viewport_y = winattr.height - viewport_height;
 
+    // Draw viewport indicator
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
+    XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 
-    // Draw viewport indicator (using a distinct color for visibility)
-    if (viewport_indicator_height > 0 && minimap.width > 0) {
-        XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors)); // Or Color_scroll
-        XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_indicator_height -1); // -1 for single pixel line
-    }
-
-
-    // Copy buffer to window
-    if (minimap.width > 0 && winattr.height > 0) {
-         XCopyArea(dpy, buffer, minimap.win, minimap.gc,
-                  0, 0, minimap.width, winattr.height, 0, 0);
-    }
+    XCopyArea(dpy, buffer, minimap.win, minimap.gc,
+             0, 0, minimap.width, winattr.height, 0, 0);
 
     // Free the buffer
     XFreePixmap(dpy, buffer);
 }
 
-void rxvt_term::minimap_handle_drag(int y_drag_abs) // Renamed y to y_drag_abs for clarity
+void rxvt_term::minimap_handle_drag(int y)
 {
     if (!minimap.enabled || !minimap.win || !minimap.dragging)
         return;
 
+    // Get actual window dimensions
     XWindowAttributes winattr;
-    if (!XGetWindowAttributes(dpy, minimap.win, &winattr) || winattr.height <= 0) // Check for valid height
+    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
         return;
 
+    // Calculate content info
     int content_lines = total_rows;
 
-    // Calculate viewport indicator's height in minimap pixels, consistently with render_minimap
+    // Adjust y position by drag offset
+    int new_viewport_y = y - minimap.drag_offset;
+
+    // Calculate viewport height in minimap pixels (use original calculation)
     int total_line_height = minimap.line_height + minimap.line_spacing;
-    int viewport_indicator_pixel_height = nrow * total_line_height;
-    if (viewport_indicator_pixel_height < 10) viewport_indicator_pixel_height = 10;
-    if (viewport_indicator_pixel_height > winattr.height) viewport_indicator_pixel_height = winattr.height;
+    int viewport_height = nrow * total_line_height;
+    if (viewport_height < 10)
+        viewport_height = 10;
 
+    // Clamp viewport position to valid range
+    if (new_viewport_y < 0)
+        new_viewport_y = 0;
+    if (new_viewport_y + viewport_height > winattr.height)
+        new_viewport_y = winattr.height - viewport_height;
 
-    // Adjust y position by drag offset (y_drag_abs is the mouse cursor's y)
-    // new_indicator_top_y is the desired top y-coordinate for the indicator.
-    int new_indicator_top_y = y_drag_abs - minimap.drag_offset;
-
-    // Clamp indicator's top y-coordinate to valid range within the minimap
-    // The indicator cannot go above 0.
-    if (new_indicator_top_y < 0) new_indicator_top_y = 0;
-    // The indicator's top cannot go so low that its bottom goes past the minimap height.
-    int max_indicator_top_y = winattr.height - viewport_indicator_pixel_height;
-    if (max_indicator_top_y < 0) max_indicator_top_y = 0; // If indicator is taller than/fills window
-
-    if (new_indicator_top_y > max_indicator_top_y) new_indicator_top_y = max_indicator_top_y;
-
-
-    // Calculate the scroll percentage based on the indicator's position
-    double position_percent;
-    int draggable_pixel_range = winattr.height - viewport_indicator_pixel_height; // This is max_indicator_top_y effectively for a full range
-
-    if (draggable_pixel_range <= 0) { // Indicator fills the minimap, or no space to drag
-        position_percent = 0.0; // Can't really scroll, or it's at the start
-    } else {
-        position_percent = (double)new_indicator_top_y / draggable_pixel_range;
-    }
-
-    // position_percent should now be between 0.0 and 1.0 (inclusive)
-    // Clamping defensively, though previous logic should ensure this.
+    double position_percent = (double)new_viewport_y / (winattr.height - viewport_height);
+    // double position_percent = (double)y / (winattr.height - viewport_height);
     if (position_percent < 0.0) position_percent = 0.0;
     if (position_percent > 1.0) position_percent = 1.0;
 
-
     int new_view_start;
-    int scrollable_buffer_lines = content_lines - nrow; // Total lines scrollable in main buffer
 
-    if (scrollable_buffer_lines <= 0) {
-        // All content fits in the terminal viewport, or less content than viewport.
-        new_view_start = top_row;
-    } else {
-        // Map the drag percentage to the actual scrollable line range for view_start.
-        new_view_start = top_row + (int)(position_percent * scrollable_buffer_lines + 0.5); // Add 0.5 for rounding.
-    }
+if (content_lines <= nrow) {
+    // All content fits in viewport - no scrolling needed
+    new_view_start = top_row;
+} else if (content_lines <= minimap.display_lines) {
+    // All content fits in minimap - direct mapping
+    int scrollable_lines = content_lines - nrow;
+    new_view_start = top_row + (int)(position_percent * scrollable_lines + 0.5);
+} else {
+    // For buffers larger than minimap, map drag position to entire buffer
+    int scrollable_lines = content_lines - nrow;
+    new_view_start = top_row + (int)(position_percent * scrollable_lines + 0.5);
 
-    // Clamp new_view_start to the valid buffer range
-    // (top_row + content_lines) is one past the last line index. Max view_start is when last 'nrow' lines are shown.
-    int max_possible_view_start = top_row + content_lines - nrow;
-    if (max_possible_view_start < top_row) max_possible_view_start = top_row; // Handle if content_lines < nrow
+    // Update minimap display start to show the appropriate section
+    minimap.display_start = new_view_start - (minimap.display_lines - nrow) / 2;
+    minimap.display_start = max(top_row,
+                              min(minimap.display_start,
+                                  top_row + content_lines - minimap.display_lines));
+}
+    // Clamp to valid range
+    new_view_start = max(top_row, min(new_view_start, top_row + content_lines - nrow));
 
-    new_view_start = max(top_row, min(new_view_start, max_possible_view_start));
-
-    // Only update if position actually changed
+    // Only update if position changed
     if (new_view_start != view_start) {
+        // Scroll to the new position
         scr_changeview(new_view_start);
-        // render_minimap(); // This will be called by the event loop or after scr_changeview if needed
-                           // If scr_changeview doesn't trigger a render, you might need it explicitly.
-                           // Often, changing the view triggers a general redraw that includes the minimap.
-                           // For immediate feedback during drag, calling it here is fine.
+
+        // Update the minimap
         render_minimap();
     }
 }
