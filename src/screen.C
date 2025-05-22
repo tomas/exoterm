@@ -4368,13 +4368,13 @@ void rxvt_term::render_minimap()
     // Calculate the total content range
     int content_lines = total_rows;
 
-    // FIXED: Better display window calculation
     // Keep minimap anchored to top until viewport indicator would go off bottom
     if (content_lines <= minimap.display_lines) {
         // All content fits - show from top
         minimap.display_start = top_row;
     } else {
-        // Calculate where viewport bottom would be if minimap shows from top
+
+        // // Calculate where viewport bottom would be if minimap shows from top
         int viewport_end_line = view_start + nrow - 1;
         int viewport_end_position_in_minimap = viewport_end_line - top_row;
 
@@ -4382,6 +4382,7 @@ void rxvt_term::render_minimap()
         if (viewport_end_position_in_minimap < minimap.display_lines) {
             // Viewport still fits when showing from top - keep minimap at top
             minimap.display_start = top_row;
+
         } else {
             // Viewport would go beyond bottom - move minimap to keep viewport visible
             // Position minimap so viewport bottom is at minimap bottom
@@ -4392,6 +4393,7 @@ void rxvt_term::render_minimap()
                                       min(minimap.display_start,
                                           top_row + content_lines - minimap.display_lines));
         }
+
     }
 
     // Create a pixmap for drawing

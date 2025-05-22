@@ -2196,16 +2196,21 @@ void rxvt_term::minimap_handle_click(int y, bool start_drag)
     // Convert to pixel position
     int viewport_y = (int)(content_position * winattr.height);
 
+
+    int total_line_height = minimap.line_height + minimap.line_spacing;
+    int viewport_height = nrow * total_line_height;
+
     // Calculate viewport height
-    double height_ratio = (double)nrow / content_lines;
-    int viewport_height = (int)(height_ratio * winattr.height);
-    if (viewport_height < 10)
-        viewport_height = 10;
+    // double height_ratio = (double)nrow / content_lines;
+    // int viewport_height = (int)(height_ratio * winattr.height);
+    // if (viewport_height < 10)
+    //     viewport_height = 10;
 
     // Check if we're clicking on the viewport indicator
     if (start_drag && y >= viewport_y && y <= viewport_y + viewport_height) {
         minimap.dragging = true;
         minimap.drag_offset = y - viewport_y;
+        printf("start drag: %d, offset %d\n", y, minimap.drag_offset);
         return;
     }
 
@@ -2217,10 +2222,11 @@ void rxvt_term::minimap_handle_click(int y, bool start_drag)
         // Page down
         scr_page(DN, nrow - 1);
     } else {
-        // Direct click on viewport area - start dragging
-        minimap.dragging = true;
-        minimap.drag_offset = viewport_height / 2;
-        minimap_handle_drag(y); // Process the drag immediately
+        // // Direct click on viewport area - start dragging
+        // minimap.dragging = true;
+        // minimap.drag_offset = viewport_height / 2;
+        // printf("handle drag: %d, offset %d\n", y, minimap.drag_offset);
+        // minimap_handle_drag(y); // Process the drag immediately
     }
 
     render_minimap();
@@ -2254,7 +2260,6 @@ void rxvt_term::minimap_handle_drag(int y)
     if (new_viewport_y + viewport_height > winattr.height)
         new_viewport_y = winattr.height - viewport_height;
 
-    // FIXED: Account for current minimap display window
     int new_view_start;
 
     if (content_lines <= nrow) {
