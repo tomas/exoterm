@@ -1568,6 +1568,7 @@ void rxvt_term::init_minimap()
     minimap.enabled = false;
     minimap.win = None;
     minimap.gc = None;
+    minimap.visible = true;
     minimap.line_height = 2;  // Default line height (2 pixels per line)
     minimap.char_width = 1.0;  // Default 1 pixel per character
     minimap.width = (int)(ncol * minimap.char_width);

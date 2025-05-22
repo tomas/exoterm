@@ -276,6 +276,7 @@ struct image_effects
 
 struct minimap_t {
     bool enabled;           // Whether minimap is currently enabled
+    bool visible;
     int width;              // Width of minimap in pixels
     Window win;             // X Window for the minimap
     GC gc;                  // Graphics context

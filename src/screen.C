@@ -4346,7 +4346,7 @@ rxvt_term::scr_swap_overlay () NOTHROW
 void rxvt_term::render_minimap()
 {
     // Basic checks
-    if (!minimap.enabled || !minimap.win || !minimap.gc || !mapped)
+    if (!minimap.enabled || !minimap.win || !minimap.gc || !minimap.visible || !mapped)
         return;
 
     // Get actual window attributes to ensure dimensions are correct
@@ -4401,7 +4401,7 @@ void rxvt_term::render_minimap()
 #if ENABLE_FRILLS
     if (rs[Rs_depth]) {
       depth = rs[Rs_depth];
-      printf("Using depth: %d\n", depth);
+      // printf("Using depth: %d\n", depth);
     }
 #endif
 

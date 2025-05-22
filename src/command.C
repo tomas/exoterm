@@ -1220,6 +1220,20 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
+#ifdef ENABLE_MINIMAP
+        // Alt + M -> toggle minimap
+        if (meta && (keysym == 109)) {
+          minimap.visible = !minimap.visible;
+          // printf("minimap is now %s\n", minimap.visible ? "visible" : "not visible");
+          if (minimap.visible) {
+            XMapWindow(dpy, minimap.win);
+          } else {
+            XUnmapWindow(dpy, minimap.win);
+          }
+          return;
+        }
+#endif
+
         // if (ctrl && (keysym == XK_Up)) {
         //   detach_tab();
         //   return;
