@@ -1186,6 +1186,7 @@ void rxvt_term::resize_minimap()
         return;
 
     // Position minimap at the right side of terminal
+    minimap.width = (int)(ncol * minimap.char_width);
     int minimap_x = vt_width + int_bwidth - minimap.width;
 
     // For better transparency effect, ensure proper window attributes
