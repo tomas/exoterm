@@ -2373,11 +2373,13 @@ rxvt_term::scr_refresh () NOTHROW
   refresh_count = 0;
 
   unsigned int old_screen_flags = screen.flags;
+
   bool have_bg = 0;
 #ifdef HAVE_IMG
   // have_bg = bg_img != 0;
   have_bg = winbg != None;
 #endif
+
   ocrow = oldcursor.row; /* is there an old outline cursor on screen? */
 
   /*
@@ -4211,6 +4213,11 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
 
   scr_overlay_off ();
 
+  if (x == -1 && minimap.enabled && minimap.visible) {
+    int pad = ceil((float)ncol/(Col2Pixel(1)*minimap.char_width) + 2);
+    x = ncol - w - pad;
+  }
+
   if (x < 0) x = ncol - w;
   if (y < 0) y = nrow - h;
 
@@ -4339,17 +4346,11 @@ rxvt_term::scr_swap_overlay () NOTHROW
 
 #ifdef ENABLE_MINIMAP
 
-// In screen.C - replace the render_minimap() function
-
-// Also in command.C - replace the minimap_handle_drag() function
-
 bool is_small_char(unicode_t c) {
     return c == '.' || c == ',' || c == '_' || c == '-' || c == '`' || c == '\'' || c == ';' || c == ':';
 }
 
-
-void rxvt_term::render_minimap()
-{
+void rxvt_term::render_minimap() {
     // Basic checks
     if (!minimap.enabled || !minimap.win || !minimap.gc || !minimap.visible || !mapped)
         return;
