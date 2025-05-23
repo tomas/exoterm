@@ -4213,10 +4213,12 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
 
   scr_overlay_off ();
 
+#ifdef ENABLE_MINIMAP
   if (x == -1 && minimap.enabled && minimap.visible) {
     int pad = ceil((float)ncol/(Col2Pixel(1)*minimap.char_width) + 2);
     x = ncol - w - pad;
   }
+#endif
 
   if (x < 0) x = ncol - w;
   if (y < 0) y = nrow - h;
