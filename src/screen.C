@@ -4408,7 +4408,7 @@ void rxvt_term::render_minimap() {
 
 #if ENABLE_FRILLS
     if (rs[Rs_depth]) {
-      depth = rs[Rs_depth];
+      depth = atoi(rs[Rs_depth]);
       // printf("Using depth: %d\n", depth);
     }
 #endif
