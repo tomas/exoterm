@@ -809,6 +809,69 @@ bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
   return stop;
 }
 
+
+// Add new keysym definitions to rxvt.h
+#define KS_fold_block      0xff00  // Custom keysym for fold toggle
+#define KS_next_block      0xff01  // Jump to next block  
+#define KS_prev_block      0xff02  // Jump to previous block
+#define KS_copy_command    0xff03  // Copy command from current block
+
+void rxvt_term::toggle_current_block_fold() {
+    int current_row = screen.cur.row + view_start;
+    const command_block* block = block_manager.get_block_at_row(current_row);
+    
+    if (block && block->state == BLOCK_COMMAND_COMPLETE) {
+        // Find block index
+        for (size_t i = 0; i < block_manager.blocks.size(); i++) {
+            if (&block_manager.blocks[i] == block) {
+                block_manager.fold_block(i, !block->folded);
+                scr_refresh();
+                break;
+            }
+        }
+    }
+}
+
+void rxvt_term::jump_to_previous_block() {
+    int current_row = screen.cur.row + view_start;
+    
+    // Find previous block
+    for (int i = block_manager.blocks.size() - 1; i >= 0; i--) {
+        if (block_manager.blocks[i].start_row < current_row) {
+            // Move cursor to this block
+            screen.cur.row = block_manager.blocks[i].start_row - view_start;
+            screen.cur.col = 0;
+            scr_refresh();
+            return;
+        }
+    }
+}
+
+void rxvt_term::jump_to_next_block() {
+    int current_row = screen.cur.row + view_start;
+    
+    // Find next block
+    for (size_t i = 0; i < block_manager.blocks.size(); i++) {
+        if (block_manager.blocks[i].start_row > current_row) {
+            // Move cursor to this block
+            screen.cur.row = block_manager.blocks[i].start_row - view_start;
+            screen.cur.col = 0;
+            scr_refresh();
+            return;
+        }
+    }
+}
+
+void rxvt_term::copy_current_command() {
+    int current_row = screen.cur.row + view_start;
+    const command_block* block = block_manager.get_block_at_row(current_row);
+    
+    if (block && !block->command.empty()) {
+        // Copy to clipboard - integrate with existing selection code
+        selection_make(block->command.c_str(), block->command.length());
+    }
+}
+
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
 {
@@ -1232,6 +1295,21 @@ rxvt_term::key_press (XKeyEvent &ev)
           }
           return;
         }
+#endif
+
+#ifdef ENABLE_BLOCKS
+  if (ctrl) {
+    if (keysym == XK_F9) {
+      toggle_current_block_fold();
+    } else if (shift && keysym == XK_Up) {
+      jump_to_previous_block();
+    } else if (shift && keysym == XK_Up) {
+      jump_to_next_block();
+    } else if (shift && keysym == XK_C) {
+      copy_current_command();
+    }
+  }
+
 #endif
 
         // if (ctrl && (keysym == XK_Up)) {
@@ -4685,6 +4763,12 @@ rxvt_term::process_osc_seq ()
   int arg;
 
   unicode_t ch = cmd_getc ();
+
+  if (ch == 133) { // Block sequence
+    process_block_sequence(str);
+    return;
+  }
+
   for (arg = 0; isdigit (ch); ch = cmd_getc ())
     arg = arg * 10 + (ch - '0');
 

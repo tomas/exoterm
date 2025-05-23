@@ -2538,11 +2538,19 @@ rxvt_term::scr_refresh () NOTHROW
 
   // printf("draw! view_start: %d, ncol: %d, nrow: %d\n", view_start, ncol, nrow);
 
+  std::vector<int> visible_rows = block_manager.get_visible_rows();
+
   /*
    * E: main pass across every character
    */
   for (row = 0; row < nrow; row++)
     {
+
+      // Skip rows that are in folded blocks
+      if (block_manager.is_row_in_folded_block(row + view_start)) {
+          continue;
+      }
+
       text_t *stp = ROW(view_start + row).t;
       rend_t *srp = ROW(view_start + row).r;
       text_t *dtp = drawn_buf[row].t;
@@ -2754,6 +2762,8 @@ rxvt_term::scr_refresh () NOTHROW
                          xpixel + Width2Pixel (count) - 1, ypixel + font->ascent + 1);
             }
         }                     /* for (col....) */
+
+        draw_block_indicators(row + view_start);
     }                         /* for (row....) */
 
   /*
@@ -4581,6 +4591,47 @@ void rxvt_term::render_minimap()
 
     // Free the buffer
     XFreePixmap(dpy, buffer);
+}
+
+#endif
+
+#ifdef ENABLE_BLOCKS
+
+void rxvt_term::draw_block_indicators(int row) {
+    const command_block* block = block_manager.get_block_at_row(row);
+    if (!block) return;
+    
+    // Draw block start indicator
+    if (row == block->start_row) {
+        // Draw a subtle line or indicator at the left margin
+        XSetForeground(dpy, gc, pix_colors[Color_fg + 8]); // Use a dim color
+        XDrawLine(dpy, vt, gc, 0, ROW_Y(row), 2, ROW_Y(row));
+        
+        // If block is folded, show fold indicator
+        if (block->folded && block->end_row != -1) {
+            draw_fold_indicator(row, block);
+        }
+    }
+    
+    // Draw block end indicator  
+    if (row == block->end_row && block->state == BLOCK_COMMAND_COMPLETE) {
+        XSetForeground(dpy, gc, pix_colors[Color_fg + 8]);
+        XDrawLine(dpy, vt, gc, 0, ROW_Y(row) + fheight - 1, 
+                 ncol * fwidth, ROW_Y(row) + fheight - 1);
+    }
+}
+
+void rxvt_term::draw_fold_indicator(int row, const command_block* block) {
+    char fold_text[256];
+    snprintf(fold_text, sizeof(fold_text), " [%d lines] %s", 
+             block->end_row - block->start_row, 
+             block->command.c_str());
+             
+    // Draw fold text in dim color
+    XSetForeground(dpy, gc, pix_colors[Color_fg + 8]);
+    XDrawString(dpy, vt, gc, 
+               fwidth * 3, ROW_Y(row) + fbase,
+               fold_text, strlen(fold_text));
 }
 
 #endif

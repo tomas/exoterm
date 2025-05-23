@@ -1464,6 +1464,37 @@ done:
 #endif
 }
 
+#ifdef ENABLE_BLOCKS
+
+// Add to rxvt_term::init() 
+void rxvt_term::init_blocks() {
+    // Check if block support is enabled
+    if (rs[Rs_blockSupport] && strcasecmp(rs[Rs_blockSupport], "true") == 0) {
+        block_support_enabled = true;
+        
+        // Initialize block manager
+        block_manager = new BlockManager();
+        
+        // Set up auto-fold if enabled
+        if (rs[Rs_blockAutoFold] && strcasecmp(rs[Rs_blockAutoFold], "true") == 0) {
+            block_auto_fold = true;
+        }
+        
+        // Set block indicator color
+        if (rs[Rs_blockIndicatorColor]) {
+            // Parse color and set block_indicator_color
+            block_indicator_color = parse_color(rs[Rs_blockIndicatorColor]);
+        } else {
+            block_indicator_color = pix_colors[Color_fg + 8]; // Default dim color
+        }
+        
+        // Initialize shell integration
+        setup_shell_integration();
+    }
+}
+
+#endif
+
 #ifdef ENABLE_DND
 
 void
@@ -1864,11 +1895,14 @@ rxvt_term::create_windows (int argc, const char *const *argv)
     XSelectInput (dpy, minimap.win, vt_emask | vt_emask_mouse | EnterWindowMask | LeaveWindowMask);
     minimap_ev.start(display, minimap.win);
   }
-
 #endif
 
 #ifdef ENABLE_DND
   xdnd_init();
+#endif
+
+#ifdef ENABLE_BLOCKS
+  init_blocks();
 #endif
 
   pointer_unblank ();

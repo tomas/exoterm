@@ -489,6 +489,19 @@ enum {
 #define DEFAULT_RSTYLE  (RS_None | (Color_fg    << RS_fgShift) | (Color_bg     << RS_bgShift))
 #define OVERLAY_RSTYLE  (RS_None | (Color_Black << RS_fgShift) | (Color_Yellow << RS_bgShift))
 
+
+#ifdef ENABLE_BLOCKS
+
+enum {
+    Rs_blockSupport,
+    Rs_blockAutoFold, 
+    Rs_blockIndicatorColor,
+    Rs_blockPromptDetection,
+    Rs_COUNT
+};
+
+#endif
+
 enum {
   C0_NUL = 0x00,
           C0_SOH, C0_STX, C0_ETX, C0_EOT, C0_ENQ, C0_ACK, C0_BEL,
@@ -1346,8 +1359,18 @@ Pixmap icon_mask; //  = None;
 # endif
 #endif
 
-#ifdef ENABLE_DND
 
+#ifdef ENABLE_BLOCKS
+  void init_blocks();
+  void rxvt_term::jump_to_previous_block();
+  void jump_to_next_block();
+  void copy_current_command();
+  void toggle_current_block_fold();
+  void draw_block_indicators();
+  void draw_fold_indicator();
+#endif 
+
+#ifdef ENABLE_DND
   Atom xdndaware, xdndenter, xdndposition, xdndstatus, xdndleave, xdnddrop, xdndfini;
   Atom xdndacopy, xdndselection, xdnddata, xdndtypelist;
   Atom dndtargetatoms[numdndtargets];
@@ -1359,7 +1382,6 @@ Pixmap icon_mask; //  = None;
   void selnotify(XEvent * e);
   void send_dnd_finished(XEvent ev, Window win);
   void handle_uri(char * uri, uint16_t len);
-
 #endif
 
 #ifdef ENABLE_MINIMAP
