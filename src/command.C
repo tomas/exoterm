@@ -809,6 +809,7 @@ bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
   return stop;
 }
 
+#ifdef ENABLE_BLOCKS
 
 // Add new keysym definitions to rxvt.h
 #define KS_fold_block      0xff00  // Custom keysym for fold toggle
@@ -816,12 +817,126 @@ bool rxvt_term::handle_search_key(KeySym key, int ctrl, int meta, int shift) {
 #define KS_prev_block      0xff02  // Jump to previous block
 #define KS_copy_command    0xff03  // Copy command from current block
 
+const char * rxvt_term::extract_current_line_text(int row) {
+    // if (row < 0 || row >= nrow + saveLines) return "";
+
+    // line_t& line = ROW(row);
+    const char * result;
+
+    // for (int col = 0; col < line.l && col < ncol; col++) {
+    //     wchar_t ch = line.t[col];
+    //     if (ch == NOCHAR) continue;
+
+    //     // Convert to UTF-8 string
+    //     if (ch < 128) {
+    //         result += (char)ch;
+    //     } else {
+    //         // Handle Unicode characters properly
+    //         char utf8_buf[8];
+    //         int len = wctomb(utf8_buf, ch);
+    //         if (len > 0) {
+    //             result.append(utf8_buf, len);
+    //         }
+    //     }
+    // }
+
+    return result;
+}
+
+const char * rxvt_term::extract_command_from_line() {
+    const command_block* current = block_manager.get_current_block();
+    if (!current) return "";
+
+    const char * line = extract_current_line_text(current->start_row);
+
+    // // Remove the prompt part
+    // if (strlen(line) > strlen(current->prompt)) {
+    //     return line.substr(current->prompt.length());
+    // }
+
+    return "";
+}
+
+
+void rxvt_term::process_block_sequence(const char *str) {
+    if (!str || !*str) return;
+
+    char cmd = str[0];
+    block_state old_state = block_manager.get_current_state();
+
+    switch (cmd) {
+        case 'A': // Prompt start
+            {
+                int current_row = screen.cur.row + screen.bscroll;
+                const char * prompt_line = extract_current_line_text(current_row);
+                block_manager.start_new_block(current_row, prompt_line);
+                break;
+            }
+
+        case 'B': // Prompt end (command input start)
+            {
+                const command_block* current = block_manager.get_current_block();
+                if (current) {
+                    block_manager.set_prompt_end_position(screen.cur.col);
+                }
+                break;
+            }
+
+        case 'C': // Command execution start
+            {
+                const char * command = extract_command_from_line();
+                block_manager.set_command_text(command);
+                block_manager.mark_command_execution_start();
+                break;
+            }
+
+        case 'D': // Command completed
+            {
+                int exit_code = -1;
+                if (str[1] == ';') {
+                    exit_code = atoi(str + 2);
+                }
+                int current_row = screen.cur.row + screen.bscroll;
+                block_manager.end_current_block(current_row, exit_code);
+                break;
+            }
+    }
+
+    // Notify about state change
+    block_state new_state = block_manager.get_current_state();
+    if (old_state != new_state) {
+        on_block_state_changed(old_state, new_state);
+    }
+
+    // Trigger screen refresh to show any changes
+    scr_refresh();
+}
+
+void rxvt_term::on_block_state_changed(block_state old_state, block_state new_state) {
+    // Update input line manager when block state changes
+#ifdef ENABLE_ENHANCED_INPUT
+    if (enhanced_input_enabled) {
+        input_manager.update_from_block_state(block_manager);
+
+        // Update cursor style based on state
+        if (new_state == BLOCK_COMMAND_START) {
+            // Switched to input mode - update cursor
+            scr_refresh();
+        } else if (new_state == BLOCK_COMMAND_RUNNING) {
+            // Command started - revert to normal cursor
+            scr_refresh();
+        }
+    }
+#endif
+}
+
+// Block navigation methods
 void rxvt_term::toggle_current_block_fold() {
     int current_row = screen.cur.row + view_start;
     const command_block* block = block_manager.get_block_at_row(current_row);
-    
+
     if (block && block->state == BLOCK_COMMAND_COMPLETE) {
-        // Find block index
+        // Find block index and toggle fold
         for (size_t i = 0; i < block_manager.blocks.size(); i++) {
             if (&block_manager.blocks[i] == block) {
                 block_manager.fold_block(i, !block->folded);
@@ -834,12 +949,13 @@ void rxvt_term::toggle_current_block_fold() {
 
 void rxvt_term::jump_to_previous_block() {
     int current_row = screen.cur.row + view_start;
-    
+
     // Find previous block
-    for (int i = block_manager.blocks.size() - 1; i >= 0; i--) {
-        if (block_manager.blocks[i].start_row < current_row) {
+    const std::vector<command_block>& blocks = block_manager.blocks;
+    for (int i = blocks.size() - 1; i >= 0; i--) {
+        if (blocks[i].start_row < current_row) {
             // Move cursor to this block
-            screen.cur.row = block_manager.blocks[i].start_row - view_start;
+            screen.cur.row = blocks[i].start_row - view_start;
             screen.cur.col = 0;
             scr_refresh();
             return;
@@ -849,12 +965,13 @@ void rxvt_term::jump_to_previous_block() {
 
 void rxvt_term::jump_to_next_block() {
     int current_row = screen.cur.row + view_start;
-    
+
     // Find next block
-    for (size_t i = 0; i < block_manager.blocks.size(); i++) {
-        if (block_manager.blocks[i].start_row > current_row) {
+    const std::vector<command_block>& blocks = block_manager.blocks;
+    for (size_t i = 0; i < blocks.size(); i++) {
+        if (blocks[i].start_row > current_row) {
             // Move cursor to this block
-            screen.cur.row = block_manager.blocks[i].start_row - view_start;
+            screen.cur.row = blocks[i].start_row - view_start;
             screen.cur.col = 0;
             scr_refresh();
             return;
@@ -866,11 +983,14 @@ void rxvt_term::copy_current_command() {
     int current_row = screen.cur.row + view_start;
     const command_block* block = block_manager.get_block_at_row(current_row);
     
-    if (block && !block->command.empty()) {
+    if (block && strlen(block->command) > 1) {
         // Copy to clipboard - integrate with existing selection code
-        selection_make(block->command.c_str(), block->command.length());
+        // TODO
+        // selection_make(block->command.c_str(), block->command.length());
     }
 }
+
+#endif
 
 void ecb_cold
 rxvt_term::key_press (XKeyEvent &ev)
@@ -1301,11 +1421,11 @@ rxvt_term::key_press (XKeyEvent &ev)
   if (ctrl) {
     if (keysym == XK_F9) {
       toggle_current_block_fold();
-    } else if (shift && keysym == XK_Up) {
+    } else if (shft && keysym == XK_Up) {
       jump_to_previous_block();
-    } else if (shift && keysym == XK_Up) {
+    } else if (shft && keysym == XK_Up) {
       jump_to_next_block();
-    } else if (shift && keysym == XK_C) {
+    } else if (shft && keysym == XK_C) {
       copy_current_command();
     }
   }
@@ -4765,7 +4885,7 @@ rxvt_term::process_osc_seq ()
   unicode_t ch = cmd_getc ();
 
   if (ch == 133) { // Block sequence
-    process_block_sequence(str);
+    process_block_sequence(ch);
     return;
   }
 

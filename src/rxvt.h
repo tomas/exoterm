@@ -98,8 +98,8 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 # endif
 #endif
 
+#define ENABLE_BLOCKS 1
 #define ENABLE_MINIMAP 1
-
 #define ENABLE_DND 1
 
 #ifdef ENABLE_DND
@@ -125,6 +125,8 @@ static char *dndtargetnames[] = {
 #include "scrollbar.h"
 #include "ev_cpp.h"
 #include "libptytty.h"
+#include "blocks.h"
+#include "enhanced_input.h"
 
 #include "rxvtperl.h"
 
@@ -488,19 +490,6 @@ enum {
 
 #define DEFAULT_RSTYLE  (RS_None | (Color_fg    << RS_fgShift) | (Color_bg     << RS_bgShift))
 #define OVERLAY_RSTYLE  (RS_None | (Color_Black << RS_fgShift) | (Color_Yellow << RS_bgShift))
-
-
-#ifdef ENABLE_BLOCKS
-
-enum {
-    Rs_blockSupport,
-    Rs_blockAutoFold, 
-    Rs_blockIndicatorColor,
-    Rs_blockPromptDetection,
-    Rs_COUNT
-};
-
-#endif
 
 enum {
   C0_NUL = 0x00,
@@ -1359,16 +1348,60 @@ Pixmap icon_mask; //  = None;
 # endif
 #endif
 
-
 #ifdef ENABLE_BLOCKS
+  BlockManager block_manager;
+  bool block_detection_enabled;
+  rxvt_color block_indicator_color;
+
+  // std::string rxvt_term::extract_current_line_text(int row);
+  // std::string rxvt_term::extract_command_from_line();
+
+  const char * rxvt_term::extract_current_line_text(int row);
+  const char * rxvt_term::extract_command_from_line();
+
+  void process_block_sequence(const char *str);
+  void on_block_state_changed(block_state old_state, block_state new_state);
   void init_blocks();
-  void rxvt_term::jump_to_previous_block();
+  void setup_shell_integration();
+  // std::string create_integration_script();
+  const char* create_integration_script();
+  const char* get_integration_script_content();
+  void draw_block_indicators(int row);
+  void draw_fold_indicator(int row, const command_block* block);
+
+  // Navigation methods
+  void toggle_current_block_fold();
+  void jump_to_previous_block();
   void jump_to_next_block();
   void copy_current_command();
-  void toggle_current_block_fold();
-  void draw_block_indicators();
-  void draw_fold_indicator();
 #endif 
+
+#ifdef ENHANCED_INPUT
+  InputLineManager input_manager;
+  MouseInputHandler mouse_input_handler;
+  bool enhanced_input_enabled;
+  void init_enhanced_input();
+  bool should_enable_enhanced_input();
+  bool check_enhanced_input_compatibility();
+  void update_input_line_state();
+  bool is_likely_input_line(const std::string& line);
+  void handle_input_selection_key(KeySym keysym, unsigned int state);
+  void handle_input_completion();
+  void handle_input_cancellation();
+  void check_selection_input_integration();
+  bool selection_overlaps_input_area();
+  void show_input_selection_options(const std::string& selected_text);
+  std::string get_clipboard_text();
+  std::string get_selection_text();
+
+  // Enhanced cursor drawing
+  void draw_input_indicators();
+  void draw_input_cursor();
+  void draw_beam_cursor();
+  void draw_underline_cursor();
+  void draw_block_outline_cursor();
+  void draw_normal_cursor();
+#endif
 
 #ifdef ENABLE_DND
   Atom xdndaware, xdndenter, xdndposition, xdndstatus, xdndleave, xdnddrop, xdndfini;

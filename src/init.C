@@ -858,7 +858,7 @@ rxvt_term::init_resources (int argc, const char *const *argv)
 # endif
 #endif
 
-    scrollBar.setup (this);
+  scrollBar.setup (this);
 
 #ifdef XTERM_REVERSE_VIDEO
   /* this is how xterm implements reverseVideo */
@@ -1024,7 +1024,6 @@ rxvt_term::init2 (int argc, const char *const *argv)
     {
       /* Mark the startup process as complete */
       sn_launchee_context_complete (snContext);
-
       sn_launchee_context_unref (snContext);
     }
 
@@ -1466,31 +1465,92 @@ done:
 
 #ifdef ENABLE_BLOCKS
 
-// Add to rxvt_term::init() 
-void rxvt_term::init_blocks() {
-    // Check if block support is enabled
-    if (rs[Rs_blockSupport] && strcasecmp(rs[Rs_blockSupport], "true") == 0) {
-        block_support_enabled = true;
-        
-        // Initialize block manager
-        block_manager = new BlockManager();
-        
-        // Set up auto-fold if enabled
-        if (rs[Rs_blockAutoFold] && strcasecmp(rs[Rs_blockAutoFold], "true") == 0) {
-            block_auto_fold = true;
+void rxvt_term::setup_shell_integration() {
+    // Simply set TERM to indicate block support capability
+    setenv("TERM", "exoterm", 1);
+
+    // Optionally create a simple integration script
+    const char* home = getenv("HOME");
+    if (home) {
+        // const char * integration_path = getenv("HOME") + "/.exoterm_integration.sh";
+      const char * integration_path = "~/.exoterm_integration.sh";
+        FILE* f = fopen(integration_path, "w");
+        if (f) {
+            fprintf(f, "%s", get_integration_script_content());
+            fclose(f);
+
+            // Inform user about the integration script
+            fprintf(stderr, "\nExoterm shell integration available at: %s\n", integration_path);
+            fprintf(stderr, "Source it in your ~/.bashrc or ~/.zshrc with: . %s\n\n", integration_path);
         }
-        
-        // Set block indicator color
-        if (rs[Rs_blockIndicatorColor]) {
-            // Parse color and set block_indicator_color
-            block_indicator_color = parse_color(rs[Rs_blockIndicatorColor]);
-        } else {
-            block_indicator_color = pix_colors[Color_fg + 8]; // Default dim color
-        }
-        
-        // Initialize shell integration
-        setup_shell_integration();
     }
+}
+
+const char* rxvt_term::get_integration_script_content() {
+    return R"(
+# Exoterm shell integration
+if [[ "$TERM" == "exoterm"* ]]; then
+    EXOTERM_PROMPT_START='\e]133;A\a'
+    EXOTERM_PROMPT_END='\e]133;B\a'
+    EXOTERM_COMMAND_START='\e]133;C\a'
+    EXOTERM_COMMAND_END='\e]133;D;%s\a'
+
+    exoterm_preexec() {
+        printf "${EXOTERM_COMMAND_START}"
+    }
+
+    exoterm_precmd() {
+        local exit_code=$?
+        printf "${EXOTERM_COMMAND_END}" "$exit_code"
+        printf "${EXOTERM_PROMPT_START}"
+    }
+
+    if [[ -n "$BASH_VERSION" ]]; then
+        trap 'exoterm_preexec' DEBUG
+        PROMPT_COMMAND="exoterm_precmd${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+        printf "${EXOTERM_PROMPT_START}"
+    elif [[ -n "$ZSH_VERSION" ]]; then
+        autoload -U add-zsh-hook
+        add-zsh-hook preexec exoterm_preexec
+        add-zsh-hook precmd exoterm_precmd
+        printf "${EXOTERM_PROMPT_START}"
+    fi
+fi
+)";
+}
+
+// Add to rxvt_term::init()
+void rxvt_term::init_blocks() {
+  // Check if block support is enabled
+  if (rs[Rs_blockSupport] && strcasecmp(rs[Rs_blockSupport], "true") == 0) {
+      block_detection_enabled = true;
+
+      // Set up colors
+      if (rs[Rs_blockIndicatorColor]) {
+          set_color(block_indicator_color, rs[Rs_blockIndicatorColor]);
+      } else {
+          block_indicator_color = pix_colors[Color_fg + 8]; // Default dim
+      }
+
+      // // Initialize block manager
+      // block_manager = new BlockManager();
+
+      // // Set up auto-fold if enabled
+      // if (rs[Rs_blockAutoFold] && strcasecmp(rs[Rs_blockAutoFold], "true") == 0) {
+      //     block_auto_fold = true;
+      // }
+
+      // // Set block indicator color
+      // if (rs[Rs_blockIndicatorColor]) {
+      //     // Parse color and set block_indicator_color
+      //     block_indicator_color = parse_color(rs[Rs_blockIndicatorColor]);
+      // } else {
+      //     block_indicator_color = pix_colors[Color_fg + 8]; // Default dim color
+      // }
+
+      // Initialize shell integration
+      setup_shell_integration();
+  }
 }
 
 #endif
@@ -1525,6 +1585,262 @@ rxvt_term::xdnd_init(void) {
 
   XInternAtoms(dpy, dndtargetnames, numdndtargets, False, dndtargetatoms);
   XChangeProperty(dpy, win, xdndaware, XA_ATOM, 32, PropModeReplace, &dndversion, 1);
+}
+
+#endif
+
+#ifdef ENABLE_ENHANCED_INPUT
+
+void rxvt_term::init_enhanced_input() {
+    // Check configuration
+    if (rs[Rs_enhancedInput] && strcasecmp(rs[Rs_enhancedInput], "false") == 0) {
+        enhanced_input_enabled = false;
+        return;
+    }
+
+    enhanced_input_enabled = true;
+}
+
+bool rxvt_term::should_enable_enhanced_input() {
+    if (!enhanced_input_enabled) return false;
+
+    // Require shell integration to be active
+    if (!block_manager.has_shell_integration()) return false;
+
+    // Always check compatibility before enabling
+    if (!check_enhanced_input_compatibility()) return false;
+
+    // Use block state to determine if we should be active
+    return block_manager.is_at_prompt();
+}
+
+bool rxvt_term::check_enhanced_input_compatibility() {
+    // Check for conflicting mouse modes first
+    if (priv_modes & PrivMode_MouseX10 ||
+        priv_modes & PrivMode_MouseX11 ||
+        priv_modes & PrivMode_MouseBtnEvent) {
+        return false;
+    }
+
+    // Only enable if we have active block detection (shell integration)
+    return block_manager.has_shell_integration();
+}
+
+void rxvt_term::update_input_line_state() {
+    // Only work if enhanced input should be active
+    if (!should_enable_enhanced_input()) {
+        if (input_manager.is_input_active()) {
+            input_manager.cancel_input();
+        }
+        return;
+    }
+
+    // Update input manager from block state
+    input_manager.update_from_block_state(block_manager);
+
+    // If we're at a prompt with shell integration, set up input line tracking
+    if (block_manager.is_at_prompt()) {
+        // Get the current input block from shell integration
+        const command_block* input_block = block_manager.get_input_block();
+        if (input_block) {
+            int current_row = input_block->start_row;
+            const char * current_line = extract_current_line_text(current_row);
+
+            if (!input_manager.is_input_active()) {
+                input_manager.start_input_line(current_row, current_line);
+            } else {
+                input_manager.update_input_text(current_line);
+            }
+
+            // Update cursor position
+            input_manager.update_cursor_position(current_row, screen.cur.col);
+        }
+    }
+}
+
+bool rxvt_term::is_likely_input_line(const std::string& line) {
+    // Only trust this if we have shell integration
+    if (!block_manager.has_shell_integration()) {
+        return false;
+    }
+
+    // With shell integration, we can be precise
+    const command_block* input_block = block_manager.get_input_block();
+    if (input_block) {
+        int current_row = screen.cur.row + view_start;
+        return current_row == input_block->start_row;
+    }
+
+    return false;
+}
+
+void rxvt_term::process_block_sequence(const char *str) {
+    if (!str || !*str) return;
+
+    char cmd = str[0];
+    block_state old_state = block_manager.get_current_state();
+
+    switch (cmd) {
+        case 'A': // Prompt start
+            {
+                int current_row = screen.cur.row + screen.bscroll;
+                std::string prompt_line = extract_current_line_text(current_row);
+                block_manager.start_new_block(current_row, prompt_line);
+                break;
+            }
+
+        case 'B': // Prompt end (command input start)
+            {
+                const command_block* current = block_manager.get_current_block();
+                if (current) {
+                    block_manager.set_prompt_end_position(screen.cur.col);
+                }
+                break;
+            }
+
+        case 'C': // Command execution start
+            {
+                std::string command = extract_command_from_line();
+                block_manager.set_command_text(command);
+                block_manager.mark_command_execution_start();
+                break;
+            }
+
+        case 'D': // Command completed
+            {
+                int exit_code = -1;
+                if (str[1] == ';') {
+                    exit_code = atoi(str + 2);
+                }
+                int current_row = screen.cur.row + screen.bscroll;
+                block_manager.end_current_block(current_row, exit_code);
+                break;
+            }
+    }
+
+    // Notify about state change
+    block_state new_state = block_manager.get_current_state();
+    if (old_state != new_state) {
+        on_block_state_changed(old_state, new_state);
+    }
+
+    // Trigger screen refresh to show any changes
+    scr_refresh();
+}
+
+void rxvt_term::on_block_state_changed(block_state old_state, block_state new_state) {
+    // Update input line manager when block state changes
+    if (enhanced_input_enabled) {
+        input_manager.update_from_block_state(block_manager);
+
+        // Update cursor style based on state
+        if (new_state == BLOCK_COMMAND_START) {
+            // Switched to input mode - update cursor
+            scr_refresh();
+        } else if (new_state == BLOCK_COMMAND_RUNNING) {
+            // Command started - revert to normal cursor
+            scr_refresh();
+        }
+    }
+}
+
+std::string rxvt_term::extract_current_line_text(int row) {
+    if (row < 0 || row >= nrow + saveLines) return "";
+
+    line_t& line = ROW(row);
+    // std::string result;
+    const char * result;
+
+    // for (int col = 0; col < line.l && col < ncol; col++) {
+    //     wchar_t ch = line.t[col];
+    //     if (ch == NOCHAR) continue;
+
+    //     // Convert to UTF-8 string
+    //     if (ch < 128) {
+    //         result += (char)ch;
+    //     } else {
+    //         // Handle Unicode characters properly
+    //         char utf8_buf[8];
+    //         int len = wctomb(utf8_buf, ch);
+    //         if (len > 0) {
+    //             result.append(utf8_buf, len);
+    //         }
+    //     }
+    // }
+
+    return result;
+}
+
+std::string rxvt_term::extract_command_from_line() {
+    const command_block* current = block_manager.get_current_block();
+    if (!current) return "";
+
+    const char * line = extract_current_line_text(current->start_row);
+
+    // Remove the prompt part
+    if (line.length() > current->prompt.length()) {
+        return line.substr(current->prompt.length());
+    }
+    return "";
+}
+
+// Block navigation methods
+void rxvt_term::toggle_current_block_fold() {
+    int current_row = screen.cur.row + view_start;
+    const command_block* block = block_manager.get_block_at_row(current_row);
+
+    if (block && block->state == BLOCK_COMMAND_COMPLETE) {
+        // Find block index and toggle fold
+        for (size_t i = 0; i < block_manager.blocks.size(); i++) {
+            if (&block_manager.blocks[i] == block) {
+                block_manager.fold_block(i, !block->folded);
+                scr_refresh();
+                break;
+            }
+        }
+    }
+}
+
+void rxvt_term::jump_to_previous_block() {
+    int current_row = screen.cur.row + view_start;
+
+    // Find previous block
+    const vector<command_block>& blocks = block_manager.blocks;
+    for (int i = blocks.size() - 1; i >= 0; i--) {
+        if (blocks[i].start_row < current_row) {
+            // Move cursor to this block
+            screen.cur.row = blocks[i].start_row - view_start;
+            screen.cur.col = 0;
+            scr_refresh();
+            return;
+        }
+    }
+}
+
+void rxvt_term::jump_to_next_block() {
+    int current_row = screen.cur.row + view_start;
+
+    // Find next block
+    const vector<command_block>& blocks = block_manager.blocks;
+    for (size_t i = 0; i < blocks.size(); i++) {
+        if (blocks[i].start_row > current_row) {
+            // Move cursor to this block
+            screen.cur.row = blocks[i].start_row - view_start;
+            screen.cur.col = 0;
+            scr_refresh();
+            return;
+        }
+    }
+}
+
+void rxvt_term::copy_current_command() {
+    int current_row = screen.cur.row + view_start;
+    const command_block* block = block_manager.get_block_at_row(current_row);
+
+    if (block && !block->command.empty()) {
+        // Copy to clipboard - integrate with existing selection code
+        selection_make(block->command.c_str(), block->command.length());
+    }
 }
 
 #endif
@@ -1903,6 +2219,10 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 
 #ifdef ENABLE_BLOCKS
   init_blocks();
+#endif
+
+#ifdef ENABLE_ENHANCED_INPUT
+  init_enhanced_input();
 #endif
 
   pointer_unblank ();

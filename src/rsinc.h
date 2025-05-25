@@ -124,3 +124,14 @@
 #ifdef HAVE_XMU
   def (pointerShape)
 #endif
+#ifdef ENABLE_BLOCKS
+  def (blockSupport)
+  def (blockIndicatorColor)
+#endif
+
+#ifdef ENHANCED_INPUT
+  def (enhancedInput)
+  def (inputMouseEnabled)
+  def (inputSelectionActions)
+  def (inputCursorStyle)
+#endif

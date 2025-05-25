@@ -4605,7 +4605,7 @@ void rxvt_term::draw_block_indicators(int row) {
     if (row == block->start_row) {
         // Draw a subtle line or indicator at the left margin
         XSetForeground(dpy, gc, pix_colors[Color_fg + 8]); // Use a dim color
-        XDrawLine(dpy, vt, gc, 0, ROW_Y(row), 2, ROW_Y(row));
+        XDrawLine(dpy, vt, gc, 0, (int)Row2Pixel(row), 2, (int)Row2Pixel(row));
         
         // If block is folded, show fold indicator
         if (block->folded && block->end_row != -1) {
@@ -4616,8 +4616,8 @@ void rxvt_term::draw_block_indicators(int row) {
     // Draw block end indicator  
     if (row == block->end_row && block->state == BLOCK_COMMAND_COMPLETE) {
         XSetForeground(dpy, gc, pix_colors[Color_fg + 8]);
-        XDrawLine(dpy, vt, gc, 0, ROW_Y(row) + fheight - 1, 
-                 ncol * fwidth, ROW_Y(row) + fheight - 1);
+        XDrawLine(dpy, vt, gc, 0, (int)Row2Pixel(row) + fheight - 1,
+                 ncol * fwidth, (int)Row2Pixel(row) + fheight - 1);
     }
 }
 
@@ -4625,12 +4625,12 @@ void rxvt_term::draw_fold_indicator(int row, const command_block* block) {
     char fold_text[256];
     snprintf(fold_text, sizeof(fold_text), " [%d lines] %s", 
              block->end_row - block->start_row, 
-             block->command.c_str());
+             block->command);
              
     // Draw fold text in dim color
     XSetForeground(dpy, gc, pix_colors[Color_fg + 8]);
     XDrawString(dpy, vt, gc, 
-               fwidth * 3, ROW_Y(row) + fbase,
+               fwidth * 3, (int)Row2Pixel(row) + fbase,
                fold_text, strlen(fold_text));
 }
 
