@@ -303,14 +303,6 @@ struct minimap_t {
     int height;                  // Cached height in pixels (= vt_height)
     Pixmap buffer;               // Persistent off-screen buffer (recreated on resize only)
     bool auto_hidden;            // Hidden automatically because cursor overlaps minimap
-    int last_view_start;         // view_start at last render (dirty tracking)
-    int last_top_row;            // top_row at last render (dirty tracking)
-    int last_sel_beg_row;        // selection.beg.row at last render
-    int last_sel_end_row;        // selection.end.row at last render
-    int last_sel_beg_col;        // selection.beg.col at last render
-    int last_sel_end_col;        // selection.end.col at last render
-    int last_cur_row;            // screen.cur.row at last render
-    int last_cur_col;            // screen.cur.col at last render
 
     XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
     XRenderColor bg_render_color;    // 80% opaque background color for XRender composite

@@ -1603,12 +1603,6 @@ void rxvt_term::init_minimap()
     minimap.height = vt_height;
     minimap.buffer = None;
     minimap.auto_hidden = false;
-    minimap.last_view_start = INT_MIN;
-    minimap.last_top_row = INT_MIN;
-    minimap.last_sel_beg_row = INT_MIN;
-    minimap.last_sel_end_row = INT_MIN;
-    minimap.last_sel_beg_col = INT_MIN;
-    minimap.last_sel_end_col = INT_MIN;
     minimap.xr_format = NULL;
     memset(&minimap.bg_render_color,  0, sizeof(minimap.bg_render_color));
     memset(&minimap.sel_render_color, 0, sizeof(minimap.sel_render_color));

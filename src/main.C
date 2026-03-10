@@ -1218,10 +1218,6 @@ void rxvt_term::resize_minimap()
         minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, minimap.depth);
     }
 
-    // Invalidate dirty cache so resize forces a full re-render
-    minimap.last_view_start = INT_MIN;
-    minimap.last_top_row = INT_MIN;
-
     // Clear window to show parent background
     XClearWindow(dpy, minimap.win);
 

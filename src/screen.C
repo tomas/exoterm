@@ -4370,25 +4370,6 @@ void rxvt_term::render_minimap() {
         return; // already hidden
     }
 
-    // Skip full re-render if nothing that affects the minimap has changed
-    if (view_start         == minimap.last_view_start &&
-        top_row            == minimap.last_top_row    &&
-        selection.beg.row  == minimap.last_sel_beg_row &&
-        selection.end.row  == minimap.last_sel_end_row &&
-        selection.beg.col  == minimap.last_sel_beg_col &&
-        selection.end.col  == minimap.last_sel_end_col &&
-        screen.cur.row     == minimap.last_cur_row    &&
-        screen.cur.col     == minimap.last_cur_col)
-        return;
-    minimap.last_view_start  = view_start;
-    minimap.last_top_row     = top_row;
-    minimap.last_sel_beg_row = selection.beg.row;
-    minimap.last_sel_end_row = selection.end.row;
-    minimap.last_sel_beg_col = selection.beg.col;
-    minimap.last_sel_end_col = selection.end.col;
-    minimap.last_cur_row     = screen.cur.row;
-    minimap.last_cur_col     = screen.cur.col;
-
     int win_height = minimap.height;
 
     // Make sure colors are initialized
@@ -4405,32 +4386,18 @@ void rxvt_term::render_minimap() {
     // Calculate the total content range
     int content_lines = nrow - top_row;
 
-    // Keep minimap anchored to top until viewport indicator would go off bottom
+    // Map view_start proportionally into the minimap's displayable range so that
+    // display_start and viewport_y are always derived from the same value.
     if (content_lines <= minimap.display_lines) {
-        // All content fits - show from top
         minimap.display_start = top_row;
     } else {
-
-        // // Calculate where viewport bottom would be if minimap shows from top
-        int viewport_end_line = view_start + nrow - 1;
-        int viewport_end_position_in_minimap = viewport_end_line - top_row;
-
-        // Only start moving minimap view when viewport would extend beyond minimap bottom
-        if (viewport_end_position_in_minimap < minimap.display_lines) {
-            // Viewport still fits when showing from top - keep minimap at top
-            minimap.display_start = top_row;
-
-        } else {
-            // Viewport would go beyond bottom - move minimap to keep viewport visible
-            // Position minimap so viewport bottom is at minimap bottom
-            minimap.display_start = viewport_end_line - minimap.display_lines + 1;
-
-            // Clamp to valid range
-            minimap.display_start = max(top_row,
-                                      min(minimap.display_start,
-                                          top_row + content_lines - minimap.display_lines));
-        }
-
+        double frac = (double)(view_start - top_row) / (content_lines - nrow);
+        if (frac < 0.0) frac = 0.0;
+        if (frac > 1.0) frac = 1.0;
+        int max_start = top_row + content_lines - minimap.display_lines;
+        minimap.display_start = top_row + (int)(frac * (content_lines - minimap.display_lines));
+        if (minimap.display_start < top_row) minimap.display_start = top_row;
+        if (minimap.display_start > max_start) minimap.display_start = max_start;
     }
 
     Pixmap buffer = minimap.buffer;
@@ -4636,18 +4603,10 @@ void rxvt_term::render_minimap() {
     if (viewport_height < 10) viewport_height = 10;
     if (viewport_height > win_height) viewport_height = win_height;
 
-    double viewport_position;
-    if (content_lines > minimap.display_lines) {
-        viewport_position = (double)(content_lines + view_start - nrow) / (content_lines - nrow);
-    } else {
-        viewport_position = (double)(content_lines - nrow + view_start) / minimap.display_lines * 1.125;
-    }
-
-    int viewport_y = (int)(viewport_position * (win_height - viewport_height));
-
-    // Clamp viewport position
+    // Derive viewport_y from display_start — the same basis used to draw the
+    // content rows — so the indicator is always aligned with what is drawn.
+    int viewport_y = (view_start - minimap.display_start) * total_line_height;
     if (viewport_y < 0) viewport_y = 0;
-
     if (viewport_y + viewport_height > win_height)
         viewport_y = win_height - viewport_height;
 
