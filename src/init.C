@@ -1559,6 +1559,25 @@ void rxvt_term::initialize_minimap_colors()
     }
 
     XFreeColormap(dpy, cm);
+
+    // Cache XRender visual format for the buffer pixmap
+    minimap.xr_format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, display->screen));
+
+    // 80% opaque background color for the semi-transparent overlay
+    XColor bg_xc;
+    bg_xc.pixel = default_bg;
+    XQueryColor(dpy, DefaultColormap(dpy, display->screen), &bg_xc);
+    minimap.bg_render_color.red   = bg_xc.red;
+    minimap.bg_render_color.green = bg_xc.green;
+    minimap.bg_render_color.blue  = bg_xc.blue;
+    minimap.bg_render_color.alpha = (uint16_t)(0xFFFF * 0.80);
+
+    // Selection highlight: soft blue at ~40% opacity, readable on both dark and light themes
+    minimap.sel_render_color.red   = 0x5050;
+    minimap.sel_render_color.green = 0x9090;
+    minimap.sel_render_color.blue  = 0xFFFF;
+    minimap.sel_render_color.alpha = (uint16_t)(0xFFFF * 0.40);
+
     minimap.colors_initialized = true;
 }
 
@@ -1582,6 +1601,18 @@ void rxvt_term::init_minimap()
     minimap.colors_initialized = false;
     minimap.color_cache = NULL;
     minimap.shadow_color_cache = NULL;
+    minimap.height = vt_height;
+    minimap.buffer = None;
+    minimap.auto_hidden = false;
+    minimap.last_view_start = INT_MIN;
+    minimap.last_top_row = INT_MIN;
+    minimap.last_sel_beg_row = INT_MIN;
+    minimap.last_sel_end_row = INT_MIN;
+    minimap.last_sel_beg_col = INT_MIN;
+    minimap.last_sel_end_col = INT_MIN;
+    minimap.xr_format = NULL;
+    memset(&minimap.bg_render_color,  0, sizeof(minimap.bg_render_color));
+    memset(&minimap.sel_render_color, 0, sizeof(minimap.sel_render_color));
 
     if (minimap.width < 20) minimap.width = 20;
 
@@ -1637,6 +1668,22 @@ void rxvt_term::init_minimap()
         minimap.gc = XCreateGC(dpy, minimap.win, GCForeground | GCBackground | GCGraphicsExposures, &gcv);
 
         if (minimap.gc) {
+            // Create persistent off-screen buffer (avoids per-render alloc/free)
+            unsigned int depth = DefaultDepth(dpy, display->screen);
+#if ENABLE_FRILLS
+            if (rs[Rs_depth]) depth = atoi(rs[Rs_depth]);
+#endif
+            minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, depth);
+
+            // Enable backing store on vt *before* mapping the minimap window on top of it.
+            // Without this, XCopyArea from the obscured region of vt gives undefined pixels,
+            // making the 80%-opacity blend appear fully opaque.
+            {
+                XSetWindowAttributes bs;
+                bs.backing_store = Always;
+                XChangeWindowAttributes(dpy, vt, CWBackingStore, &bs);
+            }
+
             XMapWindow(dpy, minimap.win);
             minimap.enabled = true;
 

@@ -2200,10 +2200,6 @@ rxvt_term::scr_changeview (int new_view_start) NOTHROW
   view_start = new_view_start;
   want_refresh = 1;
 
-  if (minimap.enabled && mapped) {
-      render_minimap();
-  }
-
   HOOK_INVOKE ((this, HOOK_VIEW_CHANGE, DT_INT, view_start, DT_END));
 
   return true;
@@ -4356,11 +4352,40 @@ void rxvt_term::render_minimap() {
     // Basic checks
     if (!minimap.enabled || !minimap.win || !minimap.gc || !minimap.visible || !mapped)
         return;
-
-    // Get actual window attributes to ensure dimensions are correct
-    XWindowAttributes winattr;
-    if (!XGetWindowAttributes(dpy, minimap.win, &winattr))
+    if (minimap.height <= 0 || minimap.buffer == None)
         return;
+
+    // Auto-hide: if the cursor column overlaps the minimap region, unmap the window
+    int minimap_start_col = (vt_width - minimap.width) / fwidth;
+    bool cursor_in_minimap = (screen.cur.col >= minimap_start_col);
+    if (cursor_in_minimap && !minimap.auto_hidden) {
+        minimap.auto_hidden = true;
+        XUnmapWindow(dpy, minimap.win);
+        return;
+    } else if (!cursor_in_minimap && minimap.auto_hidden) {
+        minimap.auto_hidden = false;
+        XMapWindow(dpy, minimap.win);
+        // fall through to re-render
+    } else if (cursor_in_minimap) {
+        return; // already hidden
+    }
+
+    // Skip full re-render if nothing that affects the minimap has changed
+    if (view_start         == minimap.last_view_start &&
+        top_row            == minimap.last_top_row    &&
+        selection.beg.row  == minimap.last_sel_beg_row &&
+        selection.end.row  == minimap.last_sel_end_row &&
+        selection.beg.col  == minimap.last_sel_beg_col &&
+        selection.end.col  == minimap.last_sel_end_col)
+        return;
+    minimap.last_view_start  = view_start;
+    minimap.last_top_row     = top_row;
+    minimap.last_sel_beg_row = selection.beg.row;
+    minimap.last_sel_end_row = selection.end.row;
+    minimap.last_sel_beg_col = selection.beg.col;
+    minimap.last_sel_end_col = selection.end.col;
+
+    int win_height = minimap.height;
 
     // Make sure colors are initialized
     if (!minimap.colors_initialized) {
@@ -4371,7 +4396,7 @@ void rxvt_term::render_minimap() {
     int total_line_height = minimap.line_height + minimap.line_spacing;
 
     // Calculate how many lines we can display in the minimap
-    minimap.display_lines = winattr.height / total_line_height;
+    minimap.display_lines = win_height / total_line_height;
 
     // Calculate the total content range
     int content_lines = nrow - top_row;
@@ -4404,21 +4429,20 @@ void rxvt_term::render_minimap() {
 
     }
 
-    unsigned int depth = DefaultDepth(dpy, display->screen);
+    Pixmap buffer = minimap.buffer;
 
-#if ENABLE_FRILLS
-    if (rs[Rs_depth]) {
-      depth = atoi(rs[Rs_depth]);
-      // printf("Using depth: %d\n", depth);
+    // Seed the buffer with the terminal content that sits behind the minimap,
+    // then blend the background color over it at 80% opacity — giving true
+    // semi-transparency without a compositor.
+    int src_x = max(0, vt_width - minimap.width);
+    XCopyArea(dpy, vt, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
+
+    if (minimap.xr_format) {
+        Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
+        XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.bg_render_color,
+                             0, 0, minimap.width, win_height);
+        XRenderFreePicture(dpy, buf_pic);
     }
-#endif
-
-    // Create a pixmap for drawing
-    Pixmap buffer = XCreatePixmap(dpy, minimap.win, minimap.width, winattr.height, depth);
-
-    // Clear the buffer with the background color
-    XSetForeground(dpy, minimap.gc, lookup_color(Color_bg, pix_colors));
-    XFillRectangle(dpy, buffer, minimap.gc, 0, 0, minimap.width, winattr.height);
 
     // Cache common colors for performance
     unsigned long default_fg = lookup_color(Color_fg, pix_colors);
@@ -4554,11 +4578,59 @@ void rxvt_term::render_minimap() {
         }
     }
 
+    // Draw selection highlight overlay on top of text
+    if (minimap.xr_format && selection.op != SELECTION_CLEAR &&
+        !(selection.beg.row == selection.end.row && selection.beg.col == selection.end.col)) {
+
+        Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
+
+        for (int i = 0; i < minimap.display_lines; i++) {
+            int row = minimap.display_start + i;
+            if (row < top_row || row >= top_row + total_rows)
+                continue;
+
+            int y = i * total_line_height;
+            int sel_x = 0, sel_w = minimap.width;
+            bool in_sel = false;
+
+            if (selection.rect) {
+                if (row >= selection.beg.row && row < selection.end.row) {
+                    in_sel = true;
+                    sel_x = (int)(min(selection.beg.col, selection.end.col) * minimap.char_width);
+                    sel_w = (int)(abs(selection.end.col - selection.beg.col) * minimap.char_width);
+                }
+            } else {
+                if (row > selection.beg.row && row < selection.end.row) {
+                    in_sel = true;
+                } else if (row == selection.beg.row && row == selection.end.row) {
+                    if (selection.beg.col < selection.end.col) {
+                        in_sel = true;
+                        sel_x = (int)(selection.beg.col * minimap.char_width);
+                        sel_w = (int)((selection.end.col - selection.beg.col) * minimap.char_width);
+                    }
+                } else if (row == selection.beg.row) {
+                    in_sel = true;
+                    sel_x = (int)(selection.beg.col * minimap.char_width);
+                    sel_w = minimap.width - sel_x;
+                } else if (row == selection.end.row && selection.end.col > 0) {
+                    in_sel = true;
+                    sel_w = (int)(selection.end.col * minimap.char_width);
+                }
+            }
+
+            if (in_sel && sel_w > 0)
+                XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.sel_render_color,
+                                     sel_x, y, sel_w, total_line_height);
+        }
+
+        XRenderFreePicture(dpy, buf_pic);
+    }
+
     int viewport_height = nrow * total_line_height;
 
     // Ensure minimum height for usability
     if (viewport_height < 10) viewport_height = 10;
-    if (viewport_height > winattr.height) viewport_height = winattr.height;
+    if (viewport_height > win_height) viewport_height = win_height;
 
     double viewport_position;
     if (content_lines > minimap.display_lines) {
@@ -4567,23 +4639,20 @@ void rxvt_term::render_minimap() {
         viewport_position = (double)(content_lines - nrow + view_start) / minimap.display_lines * 1.125;
     }
 
-    int viewport_y = (int)(viewport_position * (winattr.height - viewport_height));
+    int viewport_y = (int)(viewport_position * (win_height - viewport_height));
 
     // Clamp viewport position
     if (viewport_y < 0) viewport_y = 0;
 
-    if (viewport_y + viewport_height > winattr.height)
-        viewport_y = winattr.height - viewport_height;
+    if (viewport_y + viewport_height > win_height)
+        viewport_y = win_height - viewport_height;
 
     // Draw viewport indicator
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
     XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 
     XCopyArea(dpy, buffer, minimap.win, minimap.gc,
-             0, 0, minimap.width, winattr.height, 0, 0);
-
-    // Free the buffer
-    XFreePixmap(dpy, buffer);
+             0, 0, minimap.width, win_height, 0, 0);
 }
 
 #endif

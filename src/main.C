@@ -285,6 +285,11 @@ rxvt_term::~rxvt_term ()
         minimap.shadow_color_cache = NULL;
     }
 
+    if (minimap.buffer != None) {
+        XFreePixmap(dpy, minimap.buffer);
+        minimap.buffer = None;
+    }
+
     if (minimap.gc != None) {
         XFreeGC(dpy, minimap.gc);
         minimap.gc = None;
@@ -1186,7 +1191,10 @@ void rxvt_term::resize_minimap()
         return;
 
     // Position minimap at the right side of terminal
+    int old_width = minimap.width;
+    int old_height = minimap.height;
     minimap.width = (int)(ncol * minimap.char_width);
+    minimap.height = vt_height;
     int minimap_x = vt_width + int_bwidth - minimap.width;
 
     // For better transparency effect, ensure proper window attributes
@@ -1200,6 +1208,23 @@ void rxvt_term::resize_minimap()
     XMoveResizeWindow(dpy, minimap.win,
                      minimap_x, int_bwidth,
                      minimap.width, vt_height);
+
+    // Recreate persistent buffer if dimensions changed
+    if (minimap.buffer != None && (minimap.width != old_width || minimap.height != old_height)) {
+        XFreePixmap(dpy, minimap.buffer);
+        minimap.buffer = None;
+    }
+    if (minimap.buffer == None && minimap.gc != None) {
+        unsigned int depth = DefaultDepth(dpy, display->screen);
+#if ENABLE_FRILLS
+        if (rs[Rs_depth]) depth = atoi(rs[Rs_depth]);
+#endif
+        minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, depth);
+    }
+
+    // Invalidate dirty cache so resize forces a full re-render
+    minimap.last_view_start = INT_MIN;
+    minimap.last_top_row = INT_MIN;
 
     // Clear window to show parent background
     XClearWindow(dpy, minimap.win);

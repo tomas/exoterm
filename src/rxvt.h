@@ -297,8 +297,21 @@ struct minimap_t {
     unsigned long *color_cache;
     unsigned long *shadow_color_cache;
 
-
     bool colors_initialized;     // Whether color caches are initialized
+
+    int height;                  // Cached height in pixels (= vt_height)
+    Pixmap buffer;               // Persistent off-screen buffer (recreated on resize only)
+    bool auto_hidden;            // Hidden automatically because cursor overlaps minimap
+    int last_view_start;         // view_start at last render (dirty tracking)
+    int last_top_row;            // top_row at last render (dirty tracking)
+    int last_sel_beg_row;        // selection.beg.row at last render
+    int last_sel_end_row;        // selection.end.row at last render
+    int last_sel_beg_col;        // selection.beg.col at last render
+    int last_sel_end_col;        // selection.end.col at last render
+
+    XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
+    XRenderColor bg_render_color;    // 80% opaque background color for XRender composite
+    XRenderColor sel_render_color;   // Selection highlight overlay color
 };
 
 #endif
