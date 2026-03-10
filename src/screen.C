@@ -4314,6 +4314,36 @@ rxvt_term::scr_overlay_set (int x, int y, const wchar_t *s) NOTHROW
     }
 }
 
+void XDrawRoundedRectangle(Display *display, Drawable drawable, GC gc,
+                          int x, int y, unsigned int width, unsigned int height) {
+    // Only draw if rectangle has meaningful size
+    if (width < 2 || height < 2) {
+        // For tiny rectangles, fall back to normal rectangle or point
+        XDrawRectangle(display, drawable, gc, x, y, width, height);
+        return;
+    }
+
+    // Draw top border (skip leftmost and rightmost pixels)
+    XDrawLine(display, drawable, gc,
+              x + 1, y,                // Start 1px right of left corner
+              x + width - 1, y);       // End 1px left of right corner
+
+    // Draw bottom border (skip leftmost and rightmost pixels)
+    XDrawLine(display, drawable, gc,
+              x + 1, y + height,       // Start 1px right of left corner
+              x + width - 1, y + height); // End 1px left of right corner
+
+    // Draw left border (skip topmost and bottommost pixels)
+    XDrawLine(display, drawable, gc,
+              x, y + 1,                // Start 1px down from top corner
+              x, y + height - 1);      // End 1px up from bottom corner
+
+    // Draw right border (skip topmost and bottommost pixels)
+    XDrawLine(display, drawable, gc,
+              x + width, y + 1,        // Start 1px down from top corner
+              x + width, y + height - 1); // End 1px up from bottom corner
+}
+
 void
 rxvt_term::scr_swap_overlay () NOTHROW
 {
@@ -4610,9 +4640,17 @@ void rxvt_term::render_minimap() {
     if (viewport_y + viewport_height > win_height)
         viewport_y = win_height - viewport_height;
 
+    if (viewport_y + viewport_height == win_height) {
+      viewport_y -= 1;
+      // viewport_height -= 1;
+    }
+
+    XSetForeground(dpy, minimap.gc, lookup_color(Color_Grey25, pix_colors_focused));
+    XDrawRoundedRectangle(dpy, buffer, minimap.gc, 0, 0, minimap.width-1, minimap.height-1);
+
     // Draw viewport indicator
     XSetForeground(dpy, minimap.gc, lookup_color(Color_White, pix_colors));
-    XDrawRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
+    XDrawRoundedRectangle(dpy, buffer, minimap.gc, 0, viewport_y, minimap.width - 1, viewport_height);
 
     XCopyArea(dpy, buffer, minimap.win, minimap.gc,
              0, 0, minimap.width, win_height, 0, 0);

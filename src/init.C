@@ -1645,8 +1645,8 @@ void rxvt_term::init_minimap()
         parent,
         minimap_x, int_bwidth,
         minimap.width, vt_height,
-        1, // border width
-        lookup_color(Color_Grey25, pix_colors_focused),
+        0, // border width
+        None,
         lookup_color(Color_bg, pix_colors_focused)
     );
 
