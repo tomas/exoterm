@@ -279,6 +279,7 @@ struct minimap_t {
     bool visible;
     int width;              // Width of minimap in pixels
     Window win;             // X Window for the minimap
+    int depth;              // Depth of the minimap window
     GC gc;                  // Graphics context
     int line_height;        // Height of each line in pixels
     double char_width;      // Width of each character in minimap pixels

@@ -1520,8 +1520,7 @@ void set_wm_name(Display * display, Window win, char * name) {
 
 #ifdef ENABLE_MINIMAP
 
-void rxvt_term::initialize_minimap_colors()
-{
+void rxvt_term::initialize_minimap_colors() {
     if (minimap.colors_initialized)
         return;
 
@@ -1533,7 +1532,7 @@ void rxvt_term::initialize_minimap_colors()
 
     XVisualInfo vinfo;
     XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
-    Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
+    Colormap colormap = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
     for (int i = 0; i < TOTAL_COLORS; i++) {
         minimap.color_cache[i] = lookup_color(i, pix_colors);
@@ -1543,22 +1542,21 @@ void rxvt_term::initialize_minimap_colors()
         xc.pixel = minimap.color_cache[i];
         bg_xc.pixel = default_bg;
 
-        XQueryColor(dpy, cm, &xc);
-        XQueryColor(dpy, cm, &bg_xc);
+        XQueryColor(dpy, colormap, &xc);
+        XQueryColor(dpy, colormap, &bg_xc);
 
         // Blend with background color
         result.red = (xc.red + bg_xc.red) / 2;
         result.green = (xc.green + bg_xc.green) / 2;
         result.blue = (xc.blue + bg_xc.blue) / 2;
 
-        if (XAllocColor(dpy, cm, &result)) {
+        if (XAllocColor(dpy, colormap, &result)) {
             minimap.shadow_color_cache[i] = result.pixel;
         } else {
             minimap.shadow_color_cache[i] = minimap.color_cache[i]; // Fallback to regular color
         }
     }
 
-    XFreeColormap(dpy, cm);
 
     // Cache XRender visual format for the buffer pixmap
     minimap.xr_format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, display->screen));
@@ -1566,7 +1564,7 @@ void rxvt_term::initialize_minimap_colors()
     // 80% opaque background color for the semi-transparent overlay
     XColor bg_xc;
     bg_xc.pixel = default_bg;
-    XQueryColor(dpy, DefaultColormap(dpy, display->screen), &bg_xc);
+    XQueryColor(dpy, colormap, &bg_xc);
     minimap.bg_render_color.red   = bg_xc.red;
     minimap.bg_render_color.green = bg_xc.green;
     minimap.bg_render_color.blue  = bg_xc.blue;
@@ -1579,6 +1577,7 @@ void rxvt_term::initialize_minimap_colors()
     minimap.sel_render_color.alpha = (uint16_t)(0xFFFF * 0.40);
 
     minimap.colors_initialized = true;
+    XFreeColormap(dpy, colormap);
 }
 
 void rxvt_term::init_minimap()
@@ -1668,12 +1667,13 @@ void rxvt_term::init_minimap()
         minimap.gc = XCreateGC(dpy, minimap.win, GCForeground | GCBackground | GCGraphicsExposures, &gcv);
 
         if (minimap.gc) {
+          XWindowAttributes wattrs;
+          XGetWindowAttributes(dpy, minimap.win, &wattrs);
+          minimap.depth = wattrs.depth;
+          minimap.xr_format = XRenderFindVisualFormat(dpy, wattrs.visual);
+
             // Create persistent off-screen buffer (avoids per-render alloc/free)
-            unsigned int depth = DefaultDepth(dpy, display->screen);
-#if ENABLE_FRILLS
-            if (rs[Rs_depth]) depth = atoi(rs[Rs_depth]);
-#endif
-            minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, depth);
+            minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, minimap.depth);
 
             // Enable backing store on vt *before* mapping the minimap window on top of it.
             // Without this, XCopyArea from the obscured region of vt gives undefined pixels,

@@ -1215,11 +1215,7 @@ void rxvt_term::resize_minimap()
         minimap.buffer = None;
     }
     if (minimap.buffer == None && minimap.gc != None) {
-        unsigned int depth = DefaultDepth(dpy, display->screen);
-#if ENABLE_FRILLS
-        if (rs[Rs_depth]) depth = atoi(rs[Rs_depth]);
-#endif
-        minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, depth);
+        minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, minimap.depth);
     }
 
     // Invalidate dirty cache so resize forces a full re-render
