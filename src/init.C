@@ -1561,20 +1561,20 @@ void rxvt_term::initialize_minimap_colors() {
     // Cache XRender visual format for the buffer pixmap
     minimap.xr_format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, display->screen));
 
-    // 80% opaque background color for the semi-transparent overlay
+    // 50% opaque background color for the semi-transparent overlay
     XColor bg_xc;
     bg_xc.pixel = default_bg;
     XQueryColor(dpy, colormap, &bg_xc);
     minimap.bg_render_color.red   = bg_xc.red;
     minimap.bg_render_color.green = bg_xc.green;
     minimap.bg_render_color.blue  = bg_xc.blue;
-    minimap.bg_render_color.alpha = (uint16_t)(0xFFFF * 0.80);
+    minimap.bg_render_color.alpha = (uint16_t)(0xFFFF * 0.50);
 
-    // Selection highlight: soft blue at ~40% opacity, readable on both dark and light themes
+    // Selection highlight: soft blue at ~30% opacity, readable on both dark and light themes
     minimap.sel_render_color.red   = 0x5050;
     minimap.sel_render_color.green = 0x9090;
     minimap.sel_render_color.blue  = 0xFFFF;
-    minimap.sel_render_color.alpha = (uint16_t)(0xFFFF * 0.40);
+    minimap.sel_render_color.alpha = (uint16_t)(0xFFFF * 0.30);
 
     minimap.colors_initialized = true;
     XFreeColormap(dpy, colormap);

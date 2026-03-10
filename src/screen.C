@@ -4376,7 +4376,9 @@ void rxvt_term::render_minimap() {
         selection.beg.row  == minimap.last_sel_beg_row &&
         selection.end.row  == minimap.last_sel_end_row &&
         selection.beg.col  == minimap.last_sel_beg_col &&
-        selection.end.col  == minimap.last_sel_end_col)
+        selection.end.col  == minimap.last_sel_end_col &&
+        screen.cur.row     == minimap.last_cur_row    &&
+        screen.cur.col     == minimap.last_cur_col)
         return;
     minimap.last_view_start  = view_start;
     minimap.last_top_row     = top_row;
@@ -4384,6 +4386,8 @@ void rxvt_term::render_minimap() {
     minimap.last_sel_end_row = selection.end.row;
     minimap.last_sel_beg_col = selection.beg.col;
     minimap.last_sel_end_col = selection.end.col;
+    minimap.last_cur_row     = screen.cur.row;
+    minimap.last_cur_col     = screen.cur.col;
 
     int win_height = minimap.height;
 
