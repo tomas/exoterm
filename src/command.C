@@ -415,7 +415,7 @@ vector<char> search_chars;
 // #define MATCH_BGCOLOR 54 // purple
 #define MATCH_BGCOLOR 244
 #define MATCH_BGCOLOR_SELECTED 62
-#define MAX_SEARCH_SCROLLBACK -1000
+#define MAX_SEARCH_SCROLLBACK -5000
 
 struct search_match {
   int row;
