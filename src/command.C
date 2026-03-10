@@ -999,7 +999,12 @@ rxvt_term::key_press (XKeyEvent &ev)
                 /* FALLTHROUGH */
 
               case XK_Return:
-                if (priv_modes & PrivMode_LFNL)
+                if (shft)
+                  {
+                    kbuf[0] = '\012';
+                    kbuf[1] = '\0';
+                  }
+                else if (priv_modes & PrivMode_LFNL)
                   {
                     kbuf[0] = '\015';
                     kbuf[1] = '\012';
