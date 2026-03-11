@@ -1681,7 +1681,8 @@ rxvt_term::draw_tabpopup ()
     }
 
     int tw     = XTextWidth (tabpopup.font, label, text_len);
-    int text_x = x + (w - tw) / 2;
+    // int text_x = x; // + (w - tw) / 2;
+    int text_x = x + (tabpopup.font->ascent/2);
     XSetForeground (dpy, tabpopup.gc,
                     is_active ? tabpopup.fg_active : tabpopup.fg_inactive);
     XDrawString (dpy, tabpopup.win, tabpopup.gc, text_x, text_y, label, text_len);
