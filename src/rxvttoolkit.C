@@ -831,33 +831,42 @@ rxvt_color::set (rxvt_screen *screen, const char *name)
 
   c.a = rgba::MAX_CC;
 
-  // parse the nonstandard "[alphapercent]" prefix
-  if (1 <= sscanf (name, "[%hd]%n", &c.a, &skip))
-    {
-      c.a = lerp<int, int, int> (0, rgba::MAX_CC, c.a);
-      name += skip;
-    }
+  if (strcmp(name, "default") == 0) {
 
-  // parse the non-standard "rgba:rrrr/gggg/bbbb/aaaa" format
-  if (strlen (name) != 4+5*4 || 4 != sscanf (name, "rgba:%4hx/%4hx/%4hx/%4hx%c", &c.r, &c.g, &c.b, &c.a, &eos))
-    {
-      XColor xc;
+    c.r = rgba::MAX_CC;
+    c.g = rgba::MAX_CC;
+    c.b = rgba::MAX_CC;
 
-      if (XParseColor (screen->dpy, screen->cmap, name, &xc))
-        {
-          c.r = xc.red;
-          c.g = xc.green;
-          c.b = xc.blue;
-        }
-      else
-        {
-          c.r = 0xffff;
-          c.g = 0x6969;
-          c.b = 0xb4b4;
+  } else {
 
-          rxvt_warn ("unable to parse color '%s', using pink instead.\n", name);
-        }
-    }
+    // parse the nonstandard "[alphapercent]" prefix
+    if (1 <= sscanf (name, "[%hd]%n", &c.a, &skip))
+      {
+        c.a = lerp<int, int, int> (0, rgba::MAX_CC, c.a);
+        name += skip;
+      }
+
+    // parse the non-standard "rgba:rrrr/gggg/bbbb/aaaa" format
+    if (strlen (name) != 4+5*4 || 4 != sscanf (name, "rgba:%4hx/%4hx/%4hx/%4hx%c", &c.r, &c.g, &c.b, &c.a, &eos))
+      {
+        XColor xc;
+
+        if (XParseColor (screen->dpy, screen->cmap, name, &xc))
+          {
+            c.r = xc.red;
+            c.g = xc.green;
+            c.b = xc.blue;
+          }
+        else
+          {
+            c.r = 0xffff;
+            c.g = 0x6969;
+            c.b = 0xb4b4;
+
+            rxvt_warn ("unable to parse color '%s', using pink instead.\n", name);
+          }
+      }
+  }
 
   return set (screen, c);
 }
