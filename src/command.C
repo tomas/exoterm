@@ -4736,6 +4736,7 @@ rxvt_term::process_dcs_seq ()
   int x, y;
   sixel_state_t sixel_st = { PS_GROUND };
   imagelist_t *new_image;
+  size_t pixel_size;
   line_t l;
 
   while (1) {
@@ -4831,6 +4832,13 @@ rxvt_term::process_dcs_seq ()
                                   fg.b >> 8 << 16 | fg.g >> 8 << 8 | fg.r >> 8,
                                   bg.b >> 8 << 16 | bg.g >> 8 << 8 | bg.r >> 8,
                                   1, fwidth, fheight);
+
+                if (sixel_st.image.width == 0 || sixel_st.image.height == 0 ||
+                    sixel_st.image.width > 4096 || sixel_st.image.height > 4096) {
+                    // Invalid or excessive size – ignore the image
+                    sixel_parser_deinit(&sixel_st);
+                    goto end;
+                }
               }
               break;
             default:
@@ -4864,10 +4872,25 @@ rxvt_term::process_dcs_seq ()
       case '\\':
         switch (cmd) {
         case 'q':  /* DECSIXEL */
-          new_image = (imagelist_t *)rxvt_calloc (1, sizeof(imagelist_t));
-          new_image->pixels = (unsigned char *)rxvt_malloc (sixel_st.image.width * sixel_st.image.height * 4);
-          (void) sixel_parser_finalize (&sixel_st, new_image->pixels);
+
+          pixel_size = (size_t)sixel_st.image.width * sixel_st.image.height * 4;
+          if (pixel_size / 4 != (size_t)sixel_st.image.width * sixel_st.image.height) {
+              // Overflow – abort
+              sixel_parser_deinit(&sixel_st);
+              goto end;
+          }
+
+          new_image = (imagelist_t *) rxvt_calloc(1, sizeof(imagelist_t));
+          new_image->pixels = (unsigned char *) rxvt_malloc(pixel_size);
+          if (!new_image->pixels) {
+              free(new_image);
+              sixel_parser_deinit(&sixel_st);
+              goto end;
+          }
+
+          (void) sixel_parser_finalize(&sixel_st, new_image->pixels);
           sixel_parser_deinit(&sixel_st);
+
           new_image->col = screen.cur.col;
           new_image->row = screen.cur.row + virtual_lines;
           new_image->pxwidth = sixel_st.image.width;
