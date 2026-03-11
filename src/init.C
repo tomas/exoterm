@@ -1690,6 +1690,72 @@ void rxvt_term::init_minimap()
 #endif
 
 void
+rxvt_term::init_tabpopup ()
+{
+  tabpopup.visible            = false;
+  tabpopup.keyboard_triggered = false;
+  tabpopup.win                = None;
+  tabpopup.gc                 = None;
+  tabpopup.font               = nullptr;
+  tabpopup.height             = fheight + 8;
+
+  // Only the root term (index 0) owns the popup window
+  if (tab_index != 0) return;
+
+  int screen   = DefaultScreen (dpy);
+  Colormap cm  = DefaultColormap (dpy, screen);
+
+  XSetWindowAttributes attr = {};
+  attr.override_redirect = True;
+  attr.background_pixel  = BlackPixel (dpy, screen);
+  attr.border_pixel      = 0;
+
+  tabpopup.win = XCreateWindow (
+    dpy, DefaultRootWindow (dpy),
+    0, 0, szHint.width, tabpopup.height, 0,
+    DefaultDepth (dpy, screen), InputOutput,
+    DefaultVisual (dpy, screen),
+    CWOverrideRedirect | CWBackPixel | CWBorderPixel, &attr
+  );
+  if (!tabpopup.win) return;
+
+  // Try to use the same font the terminal uses (bitmap XLFD name)
+  const char *fdesc = fontset[0] ? fontset[0]->fontdesc : nullptr;
+  if (fdesc && strncmp (fdesc, "xft:", 4) != 0)
+    tabpopup.font = XLoadQueryFont (dpy, fdesc);
+  if (!tabpopup.font)
+    tabpopup.font = XLoadQueryFont (dpy, "-misc-fixed-medium-r-normal--13-*-*-*-*-*-iso8859-1");
+  if (!tabpopup.font)
+    tabpopup.font = XLoadQueryFont (dpy, "fixed");
+  if (!tabpopup.font) {
+    XDestroyWindow (dpy, tabpopup.win); tabpopup.win = None;
+    return;
+  }
+
+  tabpopup.height = tabpopup.font->ascent + tabpopup.font->descent + 8;
+
+  XGCValues gcv = {};
+  gcv.foreground         = WhitePixel (dpy, screen);
+  gcv.background         = BlackPixel (dpy, screen);
+  gcv.font               = tabpopup.font->fid;
+  gcv.graphics_exposures = 0;
+  tabpopup.gc = XCreateGC (dpy, tabpopup.win,
+                            GCForeground | GCBackground | GCFont | GCGraphicsExposures, &gcv);
+  if (!tabpopup.gc) {
+    XFreeFont (dpy, tabpopup.font); tabpopup.font = nullptr;
+    XDestroyWindow (dpy, tabpopup.win); tabpopup.win = None;
+    return;
+  }
+
+  XColor c;
+  XParseColor (dpy, cm, "#5cb7e0", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_active   = c.pixel;
+  XParseColor (dpy, cm, "#0d1117", &c); XAllocColor (dpy, cm, &c); tabpopup.fg_active   = c.pixel;
+  XParseColor (dpy, cm, "#2a2f3d", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_inactive = c.pixel;
+  tabpopup.fg_inactive = WhitePixel (dpy, screen);
+  XParseColor (dpy, cm, "#111118", &c); XAllocColor (dpy, cm, &c); tabpopup.bar_bg      = c.pixel;
+}
+
+void
 rxvt_term::create_windows (int argc, const char *const *argv)
 {
   XClassHint classHint;
@@ -1907,6 +1973,14 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   }
 
 #endif
+
+  init_tabpopup ();
+  if (tabpopup.win != None) {
+    XSelectInput (dpy, tabpopup.win,
+                  ExposureMask | ButtonPressMask | ButtonReleaseMask |
+                  EnterWindowMask | LeaveWindowMask);
+    tabpopup_ev.start (display, tabpopup.win);
+  }
 
 #ifdef ENABLE_DND
   xdnd_init();

@@ -204,6 +204,9 @@ rxvt_term::rxvt_term ()
 #ifdef ENABLE_MINIMAP
   minimap_ev.set          <rxvt_term, &rxvt_term::x_minimap_cb> (this);
 #endif
+  tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
+  tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
+  tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
 
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 
@@ -301,6 +304,28 @@ rxvt_term::~rxvt_term ()
     }
   }
 #endif
+
+  tabpopup_refresh_ev.stop ();
+  if (tabpopup.win != None) {
+    tabpopup_ev.stop (display);
+    tabpopup_hide_ev.stop ();
+    if (tabpopup.gc != None) { XFreeGC (dpy, tabpopup.gc); tabpopup.gc = None; }
+    if (tabpopup.font) { XFreeFont (dpy, tabpopup.font); tabpopup.font = nullptr; }
+    XDestroyWindow (dpy, tabpopup.win);
+    tabpopup.win = None;
+
+    // Re-create the popup on the new root term (termlist already reindexed)
+    if (!termlist.empty ()) {
+      rxvt_term *new_root = termlist[0];
+      new_root->init_tabpopup ();
+      if (new_root->tabpopup.win != None) {
+        XSelectInput (dpy, new_root->tabpopup.win,
+                      ExposureMask | ButtonPressMask | ButtonReleaseMask |
+                      EnterWindowMask | LeaveWindowMask);
+        new_root->tabpopup_ev.start (display, new_root->tabpopup.win);
+      }
+    }
+  }
 
   if (display) {
       selection_clear ();
@@ -1330,6 +1355,8 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   if (minimap.enabled) {
     resize_minimap();
   }
+
+  resize_tabpopup ();
 
   if (fix_screen || old_height == 0) {
     // printf("scr_reset on resizing\n");

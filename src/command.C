@@ -59,6 +59,8 @@
 
 #include <string>
 #include <signal.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #if LINUX_YIELD_HACK
 # include <time.h>
@@ -1137,6 +1139,17 @@ rxvt_term::key_press (XKeyEvent &ev)
     return next_tab(0);
   }
 
+  // Ctrl+Tab → next tab (show popup briefly)
+  if (ctrl && !shft && keysym == XK_Tab) {
+    show_tabpopup (1.0);
+    return next_tab (0);
+  }
+  // Ctrl+Shift+Tab (XK_ISO_Left_Tab) → prev tab
+  if (ctrl && (keysym == XK_ISO_Left_Tab || (shft && keysym == XK_Tab))) {
+    show_tabpopup (1.0);
+    return prev_tab (0);
+  }
+
   if (HOOK_INVOKE ((this, HOOK_KEY_PRESS, DT_XEVENT, &ev, DT_INT, keysym, DT_STR_LEN, kbuf, len, DT_END)))
     return;
 
@@ -1574,6 +1587,226 @@ void copy_position(Display * dpy, Window src, Window target, int offset_x, int o
   // printf("move window status: %d\n", status);
 }
 
+/* ---- Tab popup (hover/Ctrl+Tab expanded tab bar) ---- */
+
+void
+rxvt_term::get_tab_label (rxvt_term *tab, char *buf, int bufsize)
+{
+  // Try to get foreground process name
+  if (tab->pty && tab->pty->pty >= 0) {
+    pid_t pgid = tcgetpgrp (tab->pty->pty);
+    if (pgid > 0) {
+      char path[64];
+      snprintf (path, sizeof path, "/proc/%d/comm", (int)pgid);
+      int fd = open (path, O_RDONLY);
+      if (fd >= 0) {
+        char comm[64] = {};
+        int n = read (fd, comm, sizeof (comm) - 1);
+        close (fd);
+        while (n > 0 && (comm[n-1] == '\n' || comm[n-1] == '\r')) n--;
+        comm[n] = '\0';
+        static const char *shells[] = {
+          "bash", "zsh", "fish", "sh", "dash", "ksh", "mksh", "tcsh", "csh", nullptr
+        };
+        bool is_shell = false;
+        for (int i = 0; shells[i]; i++)
+          if (strcmp (comm, shells[i]) == 0) { is_shell = true; break; }
+        if (!is_shell && n > 0) {
+          snprintf (buf, bufsize, "%s", comm);
+          return;
+        }
+      }
+    }
+  }
+
+  // Fall back to CWD
+  char cwd[512] = {};
+  tab->get_current_path (cwd, sizeof cwd);
+  if (cwd[0]) {
+    const char *home = getenv ("HOME");
+    if (home && home[0]) {
+      size_t hlen = strlen (home);
+      if (strncmp (cwd, home, hlen) == 0 && (cwd[hlen] == '/' || cwd[hlen] == '\0')) {
+        snprintf (buf, bufsize, "~%s", cwd + hlen);
+        return;
+      }
+    }
+    snprintf (buf, bufsize, "%s", cwd);
+    return;
+  }
+
+  snprintf (buf, bufsize, "tab %d", tab->tab_index + 1);
+}
+
+void
+rxvt_term::draw_tabpopup ()
+{
+  if (!tabpopup.win || !tabpopup.gc || !tabpopup.font) return;
+  if (termlist.empty ()) return;
+
+  int ntabs       = (int)termlist.size ();
+  int total_width = szHint.width;
+  int h           = tabpopup.height;
+  int text_y      = (h + tabpopup.font->ascent - tabpopup.font->descent) / 2;
+
+  // Background
+  XSetForeground (dpy, tabpopup.gc, tabpopup.bar_bg);
+  XFillRectangle (dpy, tabpopup.win, tabpopup.gc, 0, 0, total_width, h);
+
+  int tab_w = total_width / ntabs;
+
+  for (int i = 0; i < ntabs; i++) {
+    rxvt_term *tab   = termlist[i];
+    bool is_active   = ((unsigned int)i == GET_R->tab_index);
+    int x            = i * tab_w;
+    int w            = (i == ntabs - 1) ? (total_width - x) : tab_w;
+
+    XSetForeground (dpy, tabpopup.gc,
+                    is_active ? tabpopup.bg_active : tabpopup.bg_inactive);
+    XFillRectangle (dpy, tabpopup.win, tabpopup.gc, x, 0, w - 1, h);
+
+    if (is_active)
+      XFillRectangle (dpy, tabpopup.win, tabpopup.gc, x, h - 2, w - 1, 2);
+
+    char label[256];
+    get_tab_label (tab, label, sizeof label);
+    int text_len = strlen (label);
+
+    int pad = 8;
+    while (text_len > 1) {
+      int tw = XTextWidth (tabpopup.font, label, text_len);
+      if (tw <= w - pad * 2) break;
+      text_len--;
+      if (text_len >= 3) { label[text_len-3] = '.'; label[text_len-2] = '.'; label[text_len-1] = '.'; }
+    }
+
+    int tw     = XTextWidth (tabpopup.font, label, text_len);
+    int text_x = x + (w - tw) / 2;
+    XSetForeground (dpy, tabpopup.gc,
+                    is_active ? tabpopup.fg_active : tabpopup.fg_inactive);
+    XDrawString (dpy, tabpopup.win, tabpopup.gc, text_x, text_y, label, text_len);
+  }
+
+  XFlush (dpy);
+}
+
+void
+rxvt_term::show_tabpopup (float hide_after)
+{
+  // Delegate to the root term which owns the window
+  if (tab_index != 0) {
+    termlist[0]->show_tabpopup (hide_after);
+    return;
+  }
+
+  if (!tabpopup.win) return;
+
+  tabpopup_hide_ev.stop ();
+  tabpopup.keyboard_triggered = (hide_after > 0);
+
+  // Position the floating window over the top of the terminal
+  int px, py;
+  get_window_origin (px, py);
+  XMoveResizeWindow (dpy, tabpopup.win, px, py, szHint.width, tabpopup.height);
+  XRaiseWindow (dpy, tabpopup.win);
+  XMapWindow (dpy, tabpopup.win);
+  tabpopup.visible = true;
+  draw_tabpopup ();
+
+  // Periodic refresh so labels (CWD / process name) stay up to date
+  tabpopup_refresh_ev.start (0.5, 0.5);
+
+  if (hide_after > 0)
+    tabpopup_hide_ev.start (hide_after);
+}
+
+void
+rxvt_term::hide_tabpopup ()
+{
+  if (tab_index != 0) {
+    termlist[0]->hide_tabpopup ();
+    return;
+  }
+
+  tabpopup_hide_ev.stop ();
+  tabpopup_refresh_ev.stop ();
+  tabpopup.keyboard_triggered = false;
+  if (!tabpopup.win || !tabpopup.visible) return;
+  XUnmapWindow (dpy, tabpopup.win);
+  XFlush (dpy);
+  tabpopup.visible = false;
+}
+
+void
+rxvt_term::resize_tabpopup ()
+{
+  if (tab_index != 0) {
+    termlist[0]->resize_tabpopup ();
+    return;
+  }
+  if (!tabpopup.win) return;
+  tabpopup.height = fheight + 8;
+  if (tabpopup.visible) {
+    int px, py;
+    get_window_origin (px, py);
+    XMoveResizeWindow (dpy, tabpopup.win, px, py, szHint.width, tabpopup.height);
+    draw_tabpopup ();
+  }
+}
+
+void
+rxvt_term::tabpopup_hide_cb (ev::timer &w, int revents)
+{
+  hide_tabpopup ();
+}
+
+void
+rxvt_term::tabpopup_refresh_cb (ev::timer &w, int revents)
+{
+  if (tabpopup.visible)
+    draw_tabpopup ();
+}
+
+void
+rxvt_term::x_tabpopup_cb (XEvent &ev)
+{
+  switch (ev.type) {
+    case Expose:
+      if (ev.xexpose.count == 0)
+        draw_tabpopup ();
+      break;
+
+    case EnterNotify:
+      // Don't cancel the auto-hide timer when shown by keyboard (Ctrl+Tab)
+      if (!tabpopup.keyboard_triggered)
+        tabpopup_hide_ev.stop ();
+      break;
+
+    case LeaveNotify:
+      tabpopup_hide_ev.start (0.2);
+      break;
+
+    case ButtonPress:
+      if (ev.xbutton.button == Button1) {
+        int ntabs = (int)termlist.size ();
+        if (ntabs > 0 && szHint.width > 0) {
+          int tab_w   = szHint.width / ntabs;
+          int clicked = ev.xbutton.x / tab_w;
+          if (clicked >= 0 && clicked < ntabs
+              && (unsigned int)clicked != GET_R->tab_index) {
+            GET_R->switch_to_tab ((unsigned int)clicked, 0);
+            draw_tabpopup ();
+          }
+        }
+      }
+      break;
+  }
+
+  GET_R->refresh_check ();
+}
+
+/* ---- end tab popup ---- */
+
 size_t rxvt_term::get_current_path(char * buf, int size) {
   // int size = 256; // PATH_MAX
 
@@ -1665,6 +1898,10 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   XMapWindow(dpy, tab->parent);
   XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
+
+  // Refresh popup if visible so active tab highlight updates immediately
+  if (root && root->tabpopup.win && root->tabpopup.visible)
+    root->draw_tabpopup ();
 }
 
 void rxvt_term::prev_tab(unsigned int closing) {
@@ -2725,6 +2962,19 @@ rxvt_term::x_cb (XEvent &ev)
           }
         if ((priv_modes & PrivMode_mouse_report) && !bypass_keystate)
           break;
+
+        // Hover-show tabpopup when mouse is near the top of the terminal
+        if (ev.xany.window == vt && !termlist.empty ()) {
+          rxvt_term *root = termlist[0];
+          if (root->tabpopup.win && !root->tabpopup.visible
+              && ev.xmotion.y < root->tabpopup.height) {
+            root->show_tabpopup (0); // hover mode: no auto-hide
+          } else if (root->tabpopup.win && root->tabpopup.visible
+                     && ev.xmotion.y >= root->tabpopup.height
+                     && !root->tabpopup_hide_ev.is_active ()) {
+            root->tabpopup_hide_ev.start (0.2);
+          }
+        }
 
         if (ev.xany.window == vt)
           {

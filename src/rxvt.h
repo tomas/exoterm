@@ -311,6 +311,20 @@ struct minimap_t {
 
 #endif
 
+struct tabpopup_t {
+    Window win;
+    GC gc;
+    bool visible;
+    bool keyboard_triggered; // true when shown via Ctrl+Tab (suppress EnterNotify cancel)
+    int height;
+    XFontStruct *font;
+    unsigned long fg_active;
+    unsigned long fg_inactive;
+    unsigned long bg_active;
+    unsigned long bg_inactive;
+    unsigned long bar_bg;
+};
+
 /*
  *****************************************************************************
  * STRUCTURES AND TYPEDEFS
@@ -1384,6 +1398,20 @@ Pixmap icon_mask; //  = None;
   void minimap_handle_drag(int y);
   void x_minimap_cb (XEvent &xev);
 #endif
+
+  tabpopup_t tabpopup;
+  xevent_watcher tabpopup_ev;
+  ev::timer tabpopup_hide_ev;
+  ev::timer tabpopup_refresh_ev;
+  void init_tabpopup ();
+  void resize_tabpopup ();
+  void show_tabpopup (float hide_after = 0);
+  void hide_tabpopup ();
+  void draw_tabpopup ();
+  void x_tabpopup_cb (XEvent &ev);
+  void tabpopup_hide_cb (ev::timer &w, int revents);
+  void tabpopup_refresh_cb (ev::timer &w, int revents);
+  static void get_tab_label (rxvt_term *tab, char *buf, int bufsize);
 
   long vt_emask, vt_emask_perl, vt_emask_xim, vt_emask_mouse;
 
