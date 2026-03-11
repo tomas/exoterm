@@ -4494,7 +4494,11 @@ void rxvt_term::render_minimap() {
                         } else if (line.t[col] == ' ') {
                             int bg = bgcolor_of(line.r[col]);
                             if (bg != Color_bg) {
-                                shadow_color = minimap.shadow_color_cache[bg];
+                                if (bg <= TOTAL_COLORS) {
+                                  shadow_color = minimap.shadow_color_cache[bg];
+                                } else {
+                                  shadow_color = default_bg;
+                                }
                             }
                         }
                     }
@@ -4545,7 +4549,11 @@ void rxvt_term::render_minimap() {
                         } else if (line.t[col] == ' ') {
                             int bg = bgcolor_of(line.r[col]);
                             if (bg != Color_bg) {
-                                pixel_color = minimap.color_cache[bg];
+                                if (bg <= TOTAL_COLORS) {
+                                  pixel_color = minimap.color_cache[bg];
+                                } else {
+                                  pixel_color = default_bg;
+                                }
                             }
                         }
                     }
