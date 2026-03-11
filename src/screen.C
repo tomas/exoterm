@@ -4490,7 +4490,11 @@ void rxvt_term::render_minimap() {
                         } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
                             small_char = is_small_char(line.t[col]);
                             int fg = fgcolor_of(line.r[col]);
-                            shadow_color = small_char ? default_bg : minimap.shadow_color_cache[fg];
+                            if (small_char || fg > TOTAL_COLORS) {
+                              shadow_color = default_bg;
+                            } else {
+                              shadow_color = minimap.shadow_color_cache[fg];
+                            }
                         } else if (line.t[col] == ' ') {
                             int bg = bgcolor_of(line.r[col]);
                             if (bg != Color_bg) {
@@ -4540,7 +4544,9 @@ void rxvt_term::render_minimap() {
                         } else if (line.t[col] != NOCHAR && line.t[col] != ' ') {
                             small_char = is_small_char(line.t[col]);
                             int fg = fgcolor_of(line.r[col]);
-                            if (small_char) {
+                            if (fg > TOTAL_COLORS) {
+                                pixel_color = default_fg;
+                            } else if (small_char) {
                                 // For small chars, use shadow color for the bottom pixel
                                 pixel_color = minimap.shadow_color_cache[fg];
                             } else {
