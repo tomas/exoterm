@@ -1706,16 +1706,16 @@ rxvt_term::init_tabpopup ()
   Colormap cm  = DefaultColormap (dpy, screen);
 
   XSetWindowAttributes attr = {};
-  attr.override_redirect = True;
-  attr.background_pixel  = BlackPixel (dpy, screen);
-  attr.border_pixel      = 0;
+  attr.background_pixel = BlackPixel (dpy, screen);
+  attr.border_pixel     = 0;
 
+  // Child of our own parent window: naturally clipped to the terminal, never above other apps
   tabpopup.win = XCreateWindow (
-    dpy, DefaultRootWindow (dpy),
+    dpy, this->parent,
     0, 0, szHint.width, tabpopup.height, 0,
     DefaultDepth (dpy, screen), InputOutput,
     DefaultVisual (dpy, screen),
-    CWOverrideRedirect | CWBackPixel | CWBorderPixel, &attr
+    CWBackPixel | CWBorderPixel, &attr
   );
   if (!tabpopup.win) return;
 

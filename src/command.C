@@ -1705,10 +1705,8 @@ rxvt_term::show_tabpopup (float hide_after)
   tabpopup_hide_ev.stop ();
   tabpopup.keyboard_triggered = (hide_after > 0);
 
-  // Position the floating window over the top of the terminal
-  int px, py;
-  get_window_origin (px, py);
-  XMoveResizeWindow (dpy, tabpopup.win, px, py, szHint.width, tabpopup.height);
+  // Popup is a child of our parent window: just resize to current width and raise
+  XResizeWindow (dpy, tabpopup.win, szHint.width, tabpopup.height);
   XRaiseWindow (dpy, tabpopup.win);
   XMapWindow (dpy, tabpopup.win);
   tabpopup.visible = true;
@@ -1748,9 +1746,7 @@ rxvt_term::resize_tabpopup ()
   if (!tabpopup.win) return;
   tabpopup.height = fheight + 8;
   if (tabpopup.visible) {
-    int px, py;
-    get_window_origin (px, py);
-    XMoveResizeWindow (dpy, tabpopup.win, px, py, szHint.width, tabpopup.height);
+    XResizeWindow (dpy, tabpopup.win, szHint.width, tabpopup.height);
     draw_tabpopup ();
   }
 }
@@ -1788,15 +1784,18 @@ rxvt_term::x_tabpopup_cb (XEvent &ev)
       break;
 
     case ButtonPress:
-      if (ev.xbutton.button == Button1) {
+      if (ev.xbutton.button == Button1 || ev.xbutton.button == Button2) {
         int ntabs = (int)termlist.size ();
         if (ntabs > 0 && szHint.width > 0) {
           int tab_w   = szHint.width / ntabs;
           int clicked = ev.xbutton.x / tab_w;
-          if (clicked >= 0 && clicked < ntabs
-              && (unsigned int)clicked != GET_R->tab_index) {
-            GET_R->switch_to_tab ((unsigned int)clicked, 0);
-            draw_tabpopup ();
+          if (clicked >= 0 && clicked < ntabs) {
+            if (ev.xbutton.button == Button2) {
+              termlist[clicked]->close_tab ();
+            } else if ((unsigned int)clicked != GET_R->tab_index) {
+              GET_R->switch_to_tab ((unsigned int)clicked, 0);
+              draw_tabpopup ();
+            }
           }
         }
       }
@@ -2964,8 +2963,8 @@ rxvt_term::x_cb (XEvent &ev)
         if ((priv_modes & PrivMode_mouse_report) && !bypass_keystate)
           break;
 
-        // Hover-show tabpopup when mouse is near the top of the terminal
-        if (ev.xany.window == vt && !termlist.empty ()) {
+        // Hover-show tabpopup only when focused and mouse is near the top
+        if (ev.xany.window == vt && focus && !termlist.empty ()) {
           rxvt_term *root = termlist[0];
           if (root->tabpopup.win && !root->tabpopup.visible
               && ev.xmotion.y < root->tabpopup.height) {
