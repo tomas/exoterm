@@ -2964,7 +2964,7 @@ rxvt_term::x_cb (XEvent &ev)
           break;
 
         // Hover-show tabpopup only when focused and mouse is near the top
-        if (ev.xany.window == vt && focus && !termlist.empty ()) {
+        if (ev.xany.window == vt && focus && termlist.size() > 1) {
           rxvt_term *root = termlist[0];
           if (root->tabpopup.win && !root->tabpopup.visible
               && ev.xmotion.y < root->tabpopup.height) {
