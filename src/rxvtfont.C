@@ -433,11 +433,14 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
                   case 2: // arc
 
                     // ugly hack for rounded corners in box decorations
-                    int arc_h = y2 == 40 ? H/2 : H-1;
-                    if (y2 == 76) {
-                      arc_h = H/2;
-                      y1 += (H/2) - 1;
-                    }
+                    int arc_h = H-1;
+
+                    // printf("y1:%d y2:%d\n", y1, y2);
+                    // if (y2 == 40) arc_h = H/2;
+                    // if (y2 == 76) {
+                    //   arc_h = H/2;
+                    //   y1 += (H/2) - 1;
+                    // }
 
                     XDrawArc (disp, d, gc,
                               x1 - W/2, y1 - H/2, W-1, arc_h,
