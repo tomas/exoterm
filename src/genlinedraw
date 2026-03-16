@@ -54,10 +54,27 @@ while (<DATA>) {
       /\G\//gc and emit 0, 0, 8, 8, 0;
       /\G\\/gc and emit 0, 0, 0, 8, 8;
 
-      /\GA/gc and emit 2, 8, 8, 0, 0, 2, 2;
-      /\GB/gc and emit 2, 0, 8, 0, 0, 1, 2;
-      /\GC/gc and emit 2, 0, 0, 0, 0, 1, 0;
-      /\GD/gc and emit 2, 8, 0, 0, 0, 0, 0;
+      # /\GA/gc and emit 2, 8, 8, 0, 0, 2, 4;
+      # /\GB/gc and emit 2, 0, 8, 0, 0, 1, 2;
+      # /\GC/gc and emit 2, 0, 0, 0, 0, 1, 0;
+      # /\GD/gc and emit 2, 8, 0, 0, 0, 0, 0;
+
+      /\GA/gc and do { emit 0, 4, 6, 4, 8;         # left edge stub
+                       emit 0, 7, 10, 8, 10;       # top edge stub
+                       emit 2, 8, 8, 0, 2, 2, 2 }; # arc
+
+      /\GB/gc and do { emit 0, 4, 6, 4, 8;         # ╮ right stub (mirror x: 4→4, 8→0)
+                       emit 0, 1, 10, 0, 10;       # ╮ top stub (mirror x: 7→1, 8→0)
+                       emit 2, 0, 8, 0, 2, 1, 2 }; # ╮ arc center=(x0,y8)
+
+      /\GC/gc and do { emit 0, 4, 2, 4, 0;         # ╯ right stub (mirror y: 6→2, 8→0)
+                       emit 0, 1, 10, 0, 10;       # ╯ bottom stub (mirror both)
+                       emit 2, 0, 0, 0, 2, 1, 0 }; # ╯ arc center=(x0,y0)
+
+      /\GD/gc and do { emit 0, 4, 2, 4, 0;         # ╰ left stub (mirror y)
+                       emit 0, 7, 10, 8, 10;       # ╰ bottom stub (mirror y)
+                       emit 2, 8, 0, 0, 2, 0, 0 }; # ╰ arc center=(x8,y0)
+
 
       /\Gi/gc and emit 1, 0, 0, 4, 4;
       /\Gj/gc and emit 1, 4, 0, 8, 4;
