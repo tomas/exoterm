@@ -303,6 +303,7 @@ struct minimap_t {
     int height;                  // Cached height in pixels (= vt_height)
     Pixmap buffer;               // Persistent off-screen buffer (recreated on resize only)
     bool auto_hidden;            // Hidden automatically because cursor overlaps minimap
+    bool hidden_by_cursor;       // Hidden automatically because cursor was hidden by TUI
 
     XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
     XRenderColor bg_render_color;    // 80% opaque background color for XRender composite
@@ -1391,6 +1392,7 @@ Pixmap icon_mask; //  = None;
   void initialize_minimap_colors();
   void resize_minimap();
   void render_minimap();
+  void toggle_minimap_by_cursor(int hide);
   void update_minimap_viewport();
   int get_viewport_position(int minimap_height);
   int get_viewport_height(int minimap_height);

@@ -5519,19 +5519,19 @@ rxvt_term::process_terminal_mode (int mode, int priv ecb_unused, unsigned int na
               break;
             case 1002:
             case 1003:
-              if (state)
-                {
+              if (state) {
                   toggle_cursor(TermWin_arrow);
                   priv_modes &= ~(PrivMode_MouseX10|PrivMode_MouseX11);
                   priv_modes &= arg[i] == 1003 ? ~PrivMode_MouseBtnEvent : ~PrivMode_MouseAnyEvent;
                   mouse_row = mouse_col = 0;
                   vt_emask_mouse = PointerMotionMask;
-                }
-              else {
+              } else {
                 toggle_cursor(TermWin_cursor);
                 vt_emask_mouse = NoEventMask;
               }
-
+#ifdef ENABLE_MINIMAP
+              toggle_minimap_by_cursor(state);
+#endif
               vt_select_input ();
               break;
             case 1010:		/* scroll to bottom on TTY output inhibit */

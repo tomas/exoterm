@@ -1888,6 +1888,10 @@ rxvt_term::scr_cursor_visible (int mode) NOTHROW
     screen.flags |= Screen_VisibleCursor;
   else
     screen.flags &= ~Screen_VisibleCursor;
+
+#ifdef ENABLE_MINIMAP
+  toggle_minimap_by_cursor(!mode);
+#endif
 }
 
 /* ------------------------------------------------------------------------- */
@@ -4668,6 +4672,22 @@ void rxvt_term::render_minimap() {
 
     XCopyArea(dpy, buffer, minimap.win, minimap.gc,
              0, 0, minimap.width, win_height, 0, 0);
+}
+
+void rxvt_term::toggle_minimap_by_cursor(int hide) {
+  if (hide) {
+    if (minimap.enabled && minimap.visible) {
+      minimap.visible = false;
+      minimap.hidden_by_cursor = true;
+      XUnmapWindow(dpy, minimap.win);
+    }
+  } else {
+    if (minimap.enabled && minimap.hidden_by_cursor) {
+      minimap.visible = true;
+      minimap.hidden_by_cursor = false;
+      XMapWindow(dpy, minimap.win);
+    }
+  }
 }
 
 #endif
