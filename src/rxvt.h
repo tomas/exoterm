@@ -1181,6 +1181,28 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   unsigned int tab_index;
   char title[24];
 
+  // Split pane support
+  enum SplitDir { SPLIT_NONE, SPLIT_HORIZONTAL, SPLIT_VERTICAL };
+  
+  struct Pane {
+    unsigned int tab_start;
+    unsigned int tab_end;
+    unsigned int active_tab;
+    Window win;
+    int x, y, width, height;
+  };
+  
+  SplitDir split_dir;
+  float split_pos;
+  unsigned int num_panes;
+  Pane panes[2];
+
+  // Split pane methods
+  void split_pane(SplitDir dir);
+  void close_split();
+  void switch_to_pane(unsigned int pane_idx);
+  void resize_panes();
+
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
   static const char resval_on [];       // boolean options switched on

@@ -1150,6 +1150,33 @@ rxvt_term::key_press (XKeyEvent &ev)
     return prev_tab (0);
   }
 
+  // Split pane key bindings
+  // Ctrl+Shift+S - horizontal split
+  if (ctrl && shft && keysym == XK_s) {
+    split_pane(SPLIT_HORIZONTAL);
+    return;
+  }
+  // Ctrl+Shift+V - vertical split
+  if (ctrl && shft && keysym == XK_v) {
+    split_pane(SPLIT_VERTICAL);
+    return;
+  }
+  // Ctrl+Shift+W - close split
+  if (ctrl && shft && keysym == XK_w) {
+    close_split();
+    return;
+  }
+  // Alt+Left - switch to left pane
+  if (meta && keysym == XK_Left) {
+    switch_to_pane(0);
+    return;
+  }
+  // Alt+Right - switch to right pane
+  if (meta && keysym == XK_Right) {
+    switch_to_pane(1);
+    return;
+  }
+
   if (HOOK_INVOKE ((this, HOOK_KEY_PRESS, DT_XEVENT, &ev, DT_INT, keysym, DT_STR_LEN, kbuf, len, DT_END)))
     return;
 
@@ -1853,6 +1880,32 @@ rxvt_term::new_tab () {
     // printf("current path is %s (%d)\n", path, path_len);
     newterm->rs[Rs_chdir] = path;
     newterm->init(args, envs);
+
+    // If in split mode, add the new tab to the current pane and reparent
+    rxvt_term *root = termlist.at(0);
+    if (root && root->num_panes >= 2) {
+      // Determine which pane we're in
+      unsigned int current_pane = (tab_index <= root->panes[0].tab_end) ? 0 : 1;
+      Pane &p = root->panes[current_pane];
+
+      // Update pane tab ranges
+      if (current_pane == 0) {
+        root->panes[0].tab_end = termlist.size(); // new tab goes to pane 0
+      } else {
+        root->panes[1].tab_end = termlist.size(); // new tab goes to pane 1
+      }
+
+      // Reparent new tab to the correct pane window
+      if (current_pane == 1 && p.win != None) {
+        printf("reparenting new tab to pane %d\n", current_pane);
+        XReparentWindow(dpy, newterm->parent, p.win, 0, 0);
+      }
+
+      // Resize to fit pane
+      XResizeWindow(dpy, newterm->vt, p.width - 2 * newterm->int_bwidth, p.height - 2 * newterm->int_bwidth);
+      XResizeWindow(dpy, newterm->parent, p.width, p.height);
+    }
+
     switch_to_tab(termlist.size()-1, 0);
   } catch (const class rxvt_failure_exception &e) {
     printf("error while initializing new terminal instance!\n");
@@ -1861,6 +1914,182 @@ rxvt_term::new_tab () {
 
   free(path);
   return;
+}
+
+void rxvt_term::split_pane(SplitDir dir) {
+  if (num_panes >= 2) {
+    printf("already split, max 2 panes supported\n");
+    return;
+  }
+
+  printf("splitting pane %s\n", dir == SPLIT_HORIZONTAL ? "horizontal" : "vertical");
+
+  // Calculate pane dimensions
+  int p1_w, p1_h, p2_w, p2_h;
+  if (dir == SPLIT_VERTICAL) {
+    p1_w = width / 2;
+    p1_h = height;
+    p2_w = width - p1_w;
+    p2_h = height;
+  } else { // horizontal
+    p1_w = width;
+    p1_h = height / 2;
+    p2_w = width;
+    p2_h = height - p1_h;
+  }
+
+  // Create pane 0 window (left/top) - reuse existing parent as container
+  panes[0].tab_start = 0;
+  panes[0].tab_end = tab_index;
+  panes[0].active_tab = 0;
+  panes[0].x = 0;
+  panes[0].y = 0;
+  panes[0].width = p1_w;
+  panes[0].height = p1_h;
+  panes[0].win = parent; // Pane 0 uses the existing parent window
+
+  // Create pane 1 window (right/bottom)
+  panes[1].tab_start = tab_index + 1;
+  panes[1].tab_end = termlist.size() - 1;
+  panes[1].active_tab = 0;
+  panes[1].x = p1_w;
+  panes[1].y = (dir == SPLIT_VERTICAL) ? 0 : p1_h;
+  panes[1].width = p2_w;
+  panes[1].height = p2_h;
+
+  // Create the pane 1 window as a child of the main parent
+  XSetWindowAttributes pane_attrs;
+  pane_attrs.background_pixel = lookup_color(Color_border, pix_colors_focused);
+  pane_attrs.border_pixel = lookup_color(Color_border, pix_colors_focused);
+  pane_attrs.colormap = cmap;
+  pane_attrs.event_mask = SubstructureNotifyMask | ExposureMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask | FocusChangeMask;
+
+  panes[1].win = XCreateWindow(dpy, parent,
+                                panes[1].x, panes[1].y,
+                                panes[1].width, panes[1].height,
+                                0, CopyFromParent, InputOutput, CopyFromParent,
+                                CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
+                                &pane_attrs);
+
+  printf("created pane 1 window: %lu at %d,%d size %dx%d\n", 
+         panes[1].win, panes[1].x, panes[1].y, panes[1].width, panes[1].height);
+
+  // Set up the split
+  split_dir = dir;
+  split_pos = 0.5;
+  num_panes = 2;
+
+  // Move tabs from pane 1 range to the new pane 1 window
+  for (unsigned int i = panes[1].tab_start; i <= panes[1].tab_end; i++) {
+    if (i < termlist.size()) {
+      printf("reparenting tab %d to pane 1\n", i);
+      XReparentWindow(dpy, termlist[i]->parent, panes[1].win, 0, 0);
+    }
+  }
+
+  // Map pane 1 window
+  XMapWindow(dpy, panes[1].win);
+
+  // Make sure the active tab in each pane is visible
+  // Unmap all tabs first
+  for (unsigned int i = 0; i < termlist.size(); i++) {
+    XUnmapWindow(dpy, termlist[i]->parent);
+  }
+
+  // Map the active tab in each pane
+  if (panes[0].tab_start <= panes[0].tab_end && panes[0].tab_start < termlist.size()) {
+    XMapWindow(dpy, termlist[panes[0].tab_start]->parent);
+  }
+  if (panes[1].tab_start <= panes[1].tab_end && panes[1].tab_start < termlist.size()) {
+    XMapWindow(dpy, termlist[panes[1].tab_start]->parent);
+  }
+
+  XFlush(dpy);
+}
+
+void rxvt_term::resize_panes() {
+  if (num_panes == 1 || panes[1].win == None) {
+    // Just resize the main window - tabs will follow
+    return;
+  }
+
+  int p1_size = (split_dir == SPLIT_VERTICAL) ? width * split_pos : width;
+  int p2_size = (split_dir == SPLIT_VERTICAL) ? width * (1 - split_pos) : width;
+  int p1_coord = p1_size;
+
+  // For horizontal split, use height instead
+  if (split_dir == SPLIT_HORIZONTAL) {
+    p1_size = height * split_pos;
+    p2_size = height * (1 - split_pos);
+    p1_coord = p1_size;
+  }
+
+  // Move and resize pane windows
+  XMoveResizeWindow(dpy, panes[0].win, panes[0].x, panes[0].y, 
+                    (split_dir == SPLIT_VERTICAL) ? p1_size : width,
+                    (split_dir == SPLIT_HORIZONTAL) ? p1_size : height);
+
+  XMoveResizeWindow(dpy, panes[1].win, p1_coord, panes[1].y,
+                    (split_dir == SPLIT_VERTICAL) ? p2_size : width,
+                    (split_dir == SPLIT_HORIZONTAL) ? p2_size : height);
+
+  // Resize all tabs to fit their pane
+  for (unsigned int i = 0; i < termlist.size(); i++) {
+    rxvt_term *t = termlist[i];
+    unsigned int pane_idx = (i <= panes[0].tab_end) ? 0 : 1;
+    Pane &p = panes[pane_idx];
+
+    XResizeWindow(dpy, t->vt, p.width - 2 * t->int_bwidth, p.height - 2 * t->int_bwidth);
+    XResizeWindow(dpy, t->parent, p.width, p.height);
+  }
+
+  XFlush(dpy);
+}
+
+void rxvt_term::close_split() {
+  if (num_panes < 2) {
+    printf("not split\n");
+    return;
+  }
+
+  printf("closing split\n");
+
+  // Move all tabs from pane 1 back to pane 0
+  if (panes[1].win != None) {
+    for (unsigned int i = panes[1].tab_start; i <= panes[1].tab_end; i++) {
+      if (i < termlist.size()) {
+        XReparentWindow(dpy, termlist[i]->parent, parent, 0, 0);
+      }
+    }
+    XDestroyWindow(dpy, panes[1].win);
+    panes[1].win = None;
+  }
+
+  split_dir = SPLIT_NONE;
+  num_panes = 1;
+  panes[0].tab_end = termlist.size() - 1;
+
+  // Resize to fill
+  XResizeWindow(dpy, parent, szHint.width, szHint.height);
+  for (unsigned int i = 0; i < termlist.size(); i++) {
+    XResizeWindow(dpy, termlist[i]->vt, vt_width, vt_height);
+    XResizeWindow(dpy, termlist[i]->parent, szHint.width, szHint.height);
+  }
+}
+
+void rxvt_term::switch_to_pane(unsigned int pane_idx) {
+  if (pane_idx >= num_panes) return;
+  if (num_panes == 1) return;
+
+  printf("switching to pane %d\n", pane_idx);
+
+  // Switch to the active tab in the target pane
+  Pane &p = panes[pane_idx];
+  unsigned int tab_idx = p.tab_start + p.active_tab;
+  
+  if (tab_idx < termlist.size()) {
+    switch_to_tab(tab_idx, 0);
+  }
 }
 
 void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
@@ -1875,28 +2104,52 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   rxvt_term * root = termlist.at(0);
   if (root) root->update_tab_title(index+1);
 
-  // ensure tab's size matches root's
-  XResizeWindow (dpy, tab->vt, root->vt_width, root->vt_height);
-  XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
+  // Handle split pane mode - only hide/show within the same pane
+  bool in_split_mode = (root && root->num_panes >= 2);
 
-  // map new before removing current
-  if (tab_index > 0) {
-    // printf("unmapping parent win\n");
-    XUnmapWindow(dpy, parent);
-  } else if (closing) {
-    copy_position(dpy, parent, tab->parent, 0, 0);
+  if (in_split_mode) {
+    // Find which pane the target tab belongs to
+    unsigned int target_pane_idx = (index <= root->panes[0].tab_end) ? 0 : 1;
+    unsigned int current_pane_idx = (tab_index <= root->panes[0].tab_end) ? 0 : 1;
+
+    // Resize the target tab to fit its pane
+    Pane &p = root->panes[target_pane_idx];
+    XResizeWindow(dpy, tab->vt, p.width - 2 * tab->int_bwidth, p.height - 2 * tab->int_bwidth);
+    XResizeWindow(dpy, tab->parent, p.width, p.height);
+
+    // Unmap current tab (within same pane only)
+    if (current_pane_idx == target_pane_idx) {
+      XUnmapWindow(dpy, parent);
+    }
+
+    focus_out();
+    tab->make_current();
+    tab->focus_in();
+
+    XMapWindow(dpy, tab->parent);
+    XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
+  } else {
+    // Original behavior for non-split mode
+    // ensure tab's size matches root's
+    XResizeWindow (dpy, tab->vt, root->vt_width, root->vt_height);
+    XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
+
+    // map new before removing current
+    if (tab_index > 0) {
+      // printf("unmapping parent win\n");
+      XUnmapWindow(dpy, parent);
+    } else if (closing) {
+      copy_position(dpy, parent, tab->parent, 0, 0);
+    }
+
+    focus_out();
+    tab->make_current(); // set as currently active (rxvt_current_term)
+    tab->focus_in(); // sets want_refresh
+
+    XMapWindow(dpy, tab->parent);
+    XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   }
 
-  // XWindowAttributes attr;
-  // XGetWindowAttributes (dpy, tab->parent, &attr);
-  // XSelectInput (dpy, tab->parent, PropertyChangeMask);
-
-  focus_out();
-  tab->make_current(); // set as currently active (rxvt_current_term)
-  tab->focus_in(); // sets want_refresh
-
-  XMapWindow(dpy, tab->parent);
-  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
 
   // Refresh popup if visible so active tab highlight updates immediately

@@ -214,6 +214,18 @@ rxvt_term::rxvt_term ()
   tab_index = termlist.size()-1;
   printf("pushed new term instance. current term count: %d\n", tab_index);
 
+  // Initialize split pane state
+  split_dir = SPLIT_NONE;
+  split_pos = 0.5;
+  num_panes = 1;
+  panes[0].tab_start = 0;
+  panes[0].tab_end = termlist.size() - 1;
+  panes[0].active_tab = tab_index;
+  panes[0].win = None;
+  panes[0].x = 0;
+  panes[0].y = 0;
+  panes[1].win = None;
+
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;
 #endif
@@ -1261,6 +1273,19 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 
   // printf("resize with ignoreparent: %d all windows for term %d\n", ignoreparent, tab_index);
   window_calc (newwidth, newheight);
+
+  // Handle split pane resizing
+  if (num_panes >= 2 && panes[1].win != None) {
+    resize_panes();
+    fix_screen = ncol != prev_ncol || nrow != prev_nrow;
+    if (fix_screen || newwidth != old_width || newheight != old_height) {
+      if (scrollBar.state) scrollBar.resize();
+      XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
+    }
+    prev_ncol = ncol;
+    prev_nrow = nrow;
+    return;
+  }
 
   bool set_hint = !HOOK_INVOKE ((this, HOOK_RESIZE_ALL_WINDOWS, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
