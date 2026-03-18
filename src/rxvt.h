@@ -1182,6 +1182,13 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   unsigned int tab_index;
   char title[24];
 
+  // split pane state
+  rxvt_term  *split_partner;    // mutual link: primary→child and child→primary; null if not split
+  bool        split_is_child;   // true = this is the secondary (right/bottom) pane
+  bool        split_vertical;   // true = left|right split, false = top|bottom split
+  int         pre_split_width;  // szHint.width saved on primary before split (for restoration)
+  int         pre_split_height; // szHint.height saved on primary before split
+
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
   static const char resval_on [];       // boolean options switched on
@@ -1444,6 +1451,9 @@ Pixmap icon_mask; //  = None;
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
   size_t get_current_path(char * buf, int size);
   void new_tab ();
+  void new_split_pane (bool vertical);
+  void split_focus_other ();
+  void apply_split_geometry (int total_w, int total_h);
   void prev_tab (unsigned int closing);
   void next_tab (unsigned int closing);
   void switch_to_tab(unsigned int index, unsigned int closing);

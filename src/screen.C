@@ -2307,40 +2307,73 @@ rxvt_term::scr_printscreen (int fullhist) NOTHROW
 
 void rxvt_term::scr_draw_bar() NOTHROW {
   int bar_height = TAB_BAR_HEIGHT;
-  int bar_pos = 0; // (vt_height-bar_height);
+  int bar_pos = 0;
+
+  // Count only regular (non-split-child) tabs for the bar
+  int ntabs = 0;
+  for (int i = 0; i < (int)termlist.size(); i++)
+    if (!termlist.at(i)->split_is_child) ntabs++;
+
+  if (ntabs <= 1) return;
+
+  // The bottom pane of a horizontal split (split_is_child && !split_vertical) sits
+  // in the middle of the screen; drawing the bar stripe there is wrong.  Only the
+  // top (primary) pane draws the bar for horizontal splits.
+  if (split_is_child && split_partner && !split_vertical) return;
 
   XVisualInfo vinfo;
   XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
   XColor focused, unfocused;
-  // XParseColor(dpy, cm, "#6b77bf", &focused);
-  // XParseColor(dpy, cm, "#00d7d7", &focused);
-  // XParseColor(dpy, cm, "#00d7af", &focused);
   XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
-  // XParseColor(dpy, cm, "#2f3452", &unfocused);
   XParseColor(dpy, cm, "#465163", &unfocused);
-  // XParseColor(dpy, cm, "#6b77bf", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
 
-  int i = 0;
-  int tab_width = (width + int_bwidth * 2)/termlist.size();
-  // printf("termlist: %d, tab_width: %d\n", termlist.size(), tab_width);
+  // Get the full terminal width from root's WM window.
+  // apply_split_geometry may have called window_calc(half_w,...) on root,
+  // shrinking root->width while leaving the WM window full-size — so we
+  // query X11 directly.
+  rxvt_term *root = termlist.at(0);
+  XWindowAttributes root_wattr;
+  XGetWindowAttributes (dpy, root->parent, &root_wattr);
+  int bar_w = root_wattr.width;
 
-  for (i = 0; i < termlist.size(); i++) {
-    if (tab_index == i && termlist.size() > 1)
+  // Draw on this->parent (the visible window for the current tab/pane) rather
+  // than root->parent so the bar is visible even when a non-root tab's opaque
+  // parent window is stacked on top of root->parent.
+  // For a vertical-split child pane (positioned on the right half) we subtract
+  // pane_x so the bar indicators land at the correct full-terminal-width positions.
+  // We compute pane_x geometrically rather than via XGetWindowAttributes so the
+  // value is correct immediately after XMoveResizeWindow (before X processes it).
+  int pane_x = 0;
+  if (split_is_child && split_partner && split_vertical)
+    pane_x = bar_w / 2;   // vertical-split child is always in the right half
+
+  // If the focused term is a split child, highlight its primary pane's slot
+  int active_termlist_idx = GET_R->tab_index;
+  if (GET_R->split_is_child && GET_R->split_partner)
+    active_termlist_idx = GET_R->split_partner->tab_index;
+
+  int tab_width = bar_w / ntabs;
+  int visual_i = 0;
+  for (int i = 0; i < (int)termlist.size(); i++) {
+    if (termlist.at(i)->split_is_child) continue;
+
+    if (i == active_termlist_idx)
       XSetForeground(dpy, gc, focused.pixel);
     else
       XSetForeground(dpy, gc, unfocused.pixel);
 
-    // XSetForeground (dpy, gc, lookup_color(Color_underline, pix_colors));
-    XFillRectangle (dpy, parent, gc, i * tab_width, bar_pos, tab_width, bar_height);
+    // Subtract pane_x so the indicator appears at the correct visual column.
+    // X11 clips negative-x drawing to the window boundary, so split panes
+    // naturally show only their own portion of the bar.
+    XFillRectangle (dpy, parent, gc, visual_i * tab_width - pane_x, bar_pos, tab_width, bar_height);
+    visual_i++;
   }
 
   XFreeColormap(dpy, cm);
-  // XFreeColors(dpy, colormap, &focused.pixel, 1, 0);
-  // XFreeColors(dpy, colormap, &unfocused.pixel, 1, 0);
 }
 
 /* ------------------------------------------------------------------------- */

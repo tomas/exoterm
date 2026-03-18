@@ -238,11 +238,19 @@ rxvt_term::~rxvt_term ()
   termlist.erase (find (termlist.begin(), termlist.end(), this));
   // printf("destroying term instance. current term count: %d\n", termlist.size());
 
+  // Clear any dangling split reference in the partner
+  if (split_partner) {
+    split_partner->split_partner = nullptr;
+    split_partner->split_is_child = false;
+  }
+
   int count = rxvt_reassign_tab_indexes();
 
   // update tab title, since termlist.size() changed
-  rxvt_term * root = termlist.at(0);
-  root->update_tab_title(GET_R->tab_index+1);
+  if (!termlist.empty()) {
+    rxvt_term * root = termlist.at(0);
+    root->update_tab_title(GET_R->tab_index+1);
+  }
 
   emergency_cleanup ();
 
@@ -330,6 +338,13 @@ rxvt_term::~rxvt_term ()
   if (display) {
       selection_clear ();
       selection_clear (true);
+      // selection_clear only clears display's owner pointer when selection.len > 0.
+      // Explicitly null out dangling pointers so set_selection_owner can't call
+      // flush() on this (freed) term.
+      if (display->selection_owner == this)
+        display->selection_owner = nullptr;
+      if (display->clipboard_owner == this)
+        display->clipboard_owner = nullptr;
 
 #if USE_XIM
       im_destroy ();
@@ -461,9 +476,78 @@ rxvt_term::destroy ()
 void
 rxvt_term::destroy_cb (ev::idle &w, int revents)
 {
+  // Handle split-pane cleanup before switching tabs
+  if (split_partner) {
+    rxvt_term *partner = split_partner;
 
-  // printf("destroy_cb called!\n");
-  // make_current ();
+    if (split_is_child) {
+      // Closing the secondary pane: restore primary to full size.
+      // For non-root primary we also restore its parent window position/size.
+      partner->split_partner = nullptr;
+      split_partner = nullptr;
+      partner->make_current ();
+      // Fallback: if pre_split dimensions were never saved (0), query X11 directly.
+      if (partner->pre_split_width <= 0 || partner->pre_split_height <= 0) {
+        XWindowAttributes _wattr;
+        XGetWindowAttributes (dpy, termlist.at(0)->parent, &_wattr);
+        partner->pre_split_width  = _wattr.width;
+        partner->pre_split_height = _wattr.height;
+      }
+      partner->window_calc (partner->pre_split_width, partner->pre_split_height);
+      if (partner->tab_index > 0 && partner->parent != None)
+        XMoveResizeWindow (dpy, partner->parent, 0, 0,
+                           partner->pre_split_width, partner->pre_split_height);
+      if (partner->vt != None)
+        XMoveResizeWindow (dpy, partner->vt,
+                           partner->window_vt_x, partner->window_vt_y,
+                           partner->vt_width, partner->vt_height);
+      partner->scr_reset ();
+#ifdef ENABLE_MINIMAP
+      if (partner->minimap.enabled) partner->resize_minimap ();
+#endif
+      if (partner->parent != None) {
+        partner->focus_in ();
+        partner->want_refresh = 1;
+        partner->refresh_check ();  // force repaint of the now-full-size pane
+        XSetInputFocus (dpy, partner->parent, RevertToPointerRoot, CurrentTime);
+        XFlush (dpy);
+      }
+      // Skip the normal next_tab call — just delete ourselves
+      delete this;
+      return;
+    } else {
+      // Closing the primary pane: promote the child to a regular tab.
+      partner->split_is_child = false;
+      partner->split_partner  = nullptr;
+      split_partner = nullptr;
+      // Fallback: if pre_split dimensions were never saved (0), query X11 directly.
+      if (pre_split_width <= 0 || pre_split_height <= 0) {
+        XWindowAttributes _wattr;
+        XGetWindowAttributes (dpy, termlist.at(0)->parent, &_wattr);
+        pre_split_width  = _wattr.width;
+        pre_split_height = _wattr.height;
+      }
+      // Restore primary's cached dimensions (window_calc was called with half-size
+      // during apply_split_geometry) so switch_to_tab uses the correct full size.
+      window_calc (pre_split_width, pre_split_height);
+      // Move child window to origin and give it the full pre-split size.
+      if (partner->parent != None)
+        XMoveResizeWindow (dpy, partner->parent, 0, 0,
+                           pre_split_width, pre_split_height);
+      partner->make_current ();
+      partner->window_calc (pre_split_width, pre_split_height);
+      if (partner->vt != None)
+        XMoveResizeWindow (dpy, partner->vt,
+                           partner->window_vt_x, partner->window_vt_y,
+                           partner->vt_width, partner->vt_height);
+      partner->scr_reset ();
+#ifdef ENABLE_MINIMAP
+      if (partner->minimap.enabled) partner->resize_minimap ();
+#endif
+      // Fall through to normal tab-switching/deletion below;
+      // next_tab(1) will switch to the partner (now a regular tab).
+    }
+  }
 
   if (termlist.size() > 1) {
     if (tab_index == 0)  {
@@ -473,11 +557,16 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
       XMapWindow(dpy, tab->parent);
     }
 
-    // prev_tab(1);
     next_tab(1);
+    // Ensure the newly active term repaints. destroy_cb runs as an idle callback
+    // (not via x_cb), so the normal GET_R->refresh_check() at the end of x_cb
+    // won't fire — trigger it explicitly here so the window isn't left blank.
+    if (GET_R && !GET_R->destroy_ev.is_active ()) {
+      GET_R->want_refresh = 1;
+      GET_R->refresh_check ();
+    }
   }
 
-  // printf("deleting term\n");
   delete this;
 }
 
@@ -1229,17 +1318,18 @@ void rxvt_term::resize_minimap()
     // Change window attributes to ensure transparency
     XChangeWindowAttributes(dpy, minimap.win, CWBackPixmap, &attr);
 
-    // Move and resize the window
-    XMoveResizeWindow(dpy, minimap.win,
-                     minimap_x, int_bwidth,
-                     minimap.width, vt_height);
+    // Move and resize the window (guard against zero dimensions → BadValue)
+    if (minimap.width >= 1 && vt_height >= 1)
+      XMoveResizeWindow(dpy, minimap.win,
+                       minimap_x, int_bwidth,
+                       minimap.width, vt_height);
 
     // Recreate persistent buffer if dimensions changed
     if (minimap.buffer != None && (minimap.width != old_width || minimap.height != old_height)) {
         XFreePixmap(dpy, minimap.buffer);
         minimap.buffer = None;
     }
-    if (minimap.buffer == None && minimap.gc != None) {
+    if (minimap.buffer == None && minimap.gc != None && minimap.width > 0 && minimap.height > 0) {
         minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, minimap.depth);
     }
 
@@ -1340,7 +1430,13 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
       if (scrollBar.state) scrollBar.resize();
 
       // printf("XMoveResizeWindow vt window to %dx%d / %dx%d\n", window_vt_x, window_vt_y, vt_width, vt_height);
-      XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
+      // Skip the intermediate vt resize when in split mode: apply_split_geometry
+      // will immediately override it with correct half-size dimensions.  Doing
+      // this intermediate resize (a) wastes a round-trip and (b) generates
+      // MotionNotify events while the user has Button1 held (window drag), which
+      // rxvt misinterprets as a selection-extend operation.
+      if (!GET_R->split_partner)
+        XMoveResizeWindow (dpy, GET_R->vt, window_vt_x, window_vt_y, vt_width, vt_height);
 
       HOOK_INVOKE ((this, HOOK_SIZE_CHANGE, DT_INT, newwidth, DT_INT, newheight, DT_END));
 
@@ -1361,6 +1457,45 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   if (fix_screen || old_height == 0) {
     // printf("scr_reset on resizing\n");
     scr_reset ();
+  }
+
+  // If the currently focused term is part of a split, relay the new total
+  // dimensions to apply_split_geometry so both panes stay in sync.
+  // IMPORTANT: apply_split_geometry calls XMoveResizeWindow on child->parent,
+  // which causes X to send a ConfigureNotify to child->parent.  Child's x_cb
+  // then calls resize_all_windows on the child — we must NOT call
+  // apply_split_geometry from that child-side invocation or we recurse with
+  // half-of-half dimensions until height → 0 → X_ConfigureWindow BadValue 0x0.
+  // Guard: only call apply_split_geometry when THIS term is the primary (not child).
+  if (GET_R && GET_R->split_partner && !split_is_child) {
+    rxvt_term *primary = GET_R->split_is_child ? GET_R->split_partner : GET_R;
+    // Use actual WM window dimensions to avoid using szHint corrupted by a
+    // previous apply_split_geometry call.
+    XWindowAttributes _wattr;
+    XGetWindowAttributes (dpy, termlist.at(0)->parent, &_wattr);
+    int total_w = _wattr.width;
+    int total_h = _wattr.height;
+    if (total_w > 0 && total_h > 0) {
+      // Keep pre_split dimensions current so destroy_cb uses the right size
+      // even when the window has been resized since the split was created.
+      primary->pre_split_width  = total_w;
+      primary->pre_split_height = total_h;
+      primary->apply_split_geometry (total_w, total_h);
+      // apply_split_geometry calls window_calc(half_w, half_h) on root which
+      // corrupts root->szHint.width/height to half values AND corrupts ncol/nrow.
+      // We must NOT call window_calc(total_w, total_h) here to restore szHint —
+      // that would set ncol/nrow to full-window values while scr_reset already
+      // allocated the buffer for half-size, causing scr_refresh to go out-of-bounds
+      // and segfault (font->draw on garbage).
+      // Instead, just fix szHint.width/height directly so the next ConfigureNotify
+      // comparison doesn't spuriously re-trigger resize_all_windows.
+      if (tab_index == 0) {
+        szHint.width  = total_w;
+        szHint.height = total_h;
+      }
+      // Restore make_current to GET_R (apply_split_geometry ends on the child)
+      GET_R->make_current ();
+    }
   }
 
 #if USE_XIM

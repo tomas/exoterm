@@ -1144,8 +1144,9 @@ rxvt_term::key_press (XKeyEvent &ev)
     show_tabpopup (1.0);
     return next_tab (0);
   }
-  // Ctrl+Shift+Tab (XK_ISO_Left_Tab) → prev tab
+  // Ctrl+Shift+Tab → focus other split pane (if in a split), else prev tab
   if (ctrl && (keysym == XK_ISO_Left_Tab || (shft && keysym == XK_Tab))) {
+    if (split_partner) { split_focus_other (); return; }
     show_tabpopup (1.0);
     return prev_tab (0);
   }
@@ -1256,6 +1257,17 @@ rxvt_term::key_press (XKeyEvent &ev)
         //   detach_tab();
         //   return;
         // }
+
+      // Ctrl+Shift+Right → vertical split (left | right)
+      if (ctrl && shft && keysym == XK_Right) {
+        new_split_pane(true);
+        return;
+      }
+      // Ctrl+Shift+Up → horizontal split (top / bottom)
+      if (ctrl && shft && keysym == XK_Up) {
+        new_split_pane(false);
+        return;
+      }
 
       if (ctrl && shft && (keysym == XK_C || keysym == XK_V))
         {
@@ -1551,7 +1563,12 @@ rxvt_term::flush () {
 /* checks whether a refresh is requested and starts the refresh timer */
 void
 rxvt_term::refresh_check () {
-  if (want_refresh && !flush_ev.is_active ())
+  // Never restart the flush timer for a term that is being destroyed.
+  // destroy() stops flush_ev but x_cb can still call GET_R->refresh_check()
+  // between destroy() and the destroy_ev idle callback — this guard prevents
+  // restarting the timer on a dying term, which would cause a use-after-free
+  // segfault in scr_refresh after delete this.
+  if (want_refresh && !flush_ev.is_active () && !destroy_ev.is_active ())
     flush_ev.start (1. / 60.); // refresh at max. 60 Hz normally
 
   display->flush ();
@@ -1644,8 +1661,17 @@ rxvt_term::draw_tabpopup ()
   if (!tabpopup.win || !tabpopup.gc || !tabpopup.font) return;
   if (termlist.empty ()) return;
 
-  int ntabs       = (int)termlist.size ();
-  int total_width = szHint.width;
+  // Build a list of only regular (non-split-child) tabs
+  vector<rxvt_term *> tabs;
+  for (int i = 0; i < (int)termlist.size (); i++)
+    if (!termlist[i]->split_is_child) tabs.push_back (termlist[i]);
+
+  int ntabs       = (int)tabs.size ();
+  if (ntabs == 0) return;
+  // Use actual X11 window width: szHint.width is half-size when root is split.
+  XWindowAttributes _wattr;
+  XGetWindowAttributes (dpy, parent, &_wattr);
+  int total_width = _wattr.width;
   int h           = tabpopup.height;
   int text_y      = (h + tabpopup.font->ascent - tabpopup.font->descent) / 2;
 
@@ -1655,9 +1681,14 @@ rxvt_term::draw_tabpopup ()
 
   int tab_w = total_width / ntabs;
 
+  // Active entry: if GET_R is a split child, highlight its primary
+  unsigned int active_idx = GET_R->split_is_child && GET_R->split_partner
+                            ? GET_R->split_partner->tab_index
+                            : GET_R->tab_index;
+
   for (int i = 0; i < ntabs; i++) {
-    rxvt_term *tab   = termlist[i];
-    bool is_active   = ((unsigned int)i == GET_R->tab_index);
+    rxvt_term *tab   = tabs[i];
+    bool is_active   = (tab->tab_index == active_idx);
     int x            = i * tab_w;
     int w            = (i == ntabs - 1) ? (total_width - x) : tab_w;
 
@@ -1705,8 +1736,10 @@ rxvt_term::show_tabpopup (float hide_after)
   tabpopup_hide_ev.stop ();
   tabpopup.keyboard_triggered = (hide_after > 0);
 
-  // Popup is a child of our parent window: just resize to current width and raise
-  XResizeWindow (dpy, tabpopup.win, szHint.width, tabpopup.height);
+  // Use actual X11 window width (szHint.width is half-size when root is split)
+  XWindowAttributes _wattr;
+  XGetWindowAttributes (dpy, parent, &_wattr);
+  XResizeWindow (dpy, tabpopup.win, _wattr.width, tabpopup.height);
   XRaiseWindow (dpy, tabpopup.win);
   XMapWindow (dpy, tabpopup.win);
   tabpopup.visible = true;
@@ -1746,7 +1779,9 @@ rxvt_term::resize_tabpopup ()
   if (!tabpopup.win) return;
   tabpopup.height = fheight + 8;
   if (tabpopup.visible) {
-    XResizeWindow (dpy, tabpopup.win, szHint.width, tabpopup.height);
+    XWindowAttributes _wattr;
+    XGetWindowAttributes (dpy, parent, &_wattr);
+    XResizeWindow (dpy, tabpopup.win, _wattr.width, tabpopup.height);
     draw_tabpopup ();
   }
 }
@@ -1785,15 +1820,21 @@ rxvt_term::x_tabpopup_cb (XEvent &ev)
 
     case ButtonPress:
       if (ev.xbutton.button == Button1 || ev.xbutton.button == Button2) {
-        int ntabs = (int)termlist.size ();
-        if (ntabs > 0 && szHint.width > 0) {
-          int tab_w   = szHint.width / ntabs;
+        // Build the same filtered list used when drawing
+        vector<rxvt_term *> tabs;
+        for (int i = 0; i < (int)termlist.size (); i++)
+          if (!termlist[i]->split_is_child) tabs.push_back (termlist[i]);
+        int ntabs = (int)tabs.size ();
+        XWindowAttributes _wattr;
+        XGetWindowAttributes (dpy, parent, &_wattr);
+        if (ntabs > 0 && _wattr.width > 0) {
+          int tab_w   = _wattr.width / ntabs;
           int clicked = ev.xbutton.x / tab_w;
           if (clicked >= 0 && clicked < ntabs) {
             if (ev.xbutton.button == Button2) {
-              termlist[clicked]->close_tab ();
-            } else if ((unsigned int)clicked != GET_R->tab_index) {
-              GET_R->switch_to_tab ((unsigned int)clicked, 0);
+              tabs[clicked]->close_tab ();
+            } else if (tabs[clicked]->tab_index != GET_R->tab_index) {
+              GET_R->switch_to_tab (tabs[clicked]->tab_index, 0);
               draw_tabpopup ();
             }
           }
@@ -1870,55 +1911,238 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     return;
   }
 
-  printf("switching from tab %d to tab %d (total: %d)\n", tab_index, index, termlist.size());
-
+  // Resolve visual index for the tab title (skip split children)
+  int visual_idx = 0;
+  for (unsigned int i = 0; i <= index; i++)
+    if (!termlist.at(i)->split_is_child) visual_idx++;
   rxvt_term * root = termlist.at(0);
-  if (root) root->update_tab_title(index+1);
+  if (root) root->update_tab_title(visual_idx);
 
-  // ensure tab's size matches root's
-  XResizeWindow (dpy, tab->vt, root->vt_width, root->vt_height);
-  XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
-
-  // map new before removing current
+  // --- Unmap the currently visible window(s) ---
   if (tab_index > 0) {
-    // printf("unmapping parent win\n");
     XUnmapWindow(dpy, parent);
   } else if (closing) {
     copy_position(dpy, parent, tab->parent, 0, 0);
   }
+  // If switching away from a split, unmap the partner.
+  // When this is the child (split_is_child) and the primary is root (tab_index==0),
+  // root->parent is the WM top-level window — never unmap it or all child windows
+  // become non-viewable and XSetInputFocus will BadMatch.
+  if (split_partner && !split_is_child)
+    XUnmapWindow(dpy, split_partner->parent);           // unmap child sub-window
+  else if (split_partner && split_is_child && split_partner->tab_index > 0)
+    XUnmapWindow(dpy, split_partner->parent);           // unmap non-root primary sub-window
+  // (root primary stays mapped — its content is covered by the destination tab's parent)
 
-  // XWindowAttributes attr;
-  // XGetWindowAttributes (dpy, tab->parent, &attr);
-  // XSelectInput (dpy, tab->parent, PropertyChangeMask);
+  // If root is currently split, apply_split_geometry called window_calc(half_w,half_h)
+  // on root, corrupting root->szHint and root->vt_width/height.  Restore them to the
+  // actual current WM window size so the resize operations below are correct.
+  // (Use XGetWindowAttributes rather than pre_split_width so a post-split WM resize
+  // is reflected here too.)
+  if (root->split_partner && !root->split_is_child) {
+    XWindowAttributes _wattr;
+    XGetWindowAttributes (dpy, root->parent, &_wattr);
+    root->window_calc (_wattr.width, _wattr.height);
+  }
+
+  // --- Resize and position the destination tab ---
+  if (tab->split_partner && !tab->split_is_child) {
+    // Destination is a split primary: lay both panes out at half size
+    tab->apply_split_geometry (root->szHint.width, root->szHint.height);
+    // When root (tab_index==0) is closing, tab->parent has been promoted to the
+    // WM top-level window via detach_tab().  apply_split_geometry called
+    // XResizeWindow(tab->parent, half_w, half_h) because tab->tab_index is still
+    // non-zero, shrinking the WM window.  Restore it to full size.
+    if (closing && tab_index == 0)
+      XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
+  } else if (!tab->split_is_child) {
+    // Normal (unsplit) tab: full size
+    XResizeWindow (dpy, tab->vt, root->vt_width, root->vt_height);
+    XResizeWindow (dpy, tab->parent, root->szHint.width, root->szHint.height);
+  }
+  // (If destination is somehow a split child, geometry was already set by apply_split_geometry.)
 
   focus_out();
-  tab->make_current(); // set as currently active (rxvt_current_term)
-  tab->focus_in(); // sets want_refresh
+  tab->make_current();
+  tab->focus_in();
 
   XMapWindow(dpy, tab->parent);
+  // If destination has a split partner, map that too
+  if (tab->split_partner && !tab->split_is_child)
+    XMapWindow(dpy, tab->split_partner->parent);
+
+  // Sync before XSetInputFocus: XMapWindow is async and the window must be
+  // viewable before focusing it, otherwise we get a BadMatch X error.
+  XSync(dpy, False);
   XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
   XFlush(dpy);
 
-  // Refresh popup if visible so active tab highlight updates immediately
   if (root && root->tabpopup.win && root->tabpopup.visible)
     root->draw_tabpopup ();
 }
 
 void rxvt_term::prev_tab(unsigned int closing) {
-  // printf("prev, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
-  unsigned int idx = tab_index == 0 ? termlist.size()-1 : tab_index - 1;
-  if (idx != tab_index) switch_to_tab(idx, closing);
+  int n = termlist.size();
+  // Start from the primary pane's index so navigating from either pane works identically
+  int start = (split_is_child && split_partner) ? split_partner->tab_index : tab_index;
+  for (int i = 1; i < n; i++) {
+    int candidate = (start - i + n) % n;
+    if (!termlist.at(candidate)->split_is_child) {
+      if ((int)termlist.at(candidate)->tab_index != start)
+        switch_to_tab(candidate, closing);
+      return;
+    }
+  }
 }
 
 void rxvt_term::next_tab(unsigned int closing) {
-  // printf("next, tab index: %d, termlist size: %d\n", tab_index, termlist.size());
-  unsigned int idx = tab_index == termlist.size()-1 ? 0 : tab_index + 1;
-  if (idx != tab_index) switch_to_tab(idx, closing);
+  int n = termlist.size();
+  int start = (split_is_child && split_partner) ? split_partner->tab_index : tab_index;
+  for (int i = 1; i < n; i++) {
+    int candidate = (start + i) % n;
+    if (!termlist.at(candidate)->split_is_child) {
+      if ((int)termlist.at(candidate)->tab_index != start)
+        switch_to_tab(candidate, closing);
+      return;
+    }
+  }
 }
 
 void rxvt_term::close_tab () {
   // printf("close_tab, calling destroy()!\n");
   destroy();
+}
+
+// Apply half-size geometry to the two panes of a split.
+// Called with the total available pixel dimensions (root->szHint.width/height).
+// `this` must be the PRIMARY (non-child) pane.
+void rxvt_term::apply_split_geometry (int total_w, int total_h) {
+  rxvt_term *child = split_partner;
+  if (!child) return;
+
+  rxvt_term *root = termlist.at(0);
+
+  int half_w = split_vertical ? total_w / 2 : total_w;
+  int half_h = split_vertical ? total_h : total_h / 2;
+  int child_x = split_vertical ? half_w : 0;
+  int child_y = split_vertical ? 0 : half_h;
+
+  // Bail out if we'd produce zero-size windows — X11 raises BadValue for
+  // XConfigureWindow with width=0 or height=0.
+  if (half_w < 1 || half_h < 1) return;
+
+  // Primary pane:
+  //   tab_index==0 means parent IS the top-level WM window — never resize it,
+  //   only shrink its vt.  For non-root tabs the parent is a child window and
+  //   can be resized/repositioned freely.
+  make_current ();
+  window_calc (half_w, half_h);
+  if (tab_index > 0)
+    XResizeWindow (dpy, parent, half_w, half_h);
+  if (vt_width >= 1 && vt_height >= 1)
+    XMoveResizeWindow (dpy, vt, window_vt_x, window_vt_y, vt_width, vt_height);
+  scr_reset ();
+#ifdef ENABLE_MINIMAP
+  if (minimap.enabled) resize_minimap ();
+#endif
+
+  // Child pane: always a child of root->parent, position it in the other half.
+  XMoveResizeWindow (dpy, child->parent, child_x, child_y, half_w, half_h);
+  child->make_current ();
+  child->window_calc (half_w, half_h);
+  if (child->vt_width >= 1 && child->vt_height >= 1)
+    XMoveResizeWindow (dpy, child->vt, child->window_vt_x, child->window_vt_y, child->vt_width, child->vt_height);
+  child->scr_reset ();
+#ifdef ENABLE_MINIMAP
+  if (child->minimap.enabled) child->resize_minimap ();
+#endif
+}
+
+void rxvt_term::new_split_pane (bool vertical) {
+  if (split_partner) return;  // already split; don't nest
+
+  // Find primary pane: if we're a split child, operate on the primary instead.
+  // (Shouldn't normally happen since split children can't be switched to via
+  // Ctrl+Tab, but guard anyway.)
+  if (split_is_child) return;
+
+  // Snapshot total dimensions before splitting.
+  // Always query X11 directly to avoid using stale/corrupted szHint.
+  int total_w, total_h;
+  {
+    XWindowAttributes _wattr;
+    XGetWindowAttributes (dpy, termlist.at(0)->parent, &_wattr);
+    total_w = _wattr.width;
+    total_h = _wattr.height;
+  }
+  if (total_w <= 0 || total_h <= 0) return;  // safety guard
+
+  // Create the child terminal (same as new_tab, but we manage mapping ourselves)
+  rxvt_term *child = new rxvt_term ();
+
+  stringvec *args = new stringvec;
+  for (int i = 0; i < argv->size()-1; i++)
+    args->push_back (strdup (this->argv->at(i)));
+
+  stringvec *envs = new stringvec;
+  for (int v = 0; v < envv->size()-1; v++)
+    envs->push_back (strdup (this->envv->at(v)));
+
+  char *path = (char *)malloc (128);
+  try {
+    get_current_path (path, 128);
+    child->rs[Rs_chdir] = path;
+    child->init (args, envs);
+    // NOTE: child->init() pushes child onto termlist and creates its parent
+    // window as a child of root->parent (via the XEMBED branch in create_windows).
+    // The window is NOT yet mapped — switch_to_tab normally does that.
+  } catch (const class rxvt_failure_exception &e) {
+    printf ("error initialising split pane!\n");
+    child->destroy ();
+    free (path);
+    return;
+  }
+  free (path);
+
+  // Link the two panes
+  split_partner       = child;
+  child->split_partner = this;
+  child->split_is_child = true;
+  split_vertical      = vertical;
+  child->split_vertical = vertical;
+  pre_split_width     = total_w;
+  pre_split_height    = total_h;
+  child->pre_split_width  = total_w;
+  child->pre_split_height = total_h;
+
+  // Lay out both panes at half size
+  apply_split_geometry (total_w, total_h);
+
+  // Map and focus the child
+  XMapWindow (dpy, child->parent);
+  focus_out ();
+  refresh_check ();   // redraw primary with hollow cursor immediately
+  child->make_current ();
+  child->focus_in ();
+  XSetInputFocus (dpy, child->parent, RevertToPointerRoot, CurrentTime);
+  XFlush (dpy);
+
+  // Refresh tab bar (split child is invisible there; count stays the same)
+  rxvt_term *root = termlist.at(0);
+  if (root && root->tabpopup.win && root->tabpopup.visible)
+    root->draw_tabpopup ();
+}
+
+// Toggle focus between the two panes of a split.
+void rxvt_term::split_focus_other () {
+  if (!split_partner) return;
+  rxvt_term *other = split_partner;
+  focus_out ();
+  refresh_check ();   // ensure the pane losing focus redraws its cursor hollow
+  other->make_current ();
+  other->focus_in ();
+  XSetInputFocus (dpy, other->parent, RevertToPointerRoot, CurrentTime);
+  XFlush (dpy);
 }
 
 void rxvt_term::set_parent_window(Window new_parent, int x, int y) {
@@ -1941,7 +2165,10 @@ void rxvt_term::detach_tab () {
 }
 
 void rxvt_term::update_tab_title(int index) {
-  sprintf(title, "%s (tab %d/%d)", rs [Rs_title], index, termlist.size());
+  int total = 0;
+  for (rxvt_term **t = termlist.begin(); t < termlist.end(); t++)
+    if (!(*t)->split_is_child) total++;
+  sprintf(title, "%s (tab %d/%d)", rs [Rs_title], index, total);
   set_title(title);
 }
 
@@ -2561,6 +2788,9 @@ rxvt_term::x_minimap_cb (XEvent &ev)
     case ButtonRelease:
       if (minimap.dragging && ev.xbutton.button == Button1) {
           minimap.dragging = false;
+      } else if (ev.xbutton.button == Button2) {
+          minimap.visible = false;
+          XUnmapWindow (dpy, minimap.win);
       } else if (ev.xbutton.button == Button4 || ev.xbutton.button == Button5) {
         int lines;
         page_dirn dirn;
@@ -2621,7 +2851,13 @@ rxvt_term::x_cb (XEvent &ev)
   switch (ev.type) {
       case KeyPress:
         if (!search_shown) scr_overlay_off();
-        key_press (ev.xkey);
+        // If this pane received keyboard input but another split pane has focus,
+        // route the key to the correct pane. This handles focus-follows-mouse WMs
+        // that may deliver keys to whatever window is under the pointer.
+        if (split_partner && GET_R && this != GET_R)
+          GET_R->key_press (ev.xkey);
+        else
+          key_press (ev.xkey);
         break;
 
       case KeyRelease:
@@ -2791,13 +3027,20 @@ rxvt_term::x_cb (XEvent &ev)
       case FocusIn:
         // printf("focus in, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
 
-        if (tab_index == 0 && ev.xfocus.detail != NotifyInferior
+        if (ev.xfocus.detail != NotifyInferior
             && ev.xfocus.detail != NotifyPointer
             && ev.xfocus.mode != NotifyGrab
             && ev.xfocus.mode != NotifyUngrab) {
-              // printf("calling focus in, %d\n", GET_R->tab_index);
-              XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
-              GET_R->focus_in ();
+              // If we are not the currently active pane's parent window, redirect
+              // focus back to the correct pane. This prevents focus-follows-mouse
+              // from stealing keyboard input to a non-focused split pane.
+              if (GET_R && parent != GET_R->parent) {
+                XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+              } else if (tab_index == 0) {
+                // printf("calling focus in, %d\n", GET_R->tab_index);
+                XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+                GET_R->focus_in ();
+              }
             }
         break;
 
@@ -2963,8 +3206,17 @@ rxvt_term::x_cb (XEvent &ev)
         if ((priv_modes & PrivMode_mouse_report) && !bypass_keystate)
           break;
 
-        // Hover-show tabpopup only when focused and mouse is near the top
-        if (ev.xany.window == vt && focus && termlist.size() > 1) {
+        // Hover-show tabpopup only when focused and mouse is near the top.
+        // For split panes the vt y-coordinate is relative to the pane's own
+        // window.  The bottom pane of a horizontal split (split_is_child &&
+        // !split_vertical) is visually in the middle of the screen, so its
+        // y=0 is NOT near the top of the terminal window — skip hover for it.
+        bool is_horiz_bottom = split_is_child && split_partner && !split_vertical;
+        int regular_tabs = 0;
+        for (int i = 0; i < (int)termlist.size(); i++)
+          if (!termlist[i]->split_is_child) regular_tabs++;
+        bool any_focus = focus || (split_partner && split_partner->focus);
+        if (ev.xany.window == vt && any_focus && regular_tabs > 1 && !is_horiz_bottom) {
           rxvt_term *root = termlist[0];
           if (root->tabpopup.win && !root->tabpopup.visible
               && ev.xmotion.y < root->tabpopup.height) {
@@ -3256,6 +3508,16 @@ rxvt_term::rootwin_cb (XEvent &ev)
 void
 rxvt_term::button_press (XButtonEvent &ev)
 {
+  // If this pane is part of a split and isn't currently focused, take focus.
+  if (split_partner && this != GET_R) {
+    rxvt_term *prev = GET_R;
+    prev->focus_out ();
+    prev->refresh_check ();
+    make_current ();
+    focus_in ();
+    XSetInputFocus (dpy, parent, RevertToPointerRoot, ev.time);
+  }
+
   int reportmode = 0, clickintime;
 
   bypass_keystate = ev.state & (ModMetaMask | ShiftMask);
