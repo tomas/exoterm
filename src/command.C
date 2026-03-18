@@ -3211,7 +3211,7 @@ rxvt_term::x_cb (XEvent &ev)
               // from stealing keyboard input to a non-focused split pane.
               if (GET_R && parent != GET_R->parent) {
                 XSetInputFocus(dpy, GET_R->parent, RevertToParent, CurrentTime);
-              } else if (tab_index == 0) {
+              } else {
                 // printf("calling focus in, %d\n", GET_R->tab_index);
                 XSetInputFocus(dpy, GET_R->parent, RevertToParent, CurrentTime);
                 GET_R->focus_in ();
