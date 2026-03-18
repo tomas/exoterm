@@ -1468,9 +1468,9 @@ done:
 
 void
 rxvt_term::xdnd_deinit(void) {
+  if (!this->parent) return;
   dLocal (Display *, dpy);
   Window win = this->parent;
-  // Window win = this->vt;
   XDeleteProperty(dpy, win, xdndaware);
 }
 
@@ -1941,7 +1941,7 @@ rxvt_term::create_windows (int argc, const char *const *argv)
   attributes.bit_gravity = NorthWestGravity;
   XChangeWindowAttributes (dpy, vt, CWBitGravity, &attributes);
 
-  vt_emask = PointerMotionMask | ExposureMask | ButtonPressMask | ButtonReleaseMask | PropertyChangeMask;
+  vt_emask = PointerMotionMask | ExposureMask | ButtonPressMask | ButtonReleaseMask | PropertyChangeMask | LeaveWindowMask;
 
   if (option (Opt_pointerBlank))
     vt_emask |= PointerMotionMask;

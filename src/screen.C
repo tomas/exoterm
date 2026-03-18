@@ -2361,15 +2361,25 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   for (int i = 0; i < (int)termlist.size(); i++) {
     if (termlist.at(i)->split_is_child) continue;
 
-    if (i == active_termlist_idx)
-      XSetForeground(dpy, gc, focused.pixel);
-    else
-      XSetForeground(dpy, gc, unfocused.pixel);
+    bool is_active = (i == active_termlist_idx);
+    bool is_split  = (termlist.at(i)->split_partner != nullptr);
 
-    // Subtract pane_x so the indicator appears at the correct visual column.
-    // X11 clips negative-x drawing to the window boundary, so split panes
-    // naturally show only their own portion of the bar.
-    XFillRectangle (dpy, parent, gc, visual_i * tab_width - pane_x, bar_pos, tab_width, bar_height);
+    XSetForeground(dpy, gc, is_active ? focused.pixel : unfocused.pixel);
+
+    int x = visual_i * tab_width - pane_x;
+
+    if (is_active && is_split) {
+      // Draw two equal halves with a dark 1px separator to indicate split mode.
+      int half = tab_width / 2;
+      XFillRectangle (dpy, parent, gc, x, bar_pos, half - 1, bar_height);
+      XSetForeground (dpy, gc, unfocused.pixel);
+      XFillRectangle (dpy, parent, gc, x + half - 1, bar_pos, 1, bar_height);
+      XSetForeground (dpy, gc, focused.pixel);
+      XFillRectangle (dpy, parent, gc, x + half, bar_pos, tab_width - half, bar_height);
+    } else {
+      XFillRectangle (dpy, parent, gc, x, bar_pos, tab_width, bar_height);
+    }
+
     visual_i++;
   }
 

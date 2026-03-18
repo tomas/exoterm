@@ -207,6 +207,11 @@ rxvt_term::rxvt_term ()
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
+  split_bar_ev.set        <rxvt_term, &rxvt_term::x_split_bar_cb> (this);
+  split_bar_win    = None;
+  split_ratio      = 0.5f;
+  split_drag_active = false;
+  last_vt_motion_y  = -1;
 
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 
@@ -237,6 +242,10 @@ rxvt_term::~rxvt_term ()
 
   termlist.erase (find (termlist.begin(), termlist.end(), this));
   // printf("destroying term instance. current term count: %d\n", termlist.size());
+
+  // Destroy the split divider bar (owned by primary pane only)
+  if (split_bar_win != None && display)
+    destroy_split_bar ();
 
   // Clear any dangling split reference in the partner
   if (split_partner) {
@@ -483,6 +492,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
     if (split_is_child) {
       // Closing the secondary pane: restore primary to full size.
       // For non-root primary we also restore its parent window position/size.
+      partner->destroy_split_bar ();
       partner->split_partner = nullptr;
       split_partner = nullptr;
       partner->make_current ();
@@ -517,6 +527,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
       return;
     } else {
       // Closing the primary pane: promote the child to a regular tab.
+      destroy_split_bar ();
       partner->split_is_child = false;
       partner->split_partner  = nullptr;
       split_partner = nullptr;
@@ -544,15 +555,107 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
 #ifdef ENABLE_MINIMAP
       if (partner->minimap.enabled) partner->resize_minimap ();
 #endif
-      // Fall through to normal tab-switching/deletion below;
-      // next_tab(1) will switch to the partner (now a regular tab).
+
+      if (tab_index == 0) {
+        // "Steal parent" approach: re-home partner's children directly into
+        // this->parent (the WM top-level window) so there is no WM unmap/remap
+        // cycle and no visible flash.
+
+        // 1. Stop partner's watcher on its old intermediate window.
+        partner->termwin_ev.stop (display);
+
+        // 2. Lift partner's direct children out of partner->parent and into
+        //    this->parent.  partner->parent is at (0,0) so coordinates are
+        //    identical in the new parent.
+        XReparentWindow (dpy, partner->vt, parent,
+                         partner->window_vt_x, partner->window_vt_y);
+        if (partner->scrollBar.state && partner->scrollBar.win != None) {
+          XWindowAttributes swa;
+          XGetWindowAttributes (dpy, partner->scrollBar.win, &swa);
+          XReparentWindow (dpy, partner->scrollBar.win, parent, swa.x, swa.y);
+        }
+#ifdef ENABLE_MINIMAP
+        if (partner->minimap.enabled && partner->minimap.win != None) {
+          XWindowAttributes mwa;
+          XGetWindowAttributes (dpy, partner->minimap.win, &mwa);
+          XReparentWindow (dpy, partner->minimap.win, parent, mwa.x, mwa.y);
+        }
+#endif
+
+        // 3. Destroy the now-empty intermediate window.
+        XDestroyWindow (dpy, partner->parent);
+
+        // 4. Partner steals this->parent as its own top-level WM window.
+        partner->parent = parent;
+
+        // 5. Restart the event watcher on the stolen window.
+        //    The event mask is already correct (set when this->parent was created).
+        partner->termwin_ev.start (display, partner->parent);
+
+        // 6. Clean up this->vt before ~rxvt_term runs.  Delete the XftDraw
+        //    first (while the window still exists), then destroy the window.
+        //    Without this, this->vt would remain as an invisible orphan in the
+        //    stolen window until it is cascade-destroyed later.
+        //    Also null out selection owners now: ~rxvt_term() calls
+        //    selection_clear() → push_selection_to_x11() → XConvertSelection
+        //    with vt as the requestor window; if vt is None by then, X errors.
+        if (display->selection_owner == this) display->selection_owner = nullptr;
+        if (display->clipboard_owner == this) display->clipboard_owner = nullptr;
+        delete drawable; drawable = nullptr;
+        XDestroyWindow (dpy, vt); vt = None;
+
+        // 7. Prevent ~rxvt_term from destroying the window partner now owns.
+        parent = None;
+
+        // 8. Focus and trigger a full repaint.  With steal the WM window never
+        //    lost focus, so we only need to update internal state and set focus
+        //    on parent (which has KeyPressMask) — not on vt (which does not).
+        partner->focus_in ();
+        {
+          XWindowAttributes xwa;
+          XGetWindowAttributes (dpy, partner->parent, &xwa);
+          if (xwa.map_state == IsViewable)
+            XSetInputFocus (dpy, partner->parent, RevertToParent, CurrentTime);
+        }
+        partner->want_refresh = 1;
+        partner->refresh_check ();
+        XFlush (dpy);
+        delete this;
+        return;
+      }
+      // Non-root primary: fall through to normal tab-switching/deletion.
     }
   }
 
   if (termlist.size() > 1) {
     if (tab_index == 0)  {
       rxvt_term * tab = termlist.at(1);
-      tab->detach_tab();
+
+      // Reparent the new root window at the *current* screen position of the
+      // closing WM window so it never touches (0,0) and causes a position flash.
+      // detach_tab() used to do XReparentWindow(..., display->root, 0, 0) which
+      // mapped the window at the top-left corner for a frame before switch_to_tab
+      // called copy_position to put it in the right place.
+      {
+        int rx = 0, ry = 0;
+        Window child_ret;
+        XWindowAttributes xwa;
+        XTranslateCoordinates (dpy, parent, display->root, 0, 0, &rx, &ry, &child_ret);
+        // Subtract the internal WM-frame offset so the frame lands in the same spot.
+        XGetWindowAttributes (dpy, parent, &xwa);
+        rx -= xwa.x;
+        ry -= xwa.y;
+        // Pre-set WM_NORMAL_HINTS so the WM knows the intended position.
+        XSizeHints hints = {};
+        hints.flags  = PPosition | PSize;
+        hints.x      = rx;
+        hints.y      = ry;
+        hints.width  = xwa.width;
+        hints.height = xwa.height;
+        XSetNormalHints (dpy, tab->parent, &hints);
+        XReparentWindow (dpy, tab->parent, display->root, rx, ry);
+      }
+
       rxvt_set_as_main_parent(tab->parent, 1);
       XMapWindow(dpy, tab->parent);
     }

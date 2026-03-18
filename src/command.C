@@ -1934,6 +1934,14 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     XUnmapWindow(dpy, split_partner->parent);           // unmap non-root primary sub-window
   // (root primary stays mapped — its content is covered by the destination tab's parent)
 
+  // Hide the split bar of the tab we're leaving (bar is a child of root->parent
+  // so it stays visible even when the pane windows are unmapped/covered).
+  {
+    rxvt_term *cur_primary = (split_is_child && split_partner) ? split_partner : this;
+    if (cur_primary->split_bar_win != None)
+      XUnmapWindow (dpy, cur_primary->split_bar_win);
+  }
+
   // If root is currently split, apply_split_geometry called window_calc(half_w,half_h)
   // on root, corrupting root->szHint and root->vt_width/height.  Restore them to the
   // actual current WM window size so the resize operations below are correct.
@@ -1967,9 +1975,14 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   tab->focus_in();
 
   XMapWindow(dpy, tab->parent);
-  // If destination has a split partner, map that too
-  if (tab->split_partner && !tab->split_is_child)
+  // If destination has a split partner, map that and its divider bar too
+  if (tab->split_partner && !tab->split_is_child) {
     XMapWindow(dpy, tab->split_partner->parent);
+    if (tab->split_bar_win != None) {
+      XMapWindow (dpy, tab->split_bar_win);
+      XRaiseWindow (dpy, tab->split_bar_win);
+    }
+  }
 
   // XGetWindowAttributes is a round-trip that flushes all prior requests and
   // waits for the server to process them (equivalent to XSync).  We then only
@@ -2031,14 +2044,16 @@ void rxvt_term::apply_split_geometry (int total_w, int total_h) {
 
   rxvt_term *root = termlist.at(0);
 
-  int half_w = split_vertical ? total_w / 2 : total_w;
-  int half_h = split_vertical ? total_h : total_h / 2;
+  int half_w  = split_vertical ? (int)(total_w * split_ratio) : total_w;
+  int half_h  = split_vertical ? total_h : (int)(total_h * split_ratio);
+  int child_w = split_vertical ? total_w - half_w : total_w;
+  int child_h = split_vertical ? total_h : total_h - half_h;
   int child_x = split_vertical ? half_w : 0;
   int child_y = split_vertical ? 0 : half_h;
 
   // Bail out if we'd produce zero-size windows — X11 raises BadValue for
   // XConfigureWindow with width=0 or height=0.
-  if (half_w < 1 || half_h < 1) return;
+  if (half_w < 1 || half_h < 1 || child_w < 1 || child_h < 1) return;
 
   // Primary pane:
   //   tab_index==0 means parent IS the top-level WM window — never resize it,
@@ -2056,15 +2071,26 @@ void rxvt_term::apply_split_geometry (int total_w, int total_h) {
 #endif
 
   // Child pane: always a child of root->parent, position it in the other half.
-  XMoveResizeWindow (dpy, child->parent, child_x, child_y, half_w, half_h);
+  XMoveResizeWindow (dpy, child->parent, child_x, child_y, child_w, child_h);
   child->make_current ();
-  child->window_calc (half_w, half_h);
+  child->window_calc (child_w, child_h);
   if (child->vt_width >= 1 && child->vt_height >= 1)
     XMoveResizeWindow (dpy, child->vt, child->window_vt_x, child->window_vt_y, child->vt_width, child->vt_height);
   child->scr_reset ();
 #ifdef ENABLE_MINIMAP
   if (child->minimap.enabled) child->resize_minimap ();
 #endif
+
+  // Reposition the split bar divider window
+  if (split_bar_win != None)
+    {
+      int bar_x = split_vertical ? half_w - SPLIT_BAR_WIDTH / 2 : 0;
+      int bar_y = split_vertical ? 0 : half_h - SPLIT_BAR_WIDTH / 2;
+      int bar_w = split_vertical ? SPLIT_BAR_WIDTH : total_w;
+      int bar_h = split_vertical ? total_h : SPLIT_BAR_WIDTH;
+      XMoveResizeWindow (dpy, split_bar_win, bar_x, bar_y, bar_w, bar_h);
+      XRaiseWindow (dpy, split_bar_win);
+    }
 }
 
 void rxvt_term::new_split_pane (bool vertical) {
@@ -2119,6 +2145,8 @@ void rxvt_term::new_split_pane (bool vertical) {
   child->split_is_child = true;
   split_vertical      = vertical;
   child->split_vertical = vertical;
+  split_ratio         = 0.5f;
+  child->split_ratio  = 0.5f;
   pre_split_width     = total_w;
   pre_split_height    = total_h;
   child->pre_split_width  = total_w;
@@ -2126,6 +2154,9 @@ void rxvt_term::new_split_pane (bool vertical) {
 
   // Lay out both panes at half size
   apply_split_geometry (total_w, total_h);
+
+  // Create the visible divider between panes
+  create_split_bar ();
 
   // Map and focus the child
   XMapWindow (dpy, child->parent);
@@ -2152,6 +2183,136 @@ void rxvt_term::split_focus_other () {
   other->focus_in ();
   XSetInputFocus (dpy, other->parent, RevertToParent, CurrentTime);
   XFlush (dpy);
+}
+
+void rxvt_term::create_split_bar ()
+{
+  if (split_bar_win != None) return;
+
+  rxvt_term *root = termlist.at (0);
+  XWindowAttributes wattr;
+  XGetWindowAttributes (dpy, root->parent, &wattr);
+  int total_w = wattr.width;
+  int total_h = wattr.height;
+  int half_w  = split_vertical ? (int)(total_w * split_ratio) : total_w;
+  int half_h  = split_vertical ? total_h : (int)(total_h * split_ratio);
+
+  int bar_x = split_vertical ? half_w - SPLIT_BAR_WIDTH / 2 : 0;
+  int bar_y = split_vertical ? 0 : half_h - SPLIT_BAR_WIDTH / 2;
+  int bar_w = split_vertical ? SPLIT_BAR_WIDTH : total_w;
+  int bar_h = split_vertical ? total_h : SPLIT_BAR_WIDTH;
+
+  XColor c;
+  XParseColor (dpy, cmap, "#2a2f3d", &c);
+  XAllocColor (dpy, cmap, &c);
+
+  XSetWindowAttributes attr = {};
+  attr.background_pixel = c.pixel;
+  attr.border_pixel     = 0;
+  attr.colormap         = cmap;
+  attr.cursor           = XCreateFontCursor (dpy, split_vertical
+                                             ? XC_sb_h_double_arrow
+                                             : XC_sb_v_double_arrow);
+
+  split_bar_win = XCreateWindow (dpy, root->parent,
+                                 bar_x, bar_y, bar_w, bar_h, 0,
+                                 depth, InputOutput, visual,
+                                 CWBackPixel | CWBorderPixel | CWColormap | CWCursor,
+                                 &attr);
+  if (!split_bar_win) return;
+
+  XSelectInput (dpy, split_bar_win,
+                ButtonPressMask | ButtonReleaseMask | ButtonMotionMask |
+                EnterWindowMask | LeaveWindowMask);
+  split_bar_ev.start (display, split_bar_win);
+  XMapWindow (dpy, split_bar_win);
+  XRaiseWindow (dpy, split_bar_win);
+  XFlush (dpy);
+}
+
+void rxvt_term::destroy_split_bar ()
+{
+  if (split_bar_win == None) return;
+  split_drag_active = false;
+  split_bar_ev.stop (display);
+  XDestroyWindow (dpy, split_bar_win);
+  split_bar_win = None;
+}
+
+void rxvt_term::x_split_bar_cb (XEvent &ev)
+{
+  rxvt_term *root = termlist.at (0);
+
+  switch (ev.type)
+    {
+      case ButtonPress:
+        if (ev.xbutton.button == Button1)
+          {
+            split_drag_active = true;
+            Window child_ret;
+            XTranslateCoordinates (dpy, root->parent, DefaultRootWindow (dpy),
+                                   0, 0,
+                                   &split_drag_root_x, &split_drag_root_y,
+                                   &child_ret);
+            XWindowAttributes wattr;
+            XGetWindowAttributes (dpy, root->parent, &wattr);
+            split_drag_total_w = wattr.width;
+            split_drag_total_h = wattr.height;
+            XGrabPointer (dpy, split_bar_win, False,
+                          ButtonReleaseMask | ButtonMotionMask,
+                          GrabModeAsync, GrabModeAsync,
+                          None, None, CurrentTime);
+          }
+        break;
+
+      case MotionNotify:
+        if (split_drag_active)
+          {
+            float new_ratio;
+            if (split_vertical)
+              new_ratio = (float)(ev.xmotion.x_root - split_drag_root_x)
+                          / split_drag_total_w;
+            else
+              new_ratio = (float)(ev.xmotion.y_root - split_drag_root_y)
+                          / split_drag_total_h;
+            if (new_ratio < 0.1f) new_ratio = 0.1f;
+            if (new_ratio > 0.9f) new_ratio = 0.9f;
+            split_ratio = new_ratio;
+            apply_split_geometry (split_drag_total_w, split_drag_total_h);
+            // Restore make_current to GET_R (apply_split_geometry leaves it on child)
+            if (GET_R) GET_R->make_current ();
+          }
+        break;
+
+      case ButtonRelease:
+        if (split_drag_active)
+          {
+            split_drag_active = false;
+            XUngrabPointer (dpy, CurrentTime);
+          }
+        break;
+
+      case EnterNotify:
+        {
+          XColor c;
+          XParseColor (dpy, cmap, "#5cb7e0", &c);
+          XAllocColor (dpy, cmap, &c);
+          XSetWindowBackground (dpy, split_bar_win, c.pixel);
+          XClearWindow (dpy, split_bar_win);
+        }
+        break;
+
+      case LeaveNotify:
+        if (!split_drag_active)
+          {
+            XColor c;
+            XParseColor (dpy, cmap, "#2a2f3d", &c);
+            XAllocColor (dpy, cmap, &c);
+            XSetWindowBackground (dpy, split_bar_win, c.pixel);
+            XClearWindow (dpy, split_bar_win);
+          }
+        break;
+    }
 }
 
 void rxvt_term::set_parent_window(Window new_parent, int x, int y) {
@@ -3033,6 +3194,11 @@ rxvt_term::x_cb (XEvent &ev)
       // NotifyPointerRoot = 6;
       // NotifyDetailNone = 7;
 
+      case LeaveNotify:
+        if (ev.xany.window == vt)
+          last_vt_motion_y = -1;   // mouse left vt; next entry is unknown direction
+        break;
+
       case FocusIn:
         // printf("focus in, %d %d %d \n", tab_index, ev.xfocus.detail, ev.xfocus.mode);
 
@@ -3197,6 +3363,11 @@ rxvt_term::x_cb (XEvent &ev)
                 scrollBar.state = SB_STATE_IDLE;
                 scrollBar.show (0);
               }
+
+            // When the tabpopup (or any child overlay) unmaps it exposes
+            // parent; scr_draw_bar() draws there so we need a full refresh.
+            if (ev.xany.window == parent)
+              want_refresh = 1;
           }
         break;
 
@@ -3227,14 +3398,20 @@ rxvt_term::x_cb (XEvent &ev)
         bool any_focus = focus || (split_partner && split_partner->focus);
         if (ev.xany.window == vt && any_focus && regular_tabs > 1 && !is_horiz_bottom) {
           rxvt_term *root = termlist[0];
+          int cur_y = ev.xmotion.y;
           if (root->tabpopup.win && !root->tabpopup.visible
-              && ev.xmotion.y < root->tabpopup.height) {
+              && cur_y < root->tabpopup.height
+              && last_vt_motion_y >= root->tabpopup.height) {
+            // Only expand when crossing into the hover zone from below (within the vt).
+            // last_vt_motion_y == -1 means the mouse just entered vt from outside,
+            // so skip to avoid triggering on entry from above.
             root->show_tabpopup (0); // hover mode: no auto-hide
           } else if (root->tabpopup.win && root->tabpopup.visible
-                     && ev.xmotion.y >= root->tabpopup.height
+                     && cur_y >= root->tabpopup.height
                      && !root->tabpopup_hide_ev.is_active ()) {
             root->tabpopup_hide_ev.start (0.2);
           }
+          last_vt_motion_y = cur_y;
         }
 
         if (ev.xany.window == vt)

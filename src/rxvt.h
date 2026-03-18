@@ -50,6 +50,7 @@ typedef  int32_t tlen_t_; // specifically for use in the line_t structure
 #include "feature.h"
 
 #define TAB_BAR_HEIGHT 2
+#define SPLIT_BAR_WIDTH 4
 
 #if ENABLE_PERL
 # define ENABLE_FRILLS    1
@@ -1188,6 +1189,12 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   bool        split_vertical;   // true = left|right split, false = top|bottom split
   int         pre_split_width;  // szHint.width saved on primary before split (for restoration)
   int         pre_split_height; // szHint.height saved on primary before split
+  int         last_vt_motion_y; // previous MotionNotify y in vt; -1 = unknown (just entered)
+  float       split_ratio;      // divider position as fraction of total size, 0.0–1.0
+  Window      split_bar_win;    // thin divider window drawn between panes (primary only)
+  bool        split_drag_active;
+  int         split_drag_root_x, split_drag_root_y;   // root->parent screen origin at drag start
+  int         split_drag_total_w, split_drag_total_h; // window size at drag start
 
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
@@ -1421,6 +1428,11 @@ Pixmap icon_mask; //  = None;
   void tabpopup_hide_cb (ev::timer &w, int revents);
   void tabpopup_refresh_cb (ev::timer &w, int revents);
   static void get_tab_label (rxvt_term *tab, char *buf, int bufsize);
+
+  xevent_watcher split_bar_ev;
+  void create_split_bar ();
+  void destroy_split_bar ();
+  void x_split_bar_cb (XEvent &ev);
 
   long vt_emask, vt_emask_perl, vt_emask_xim, vt_emask_mouse;
 
