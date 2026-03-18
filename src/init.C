@@ -1703,19 +1703,23 @@ rxvt_term::init_tabpopup ()
   if (tab_index != 0) return;
 
   int screen   = DefaultScreen (dpy);
-  Colormap cm  = DefaultColormap (dpy, screen);
+  // Use the terminal's own visual/depth/colormap so that creating a child of
+  // this->parent (which may have a 32-bit ARGB visual for transparency) does
+  // not trigger a BadMatch X error.
+  Colormap cm  = cmap;
 
   XSetWindowAttributes attr = {};
   attr.background_pixel = BlackPixel (dpy, screen);
   attr.border_pixel     = 0;
+  attr.colormap         = cmap;
 
   // Child of our own parent window: naturally clipped to the terminal, never above other apps
   tabpopup.win = XCreateWindow (
     dpy, this->parent,
     0, 0, szHint.width, tabpopup.height, 0,
-    DefaultDepth (dpy, screen), InputOutput,
-    DefaultVisual (dpy, screen),
-    CWBackPixel | CWBorderPixel, &attr
+    depth, InputOutput,
+    visual,
+    CWBackPixel | CWBorderPixel | CWColormap, &attr
   );
   if (!tabpopup.win) return;
 

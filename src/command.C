@@ -1971,10 +1971,19 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   if (tab->split_partner && !tab->split_is_child)
     XMapWindow(dpy, tab->split_partner->parent);
 
-  // Sync before XSetInputFocus: XMapWindow is async and the window must be
-  // viewable before focusing it, otherwise we get a BadMatch X error.
-  XSync(dpy, False);
-  XSetInputFocus(dpy, tab->parent, RevertToPointerRoot, CurrentTime);
+  // XGetWindowAttributes is a round-trip that flushes all prior requests and
+  // waits for the server to process them (equivalent to XSync).  We then only
+  // call XSetInputFocus when the window is actually viewable: if a compositing
+  // WM intercepts XMapWindow via SubstructureRedirect (e.g. when a pane is
+  // reparented to the screen root after closing the root primary pane), the
+  // window may not be mapped synchronously, and XSetInputFocus on a
+  // non-viewable window produces a BadMatch error.
+  {
+    XWindowAttributes wattr;
+    if (XGetWindowAttributes (dpy, tab->parent, &wattr) &&
+        wattr.map_state == IsViewable)
+      XSetInputFocus (dpy, tab->parent, RevertToParent, CurrentTime);
+  }
   XFlush(dpy);
 
   if (root && root->tabpopup.win && root->tabpopup.visible)
@@ -2124,7 +2133,7 @@ void rxvt_term::new_split_pane (bool vertical) {
   refresh_check ();   // redraw primary with hollow cursor immediately
   child->make_current ();
   child->focus_in ();
-  XSetInputFocus (dpy, child->parent, RevertToPointerRoot, CurrentTime);
+  XSetInputFocus (dpy, child->parent, RevertToParent, CurrentTime);
   XFlush (dpy);
 
   // Refresh tab bar (split child is invisible there; count stays the same)
@@ -2141,7 +2150,7 @@ void rxvt_term::split_focus_other () {
   refresh_check ();   // ensure the pane losing focus redraws its cursor hollow
   other->make_current ();
   other->focus_in ();
-  XSetInputFocus (dpy, other->parent, RevertToPointerRoot, CurrentTime);
+  XSetInputFocus (dpy, other->parent, RevertToParent, CurrentTime);
   XFlush (dpy);
 }
 
@@ -3035,10 +3044,10 @@ rxvt_term::x_cb (XEvent &ev)
               // focus back to the correct pane. This prevents focus-follows-mouse
               // from stealing keyboard input to a non-focused split pane.
               if (GET_R && parent != GET_R->parent) {
-                XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+                XSetInputFocus(dpy, GET_R->parent, RevertToParent, CurrentTime);
               } else if (tab_index == 0) {
                 // printf("calling focus in, %d\n", GET_R->tab_index);
-                XSetInputFocus(dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+                XSetInputFocus(dpy, GET_R->parent, RevertToParent, CurrentTime);
                 GET_R->focus_in ();
               }
             }
@@ -3515,7 +3524,7 @@ rxvt_term::button_press (XButtonEvent &ev)
     prev->refresh_check ();
     make_current ();
     focus_in ();
-    XSetInputFocus (dpy, parent, RevertToPointerRoot, ev.time);
+    XSetInputFocus (dpy, parent, RevertToParent, ev.time);
   }
 
   int reportmode = 0, clickintime;

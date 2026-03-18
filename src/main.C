@@ -509,7 +509,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         partner->focus_in ();
         partner->want_refresh = 1;
         partner->refresh_check ();  // force repaint of the now-full-size pane
-        XSetInputFocus (dpy, partner->parent, RevertToPointerRoot, CurrentTime);
+        XSetInputFocus (dpy, partner->parent, RevertToParent, CurrentTime);
         XFlush (dpy);
       }
       // Skip the normal next_tab call — just delete ourselves
