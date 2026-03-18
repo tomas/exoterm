@@ -37,6 +37,7 @@
 #include "keyboard.h"
 #include "rxvtperl.h"
 
+#include <algorithm>
 #include <limits>
 
 #include <assert.h>
@@ -620,6 +621,22 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         partner->want_refresh = 1;
         partner->refresh_check ();
         XFlush (dpy);
+
+        // Partner now owns the WM window and must be termlist[0] after 'this'
+        // is removed.  'this' is always at position 0; partner may be at any
+        // higher index (e.g. if other tabs were opened before the split was
+        // created).  Move partner to position 1 so that after ~rxvt_term erases
+        // 'this' from position 0, partner slides into position 0 and the
+        // invariant "termlist[0]->parent == WM window" is preserved.
+        {
+          auto it = std::find (termlist.begin (), termlist.end (), partner);
+          if (it != termlist.end () && it != termlist.begin () + 1)
+            {
+              termlist.erase (it);
+              termlist.insert (termlist.begin () + 1, partner);
+            }
+        }
+
         delete this;
         return;
       }
