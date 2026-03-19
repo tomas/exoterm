@@ -510,18 +510,11 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         partner->pre_split_width  = _wattr.width;
         partner->pre_split_height = _wattr.height;
       }
-      partner->window_calc (partner->pre_split_width, partner->pre_split_height);
       if (partner->tab_index > 0 && partner->parent != None)
         XMoveResizeWindow (dpy, partner->parent, 0, 0,
                            partner->pre_split_width, partner->pre_split_height);
-      if (partner->vt != None)
-        XMoveResizeWindow (dpy, partner->vt,
-                           partner->window_vt_x, partner->window_vt_y,
-                           partner->vt_width, partner->vt_height);
-      partner->scr_reset ();
-#ifdef ENABLE_MINIMAP
-      if (partner->minimap.enabled) partner->resize_minimap ();
-#endif
+      // Use the same resize handling as ConfigureNotify events
+      partner->resize_all_windows (partner->pre_split_width, partner->pre_split_height, 1);
       if (partner->parent != None) {
         partner->focus_in ();
         partner->want_refresh = 1;
@@ -545,23 +538,6 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         pre_split_width  = _wattr.width;
         pre_split_height = _wattr.height;
       }
-      // Restore primary's cached dimensions (window_calc was called with half-size
-      // during apply_split_geometry) so switch_to_tab uses the correct full size.
-      window_calc (pre_split_width, pre_split_height);
-      // Move child window to origin and give it the full pre-split size.
-      if (partner->parent != None)
-        XMoveResizeWindow (dpy, partner->parent, 0, 0,
-                           pre_split_width, pre_split_height);
-      partner->make_current ();
-      partner->window_calc (pre_split_width, pre_split_height);
-      if (partner->vt != None)
-        XMoveResizeWindow (dpy, partner->vt,
-                           partner->window_vt_x, partner->window_vt_y,
-                           partner->vt_width, partner->vt_height);
-      partner->scr_reset ();
-#ifdef ENABLE_MINIMAP
-      if (partner->minimap.enabled) partner->resize_minimap ();
-#endif
 
       if (tab_index == 0) {
         // "Steal parent" approach: re-home partner's children directly into
@@ -571,9 +547,7 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         // 1. Stop partner's watcher on its old intermediate window.
         partner->termwin_ev.stop (display);
 
-        // 2. Lift partner's direct children out of partner->parent and into
-        //    this->parent.  partner->parent is at (0,0) so coordinates are
-        //    identical in the new parent.
+        // 2. Lift partner's direct children out of partner->parent into this->parent.
         XReparentWindow (dpy, partner->vt, parent,
                          partner->window_vt_x, partner->window_vt_y);
         if (partner->scrollBar.state && partner->scrollBar.win != None) {
@@ -596,25 +570,25 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         partner->parent = parent;
 
         // 5. Restart the event watcher on the stolen window.
-        //    The event mask is already correct (set when this->parent was created).
         partner->termwin_ev.start (display, partner->parent);
 
-        // 6. Clean up this->vt before ~rxvt_term runs.  Delete the XftDraw
-        //    first (while the window still exists), then destroy the window.
-        //    Without this, this->vt would remain as an invisible orphan in the
-        //    stolen window until it is cascade-destroyed later.
-        //    Also null out selection owners now: ~rxvt_term() calls
-        //    selection_clear() → push_selection_to_x11() → XConvertSelection
-        //    with vt as the requestor window; if vt is None by then, X errors.
+        // 6. Clean up this->vt before ~rxvt_term runs.
         if (display->selection_owner == this) display->selection_owner = nullptr;
         if (display->clipboard_owner == this) display->clipboard_owner = nullptr;
         delete drawable; drawable = nullptr;
         XDestroyWindow (dpy, vt); vt = None;
 
-        // 7. Prevent ~rxvt_term from destroying the window partner now owns.
+        // 7. Now resize partner using the NEW parent window
+        partner->make_current ();
+        partner->resize_all_windows (pre_split_width, pre_split_height, 1);
+#ifdef ENABLE_MINIMAP
+        if (partner->minimap.enabled) partner->resize_minimap ();
+#endif
+
+        // 8. Prevent ~rxvt_term from destroying the window partner now owns.
         parent = None;
 
-        // 8. Focus and trigger a full repaint.  With steal the WM window never
+        // 9. Focus and trigger a full repaint.  With steal the WM window never
         //    lost focus, so we only need to update internal state and set focus
         //    on parent (which has KeyPressMask) — not on vt (which does not).
         partner->focus_in ();
