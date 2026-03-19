@@ -1,7 +1,8 @@
-// build with cc -o example example.c microui_renderer.c microui.c -lm -lX11
+// build with:
+// cc -o example example.c microui_renderer_xrender.c microui.c -lm -lX11 -lXrender
 
 #include "microui.h"
-#include "microui_renderer.h"
+#include "microui_renderer_xrender.h"
 
 #include <X11/Xlib.h>
 #include <stdio.h>
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
   XSync(dpy, False);
 
   /* init renderer and microui */
-  r_init(dpy, win, gc, width, height);
+  r_init(dpy, win, gc, DefaultVisual(dpy, screen), DefaultDepth(dpy, screen), width, height);
   mu_Context *ctx = malloc(sizeof(mu_Context));
   mu_init(ctx);
   ctx->text_width = text_width;

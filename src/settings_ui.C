@@ -26,6 +26,10 @@ static int s_panel_h = 600;
 static mu_Context *mu_ctx = nullptr;
 static int s_mousex = 0, s_mousey = 0;
 
+/* Changes that need resize_all_windows, deferred from live preview.
+   Accumulated as the user moves sliders; applied only on Apply. */
+static int s_deferred_resize = 0;
+
 /* --- live settings state --- */
 static float s_border_width  = 10.0f;
 static float s_scroll_speed  = 5.0f;
@@ -445,7 +449,19 @@ static void apply_settings (int changed) {
   for (rxvt_term *t : rxvt_term::termlist) {
     if (changed & CHANGED_BORDER) {
       t->int_bwidth = (int) s_border_width;
-      t->resize_all_windows (t->szHint.width, t->szHint.height, 1);
+      if (!t->split_is_child) {
+        /* szHint may be corrupted to half-size when in split mode (apply_split_geometry
+           calls window_calc(half_w, half_h) on the root terminal).  Query X directly
+           for the true window size, matching the pattern at main.C:1958. */
+        int rw = t->szHint.width, rh = t->szHint.height;
+        if (t->split_partner) {
+          XWindowAttributes wattr;
+          XGetWindowAttributes (t->dpy, rxvt_term::termlist.at (0)->parent, &wattr);
+          if (wattr.width > 0 && wattr.height > 0) { rw = wattr.width; rh = wattr.height; }
+        }
+        t->resize_all_windows (rw, rh, 1);
+      }
+      /* Skip split children: the primary's resize_all_windows drives their geometry. */
     }
     if (changed & CHANGED_SCROLL)
       t->wheel_scroll_lines = (int) s_scroll_speed;
@@ -480,9 +496,17 @@ static void apply_settings (int changed) {
       t->scr_reset ();
     }
     if (changed & CHANGED_SCROLLBAR) {
-      t->set_option (Opt_scrollBar, s_scrollbar);
-      t->scrollBar.state = s_scrollbar ? SB_STATE_IDLE : SB_STATE_OFF;
-      t->resize_all_windows (t->szHint.width, t->szHint.height, 0);
+      if (!t->split_is_child) {
+        t->set_option (Opt_scrollBar, s_scrollbar);
+        t->scrollBar.state = s_scrollbar ? SB_STATE_IDLE : SB_STATE_OFF;
+        int rw = t->szHint.width, rh = t->szHint.height;
+        if (t->split_partner) {
+          XWindowAttributes wattr;
+          XGetWindowAttributes (t->dpy, rxvt_term::termlist.at (0)->parent, &wattr);
+          if (wattr.width > 0 && wattr.height > 0) { rw = wattr.width; rh = wattr.height; }
+        }
+        t->resize_all_windows (rw, rh, 0);
+      }
     }
     if (changed & CHANGED_SCROLL_OUTPUT)
       t->set_option (Opt_scrollTtyOutput, s_scroll_on_output);
@@ -505,6 +529,28 @@ static void apply_settings (int changed) {
 
 /* --- restore snapshot and revert all settings --- */
 static void restore_snapshot () {
+  /* Compute which settings actually changed before restoring, so we only
+     call resize_all_windows (and other side-effecting operations) when
+     truly necessary.  Calling resize_all_windows with a corrupted szHint
+     when nothing changed is what caused the window-height shrink bug. */
+  int changed = 0;
+  if (s_border_width       != s_snapshot.border_width)       changed |= CHANGED_BORDER;
+  if (s_scroll_speed       != s_snapshot.scroll_speed)       changed |= CHANGED_SCROLL;
+  if (s_shading            != s_snapshot.shading)            changed |= CHANGED_SHADING;
+  if (s_line_space         != s_snapshot.line_space)         changed |= CHANGED_LINE_SPACE;
+  if (s_letter_space       != s_snapshot.letter_space)       changed |= CHANGED_LETTER_SPACE;
+  if (s_save_lines         != s_snapshot.save_lines)         changed |= CHANGED_SAVE_LINES;
+  if (s_cursor_blink       != s_snapshot.cursor_blink)       changed |= CHANGED_CURSOR_BLINK;
+  if (s_cursor_underline   != s_snapshot.cursor_underline)   changed |= CHANGED_CURSOR_UL;
+  if (s_scrollbar          != s_snapshot.scrollbar)          changed |= CHANGED_SCROLLBAR;
+  if (s_scroll_on_output   != s_snapshot.scroll_on_output)   changed |= CHANGED_SCROLL_OUTPUT;
+  if (s_scroll_on_keypress != s_snapshot.scroll_on_keypress) changed |= CHANGED_SCROLL_KEY;
+  if (s_jump_scroll        != s_snapshot.jump_scroll)        changed |= CHANGED_JUMP_SCROLL;
+  if (s_visual_bell        != s_snapshot.visual_bell)        changed |= CHANGED_VISUAL_BELL;
+  if (s_urgent_on_bell     != s_snapshot.urgent_on_bell)     changed |= CHANGED_URGENT_BELL;
+  if (s_mouse_wheel_page   != s_snapshot.mouse_wheel_page)   changed |= CHANGED_WHEEL_PAGE;
+  if (s_pointer_blank      != s_snapshot.pointer_blank)      changed |= CHANGED_PTR_BLANK;
+
   s_border_width       = s_snapshot.border_width;
   s_scroll_speed       = s_snapshot.scroll_speed;
   s_shading            = s_snapshot.shading;
@@ -524,13 +570,7 @@ static void restore_snapshot () {
   s_active_scheme      = s_snapshot.active_scheme;
   s_active_font        = s_snapshot.active_font;
 
-  int all = CHANGED_BORDER | CHANGED_SCROLL | CHANGED_CURSOR_BLINK |
-            CHANGED_SHADING | CHANGED_LINE_SPACE | CHANGED_LETTER_SPACE |
-            CHANGED_SAVE_LINES | CHANGED_CURSOR_UL | CHANGED_SCROLLBAR |
-            CHANGED_SCROLL_OUTPUT | CHANGED_SCROLL_KEY | CHANGED_JUMP_SCROLL |
-            CHANGED_VISUAL_BELL | CHANGED_URGENT_BELL | CHANGED_WHEEL_PAGE |
-            CHANGED_PTR_BLANK;
-  apply_settings (all);
+  apply_settings (changed);
 
   for (rxvt_term *t : rxvt_term::termlist) {
     t->set_window_color (Color_fg, s_snapshot.colors[0]);
@@ -573,6 +613,7 @@ void
 rxvt_term::init_settings_ui ()
 {
   settings_ui.visible      = false;
+  settings_ui.needs_redraw = false;
   settings_ui.win          = None;
   settings_ui.backdrop_win = None;
   settings_ui.backdrop_buf = None;
@@ -583,23 +624,31 @@ rxvt_term::init_settings_ui ()
   settings_ui.parent_h     = 0;
 }
 
-/* Refresh the full-size backdrop: copy vt content to the backdrop window
-   with a dark overlay.  backdrop_win covers the entire terminal at (0,0) and
-   shows the live (dimmed) terminal content behind the settings panel. */
-static void backdrop_refresh (rxvt_term *t)
+#ifdef SETTINGS_UI_BACKDROP
+/* Fill backdrop_buf with the dimmed content of all visible panes.
+   Does NOT copy to the backdrop window — call backdrop_refresh for that. */
+static void backdrop_fill_pixmap (rxvt_term *t)
 {
-  if (t->settings_ui.backdrop_win == None ||
-      t->settings_ui.backdrop_buf == None) return;
+  Display *dpy      = t->dpy;
+  GC       gc       = t->settings_ui.gc;
+  Pixmap   pix      = t->settings_ui.backdrop_buf;
+  int      pw       = t->settings_ui.parent_w;
+  int      ph       = t->settings_ui.parent_h;
+  Window   root_win = rxvt_term::termlist.at (0)->parent;
 
-  Display *dpy = t->dpy;
-  GC       gc  = t->settings_ui.gc;
-  Pixmap   pix = t->settings_ui.backdrop_buf;
-  int      pw  = t->settings_ui.parent_w;
-  int      ph  = t->settings_ui.parent_h;
-
-  XCopyArea (dpy, t->vt, pix, gc,
-             0, 0, t->vt_width, t->vt_height,
-             t->window_vt_x, t->window_vt_y);
+  /* Copy each visible pane's vt content at its offset within root_win.
+     t and its split_partner (if any) are the two visible panes. */
+  rxvt_term *panes[2] = { t, t->split_partner };
+  for (int i = 0; i < 2; i++) {
+    rxvt_term *pane = panes[i];
+    if (!pane) continue;
+    int px = 0, py = 0;
+    Window dummy;
+    XTranslateCoordinates (dpy, pane->parent, root_win, 0, 0, &px, &py, &dummy);
+    XCopyArea (dpy, pane->vt, pix, gc,
+               0, 0, pane->vt_width, pane->vt_height,
+               px + pane->window_vt_x, py + pane->window_vt_y);
+  }
 
   XRenderPictFormat *fmt = XRenderFindVisualFormat (dpy, t->visual);
   if (fmt) {
@@ -608,17 +657,37 @@ static void backdrop_refresh (rxvt_term *t)
     XRenderFillRectangle (dpy, PictOpOver, pic, &dark, 0, 0, pw, ph);
     XRenderFreePicture (dpy, pic);
   }
-
-  XCopyArea (dpy, pix, t->settings_ui.backdrop_win, gc, 0, 0, pw, ph, 0, 0);
 }
+
+static void backdrop_refresh (rxvt_term *t)
+{
+  if (t->settings_ui.backdrop_win == None ||
+      t->settings_ui.backdrop_buf == None) return;
+
+  backdrop_fill_pixmap (t);
+  XCopyArea (t->dpy, t->settings_ui.backdrop_buf, t->settings_ui.backdrop_win,
+             t->settings_ui.gc, 0, 0,
+             t->settings_ui.parent_w, t->settings_ui.parent_h, 0, 0);
+}
+#endif /* SETTINGS_UI_BACKDROP */
 
 void
 rxvt_term::show_settings_ui ()
 {
   if (settings_ui.visible) return;
 
-  int pw = szHint.width  ? szHint.width  : 800;
-  int ph = szHint.height ? szHint.height : 600;
+  /* Always use the top-level container window so that the backdrop and panel
+     cover the full terminal area even when we are a split pane. */
+  rxvt_term *root_term = termlist.at (0);
+  Window     root_win  = root_term->parent;
+
+  int pw, ph;
+  {
+    XWindowAttributes wattr;
+    XGetWindowAttributes (dpy, root_win, &wattr);
+    pw = wattr.width  ? wattr.width  : 800;
+    ph = wattr.height ? wattr.height : 600;
+  }
 
   int panel_w = (PANEL_WIDTH < pw) ? PANEL_WIDTH : pw;
   int panel_h = ph;
@@ -629,28 +698,30 @@ rxvt_term::show_settings_ui ()
   int scr = DefaultScreen (dpy);
 
   if (settings_ui.win == None) {
-    /* First time: create backdrop (full size, behind everything) and panel. */
     XSetWindowAttributes attr = {};
     attr.background_pixel = BlackPixel (dpy, scr);
     attr.border_pixel     = 0;
     attr.colormap         = cmap;
 
+#ifdef SETTINGS_UI_BACKDROP
+    /* First time: create backdrop (full size, behind everything) and panel. */
     settings_ui.backdrop_win = XCreateWindow (
-      dpy, parent,
+      dpy, root_win,
       0, 0, pw, ph, 0,
       depth, InputOutput, visual,
       CWBackPixel | CWBorderPixel | CWColormap, &attr);
 
-    settings_ui.backdrop_buf = XCreatePixmap (dpy, parent, pw, ph, depth);
+    settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
+#endif
 
     settings_ui.win = XCreateWindow (
-      dpy, parent,
+      dpy, root_win,
       panel_x, 0, panel_w, panel_h, 0,
       depth, InputOutput, visual,
       CWBackPixel | CWBorderPixel | CWColormap, &attr);
     if (!settings_ui.win) return;
 
-    settings_ui.gc = XCreateGC (dpy, parent, 0, nullptr);
+    settings_ui.gc = XCreateGC (dpy, root_win, 0, nullptr);
     if (!settings_ui.gc) {
       XDestroyWindow (dpy, settings_ui.win);
       settings_ui.win = None;
@@ -666,16 +737,34 @@ rxvt_term::show_settings_ui ()
       mu_ctx->text_height = text_height_cb;
     }
 
-    r_init (dpy, settings_ui.win, settings_ui.gc, panel_w, panel_h);
+    r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
+#ifdef SETTINGS_UI_DEBUG
+    fprintf (stderr, "[settings_ui] created: win=0x%lx gc=0x%lx root_win=0x%lx "
+                     "depth=%d panel=(%d,%d,%d,%d) full=(%d,%d) tab=%d split_child=%d\n",
+             (unsigned long) settings_ui.win, (unsigned long) settings_ui.gc,
+             (unsigned long) root_win, depth,
+             panel_x, 0, panel_w, panel_h, pw, ph,
+             tab_index, (int) split_is_child);
+#endif
   } else {
     /* Reusing existing windows: update size/position. */
+#ifdef SETTINGS_UI_BACKDROP
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
     if (settings_ui.backdrop_buf != None)
       XFreePixmap (dpy, settings_ui.backdrop_buf);
-    settings_ui.backdrop_buf = XCreatePixmap (dpy, parent, pw, ph, depth);
+    settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
+#endif
 
     XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
+    /* Update the renderer's window/GC in case a different terminal was
+       the last one to call r_init (e.g. bottom pane opened settings
+       previously, now top pane is reusing its own window). */
+    r_update_context (dpy, settings_ui.win, settings_ui.gc);
     r_resize (panel_w, panel_h);
+#ifdef SETTINGS_UI_DEBUG
+    fprintf (stderr, "[settings_ui] reused: win=0x%lx panel=(%d,%d,%d,%d) full=(%d,%d)\n",
+             (unsigned long) settings_ui.win, panel_x, 0, panel_w, panel_h, pw, ph);
+#endif
   }
 
   settings_ui.width    = panel_w;
@@ -685,14 +774,30 @@ rxvt_term::show_settings_ui ()
 
   read_settings_from_term (this);
   save_snapshot (this);
+  s_deferred_resize = 0;
 
-  settings_ui.visible = true;
+  settings_ui.visible      = true;
+  settings_ui.needs_redraw = true;
 
-  /* Map backdrop first (below), then panel on top. */
+#ifdef SETTINGS_UI_BACKDROP
+  /* Pre-paint the pixmap before mapping to avoid a black flash on first expose. */
+  backdrop_fill_pixmap (this);
+  XSetWindowBackgroundPixmap (dpy, settings_ui.backdrop_win, settings_ui.backdrop_buf);
   XMapWindow (dpy, settings_ui.backdrop_win);
-  XMapRaised (dpy, settings_ui.win);
+#endif
 
+  XMapRaised (dpy, settings_ui.win);
+#ifdef SETTINGS_UI_DEBUG
+  fprintf (stderr, "[settings_ui] mapped win=0x%lx, calling draw\n",
+           (unsigned long) settings_ui.win);
+#endif
+
+#ifdef SETTINGS_UI_BACKDROP
+  /* With backdrop enabled the terminal must not receive keyboard input,
+     so we steal focus.  Without backdrop the terminal stays interactive
+     and the user clicks the panel to focus it. */
   XSetInputFocus (dpy, settings_ui.win, RevertToParent, CurrentTime);
+#endif
   XFlush (dpy);
 
   settings_ui_refresh_ev.set (0.0, 1.0 / 30.0);
@@ -713,9 +818,16 @@ rxvt_term::hide_settings_ui ()
   XSetInputFocus (dpy, parent, RevertToPointerRoot, CurrentTime);
 
   XUnmapWindow (dpy, settings_ui.win);
+#ifdef SETTINGS_UI_BACKDROP
   if (settings_ui.backdrop_win != None)
     XUnmapWindow (dpy, settings_ui.backdrop_win);
+#endif
   XFlush (dpy);
+
+  /* Force all terminal panes to repaint so they don't show a black flash
+     while waiting for the Expose events from the unmapped overlay windows. */
+  for (rxvt_term *t : termlist)
+    t->want_refresh = 1;
 }
 
 void
@@ -723,8 +835,14 @@ rxvt_term::recenter_settings_ui ()
 {
   if (!settings_ui.visible || settings_ui.win == None) return;
 
-  int pw = szHint.width;
-  int ph = szHint.height;
+  Window root_win = termlist.at (0)->parent;
+  int pw, ph;
+  {
+    XWindowAttributes wattr;
+    XGetWindowAttributes (dpy, root_win, &wattr);
+    pw = wattr.width;
+    ph = wattr.height;
+  }
   if (!pw || !ph) return;
   if (pw == settings_ui.parent_w && ph == settings_ui.parent_h) return;
 
@@ -738,18 +856,21 @@ rxvt_term::recenter_settings_ui ()
   settings_ui.parent_w = pw;
   settings_ui.parent_h = ph;
 
+#ifdef SETTINGS_UI_BACKDROP
   /* Backdrop covers the full terminal area. */
   if (settings_ui.backdrop_win != None)
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
   if (settings_ui.backdrop_buf != None)
     XFreePixmap (dpy, settings_ui.backdrop_buf);
-  settings_ui.backdrop_buf = XCreatePixmap (dpy, parent, pw, ph, depth);
+  settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
+#endif
 
   /* Panel moves to the new right edge. */
   XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
   r_resize (panel_w, panel_h);
   XFlush (dpy);
 
+  settings_ui.needs_redraw = true;
   draw_settings_ui ();
 }
 
@@ -760,6 +881,7 @@ rxvt_term::destroy_settings_ui ()
   if (settings_ui.win != None) {
     if (display) settings_ui_ev.stop (display);
     if (settings_ui.gc != None) { XFreeGC (dpy, settings_ui.gc); settings_ui.gc = None; }
+#ifdef SETTINGS_UI_BACKDROP
     if (settings_ui.backdrop_buf != None) {
       XFreePixmap (dpy, settings_ui.backdrop_buf);
       settings_ui.backdrop_buf = None;
@@ -768,6 +890,7 @@ rxvt_term::destroy_settings_ui ()
       XDestroyWindow (dpy, settings_ui.backdrop_win);
       settings_ui.backdrop_win = None;
     }
+#endif
     XDestroyWindow (dpy, settings_ui.win);
     settings_ui.win = None;
   }
@@ -779,6 +902,7 @@ void
 rxvt_term::draw_settings_ui ()
 {
   if (!settings_ui.visible || !mu_ctx) return;
+  settings_ui.needs_redraw = false;
 
   mu_begin (mu_ctx);
   int changed = build_settings_window (mu_ctx);
@@ -786,23 +910,39 @@ rxvt_term::draw_settings_ui ()
 
   r_clear (mu_color (0x34, 0x35, 0x38, 255));
   render_mu (mu_ctx);
+#ifdef SETTINGS_UI_DEBUG
+  fprintf (stderr, "[settings_ui] draw: win=0x%lx\n",
+           (unsigned long) settings_ui.win);
+#endif
   r_present_noevents ();
+#ifdef SETTINGS_UI_DEBUG
+  XSync (dpy, False);  /* flush + wait for errors so BadMatch surfaces immediately */
+#endif
 
   if (changed & CHANGED_CANCEL) {
+    s_deferred_resize = 0;
     restore_snapshot ();
     hide_settings_ui ();
     return;
   }
   if (changed & CHANGED_APPLY) {
+    /* Only call resize_all_windows for changes the user actually made.
+       Calling it unconditionally triggers scr_reset → black screen. */
+    if (s_deferred_resize) apply_settings (s_deferred_resize);
+    s_deferred_resize = 0;
     hide_settings_ui ();
     return;
   }
   if (changed) {
-    apply_settings (changed);
+    /* Accumulate resize-needing changes for Apply; apply the rest live. */
+    s_deferred_resize |= (changed & (CHANGED_BORDER | CHANGED_SCROLLBAR));
+    apply_settings (changed & ~(CHANGED_BORDER | CHANGED_SCROLLBAR));
+#ifdef SETTINGS_UI_BACKDROP
     /* Re-assert focus: some operations (set_fonts → resize_all_windows)
        can cause the X server or WM to redirect focus away from our panel. */
     if (settings_ui.visible)
       XSetInputFocus (dpy, settings_ui.win, RevertToParent, CurrentTime);
+#endif
   }
 }
 
@@ -813,14 +953,17 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
 
   switch (xev.type) {
     case Expose:
-      if (xev.xexpose.count == 0)
+      if (xev.xexpose.count == 0) {
+        settings_ui.needs_redraw = true;
         draw_settings_ui ();
+      }
       break;
 
     case MotionNotify:
       s_mousex = xev.xmotion.x;
       s_mousey = xev.xmotion.y;
       mu_input_mousemove (mu_ctx, s_mousex, s_mousey);
+      settings_ui.needs_redraw = true;
       draw_settings_ui ();
       break;
 
@@ -835,6 +978,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
         mu_input_scroll (mu_ctx, 0, -30);
       else if (xev.xbutton.button == Button5)
         mu_input_scroll (mu_ctx, 0,  30);
+      settings_ui.needs_redraw = true;
       draw_settings_ui ();
       break;
 
@@ -845,6 +989,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
         mu_input_mouseup (mu_ctx, s_mousex, s_mousey, MU_MOUSE_LEFT);
       else if (xev.xbutton.button == Button3)
         mu_input_mouseup (mu_ctx, s_mousex, s_mousey, MU_MOUSE_RIGHT);
+      settings_ui.needs_redraw = true;
       draw_settings_ui ();
       break;
 
@@ -856,6 +1001,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
       char buf[8];
       int len = XLookupString (&xev.xkey, buf, sizeof (buf) - 1, nullptr, nullptr);
       if (len > 0) { buf[len] = '\0'; mu_input_text (mu_ctx, buf); }
+      settings_ui.needs_redraw = true;
       draw_settings_ui ();
       break;
     }
@@ -864,6 +1010,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
       KeySym ks = XLookupKeysym (&xev.xkey, 0);
       if (ks == XK_Return)    mu_input_keyup (mu_ctx, MU_KEY_RETURN);
       if (ks == XK_BackSpace) mu_input_keyup (mu_ctx, MU_KEY_BACKSPACE);
+      settings_ui.needs_redraw = true;
       break;
     }
   }
@@ -872,8 +1019,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
 void
 rxvt_term::settings_ui_refresh_cb (ev::timer &w, int revents)
 {
-  if (settings_ui.visible) {
-    backdrop_refresh (this);
+  if (settings_ui.visible && settings_ui.needs_redraw) {
     draw_settings_ui ();
   }
 }

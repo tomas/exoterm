@@ -22,10 +22,12 @@ static mu_Color color_buf[BUFFER_SIZE];
 static int buf_idx;
 
 /* X11 state */
-static Display *dpy;
-static Window   win;
-static GC       gc;
-static XImage  *img;
+static Display  *dpy;
+static Window    win;
+static GC        gc;
+static Visual   *s_visual;
+static int       s_depth;
+static XImage   *img;
 static uint32_t *buf;
 static int win_width;
 static int win_height;
@@ -60,10 +62,12 @@ static int KEYCODES[124] = {
 };
 /* clang-format on */
 
-void r_init(Display *display, Window window, GC context, int width, int height) {
+void r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height) {
   dpy        = display;
   win        = window;
   gc         = context;
+  s_visual   = visual;
+  s_depth    = depth;
   win_width  = width;
   win_height = height;
 
@@ -74,8 +78,7 @@ void r_init(Display *display, Window window, GC context, int width, int height) 
                ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
                StructureNotifyMask);
 
-  img = XCreateImage(dpy, DefaultVisual(dpy, DefaultScreen(dpy)),
-                     24, ZPixmap, 0, (char *)buf, width, height, 32, 0);
+  img = XCreateImage(dpy, s_visual, s_depth, ZPixmap, 0, (char *)buf, width, height, 32, 0);
 
   clip_rect = mu_rect(0, 0, width, height);
 
@@ -83,6 +86,12 @@ void r_init(Display *display, Window window, GC context, int width, int height) 
   XSetWMProtocols(dpy, win, &wm_delete_window, 1);
 
   r_clear(mu_color(0, 0, 0, 255));
+}
+
+void r_update_context(Display *display, Window window, GC context) {
+  dpy = display;
+  win = window;
+  gc  = context;
 }
 
 void r_resize(int width, int height) {
@@ -95,8 +104,7 @@ void r_resize(int width, int height) {
   win_height = height;
   buf = malloc(width * height * sizeof(*buf));
 
-  img = XCreateImage(dpy, DefaultVisual(dpy, DefaultScreen(dpy)),
-                     24, ZPixmap, 0, (char *)buf, width, height, 32, 0);
+  img = XCreateImage(dpy, s_visual, s_depth, ZPixmap, 0, (char *)buf, width, height, 32, 0);
 
   clip_rect = mu_rect(0, 0, width, height);
 }
