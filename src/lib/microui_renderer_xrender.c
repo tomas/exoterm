@@ -157,12 +157,17 @@ int r_init(Display *display, Window window, GC context, Visual *visual, int dept
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, win, &wm_delete_window, 1);
 
-    /* Initial clip rect */
-    clip_rect = mu_rect(0, 0, width, height);
-    XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
-                                    (XRectangle*)&clip_rect, 1);
+    /* Test: draw a green rectangle directly to window */
+    // XRenderColor green = {0x0000, 0xffff, 0x0000, 0xffff};
+    // XRenderFillRectangle(dpy, PictOpSrc, win_picture, &green, 50, 50, 100, 100);
+    // XFlush(dpy);
 
-    r_clear(mu_color(0, 0, 0, 255));
+    // /* Initial clip rect */
+    // clip_rect = mu_rect(0, 0, width, height);
+    // XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
+    //                                 (XRectangle*)&clip_rect, 1);
+
+    // r_clear(mu_color(0, 0, 0, 255));
     return 0;
 }
 
@@ -316,6 +321,7 @@ static int mouse_down = 0;
 int r_mouse_down(void) {
     if (r_mouse_btn && !mouse_down) {
         mouse_down = 1;
+        printf("r_mouse_down\n");
         return 1;
     }
     return 0;
@@ -324,6 +330,7 @@ int r_mouse_down(void) {
 int r_mouse_up(void) {
     if (!r_mouse_btn && mouse_down) {
         mouse_down = 0;
+        printf("r_mouse_up\n");
         return 1;
     }
     return 0;
