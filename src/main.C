@@ -1490,14 +1490,12 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 
   if (!ignoreparent)
     {
-      // In split mode the root term (tab_index==0) has its ncol/nrow set to
-      // half-size by apply_split_geometry, but its parent window stays full-size.
-      // When set_fonts() calls resize_all_windows(0, 0, 0) on root, window_calc
-      // computes a half-size szHint from those half-size ncol/nrow values.
-      // Sending that to XResizeWindow would shrink the WM top-level window,
-      // cascading into quarter-size panes ("1 row per pane").
-      // Skip the parent resize here — apply_split_geometry below will query the
-      // actual WM dimensions via XGetWindowAttributes and re-layout correctly.
+      // set_fonts() calls resize_all_windows(0, 0) which uses the current
+      // ncol/nrow to compute szHint.  In split mode root's ncol/nrow are
+      // half-size (set by apply_split_geometry), so szHint would be half the
+      // WM window — XResizeWindow would shrink it.  Skip it; the
+      // apply_split_geometry call below uses XGetWindowAttributes for the
+      // real dimensions and lays out both panes correctly.
       bool skip_parent_resize = (newwidth == 0 && newheight == 0
                                  && tab_index == 0
                                  && split_partner && !split_is_child);

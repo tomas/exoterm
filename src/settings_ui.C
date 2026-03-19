@@ -720,9 +720,23 @@ rxvt_term::show_settings_ui ()
 
   settings_ui.visible = true;
 
+  /* Enable Always backing store so XCopyArea in backdrop_refresh reads the
+     actual repainted content even while the backdrop covers the terminal.
+     backdrop_refresh reads from child->parent (not child->vt) so child->parent
+     must also have backing store — X routes child->vt draws into child->parent's
+     backing store when child->vt itself is not individually backed. */
+  {
+    XSetWindowAttributes bsa;
+    bsa.backing_store = Always;
+    for (rxvt_term *t : termlist) {
+      XChangeWindowAttributes (dpy, t->vt, CWBackingStore, &bsa);
+      if (t->split_partner && !t->split_is_child)
+        XChangeWindowAttributes (dpy, t->split_partner->parent, CWBackingStore, &bsa);
+    }
+  }
+
   /* Capture terminal content into the backdrop buffer before the backdrop
-     window is mapped.  This ensures a correct first frame with no black flash,
-     and works around the undefined-content issue for obscured windows. */
+     window is mapped.  This ensures a correct first frame with no black flash. */
   backdrop_refresh (this);
 
   /* Use XMapRaised for both so they land on top of any split-pane child
@@ -754,7 +768,23 @@ rxvt_term::hide_settings_ui ()
   XUnmapWindow (dpy, settings_ui.win);
   if (settings_ui.backdrop_win != None)
     XUnmapWindow (dpy, settings_ui.backdrop_win);
+
+  /* Restore default backing store now that the backdrop is gone. */
+  {
+    XSetWindowAttributes bsa;
+    bsa.backing_store = NotUseful;
+    for (rxvt_term *t : termlist) {
+      XChangeWindowAttributes (dpy, t->vt, CWBackingStore, &bsa);
+      if (t->split_partner && !t->split_is_child)
+        XChangeWindowAttributes (dpy, t->split_partner->parent, CWBackingStore, &bsa);
+    }
+  }
+
   XFlush (dpy);
+
+  /* Repaint all panes now that the backdrop is gone. */
+  for (rxvt_term *t : termlist)
+    t->scr_touch (true);
 }
 
 void
@@ -938,7 +968,12 @@ void
 rxvt_term::settings_ui_refresh_cb (ev::timer &w, int revents)
 {
   if (settings_ui.visible) {
-    backdrop_refresh (this);
+    /* Draw the settings panel first — this may call apply_settings which
+       repaints the vt windows (via scr_recolor → scr_refresh) with new colors
+       and flushes X requests.  Then capture the backdrop so it reflects the
+       changes made in this same tick rather than lagging one frame behind. */
     draw_settings_ui ();
+    XFlush (dpy);
+    backdrop_refresh (this);
   }
 }
