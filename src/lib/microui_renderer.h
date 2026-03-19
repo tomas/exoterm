@@ -31,6 +31,7 @@ void r_resize(int width, int height);
  int r_shift_pressed(void);
  int r_alt_pressed(void);
  int r_should_close(void);
+ int r_needs_redraw(void);  /* New function for expose handling */
  int64_t r_get_time(void);
  void r_sleep(int64_t ms);
 

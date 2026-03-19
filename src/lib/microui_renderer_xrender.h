@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include "microui.h"
 
-void r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
+int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
 void r_update_context(Display *display, Window window, GC context);
 void r_resize(int width, int height);
 void r_clear(mu_Color clr);

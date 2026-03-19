@@ -34,10 +34,14 @@ static int r_mx;
 static int r_my;
 static int r_mouse_btn;
 static int r_close_requested;
+static int needs_redraw;  /* Flag for expose events */
 static Atom wm_delete_window;
 
 /* Current clip rectangle */
 static mu_Rect clip_rect;
+
+/* Last clear color - stored for expose redraws */
+static mu_Color last_clear_color;
 
 /* Keycode mapping */
 static int KEYCODES[124] = {
@@ -57,6 +61,7 @@ static int KEYCODES[124] = {
   XK_5,53, XK_6,54, XK_7,55, XK_8,56, XK_9,57,
 };
 
+/* Forward declarations */
 static void process_events(void);
 
 /* Convert mu_Color to XRenderColor (0‑65535 scale) */
@@ -122,15 +127,77 @@ static int create_atlas_picture(void) {
     return atlas_picture ? 0 : -1;
 }
 
+/* Input event processing */
+static void process_events(void) {
+    XEvent ev;
+    while (XPending(dpy)) {
+        XNextEvent(dpy, &ev);
+        switch (ev.type) {
+        case Expose:
+            /* Mark that we need to redraw on next frame */
+            needs_redraw = 1;
+            break;
+        case ButtonPress:
+            r_mouse_btn = 1;
+            r_mx = ev.xbutton.x;
+            r_my = ev.xbutton.y;
+            break;
+        case ButtonRelease:
+            r_mouse_btn = 0;
+            r_mx = ev.xbutton.x;
+            r_my = ev.xbutton.y;
+            break;
+        case MotionNotify:
+            r_mx = ev.xmotion.x;
+            r_my = ev.xmotion.y;
+            break;
+        case KeyPress:
+        case KeyRelease: {
+            int m = ev.xkey.state;
+            int k = XkbKeycodeToKeysym(dpy, ev.xkey.keycode, 0, 0);
+            int is_press = (ev.type == KeyPress);
+
+            for (unsigned int i = 0; i < 124; i += 2) {
+                if (KEYCODES[i] == k) {
+                    r_keys[KEYCODES[i + 1]] = is_press;
+                    break;
+                }
+            }
+
+            r_mod = ((m & ControlMask) ? 1 : 0) |
+                    ((m & ShiftMask)   ? 2 : 0) |
+                    ((m & Mod1Mask)    ? 4 : 0) |
+                    ((m & Mod4Mask)    ? 8 : 0);
+            break;
+        }
+        case ClientMessage:
+            if ((Atom)ev.xclient.data.l[0] == wm_delete_window) {
+                r_close_requested = 1;
+            }
+            break;
+        case ConfigureNotify:
+            if (ev.xconfigure.width  != win_width ||
+                ev.xconfigure.height != win_height) {
+                r_resize(ev.xconfigure.width, ev.xconfigure.height);
+                /* Clear the new area with last clear color */
+                r_clear(last_clear_color);
+            }
+            break;
+        }
+    }
+}
+
 /* Public functions */
 
-int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height) {
+int r_init(Display *display, Window window, GC context,
+            Visual *visual, int depth, int width, int height) {
     dpy = display;
     win = window;
     s_visual = visual;
     s_depth = depth;
     win_width = width;
     win_height = height;
+    needs_redraw = 1;
 
     /* Prevent X from painting the window background */
     XSetWindowBackgroundPixmap(dpy, win, None);
@@ -148,7 +215,7 @@ int r_init(Display *display, Window window, GC context, Visual *visual, int dept
 
     if (create_atlas_picture() < 0) return -1;
 
-    /* Input selection */
+    /* Input selection - include ExposureMask for expose events */
     XSelectInput(dpy, win,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
                  ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
@@ -157,12 +224,7 @@ int r_init(Display *display, Window window, GC context, Visual *visual, int dept
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, win, &wm_delete_window, 1);
 
-    /* Test: draw a green rectangle directly to window */
-    // XRenderColor green = {0x0000, 0xffff, 0x0000, 0xffff};
-    // XRenderFillRectangle(dpy, PictOpSrc, win_picture, &green, 50, 50, 100, 100);
-    // XFlush(dpy);
-
-    // /* Initial clip rect */
+    /* Initial clip rect */
     // clip_rect = mu_rect(0, 0, width, height);
     // XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
     //                                 (XRectangle*)&clip_rect, 1);
@@ -182,9 +244,11 @@ void r_resize(int width, int height) {
     clip_rect = mu_rect(0, 0, width, height);
     XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
                                     (XRectangle*)&clip_rect, 1);
+    needs_redraw = 1;
 }
 
 void r_clear(mu_Color clr) {
+    last_clear_color = clr;  /* Store for expose events */
     XRenderColor xc = to_xrcolor(clr);
     XRenderFillRectangle(dpy, PictOpSrc, win_picture, &xc,
                          0, 0, win_width, win_height);
@@ -259,69 +323,12 @@ void r_present_noevents(void) {
     XFlush(dpy);
 }
 
-/* Input handling - now properly updates all state */
-static void process_events(void) {
-    XEvent ev;
-    while (XPending(dpy)) {
-        XNextEvent(dpy, &ev);
-        switch (ev.type) {
-        case ButtonPress:
-            r_mouse_btn = 1;
-            /* Also update mouse position on button press */
-            r_mx = ev.xbutton.x;
-            r_my = ev.xbutton.y;
-            break;
-        case ButtonRelease:
-            r_mouse_btn = 0;
-            r_mx = ev.xbutton.x;
-            r_my = ev.xbutton.y;
-            break;
-        case MotionNotify:
-            r_mx = ev.xmotion.x;
-            r_my = ev.xmotion.y;
-            break;
-        case KeyPress:
-        case KeyRelease: {
-            int m = ev.xkey.state;
-            int k = XkbKeycodeToKeysym(dpy, ev.xkey.keycode, 0, 0);
-            int is_press = (ev.type == KeyPress);
-
-            /* Update key states */
-            for (unsigned int i = 0; i < 124; i += 2) {
-                if (KEYCODES[i] == k) {
-                    r_keys[KEYCODES[i + 1]] = is_press;
-                    break;
-                }
-            }
-
-            /* Update modifier states */
-            r_mod = ((m & ControlMask) ? 1 : 0) |
-                    ((m & ShiftMask)   ? 2 : 0) |
-                    ((m & Mod1Mask)    ? 4 : 0) |
-                    ((m & Mod4Mask)    ? 8 : 0);
-            break;
-        }
-        case ClientMessage:
-            if ((Atom)ev.xclient.data.l[0] == wm_delete_window) {
-                r_close_requested = 1;
-            }
-            break;
-        case ConfigureNotify:
-            if (ev.xconfigure.width  != win_width ||
-                ev.xconfigure.height != win_height) {
-                r_resize(ev.xconfigure.width, ev.xconfigure.height);
-            }
-            break;
-        }
-    }
-}
-
+/* Input state query functions */
 static int mouse_down = 0;
 
 int r_mouse_down(void) {
     if (r_mouse_btn && !mouse_down) {
         mouse_down = 1;
-        printf("r_mouse_down\n");
         return 1;
     }
     return 0;
@@ -330,7 +337,6 @@ int r_mouse_down(void) {
 int r_mouse_up(void) {
     if (!r_mouse_btn && mouse_down) {
         mouse_down = 0;
-        printf("r_mouse_up\n");
         return 1;
     }
     return 0;
@@ -346,6 +352,12 @@ int r_mouse_moved(int *mousex, int *mousey) {
 }
 
 int r_should_close(void)  { return r_close_requested; }
+
+int r_needs_redraw(void) {
+    int needs = needs_redraw;
+    needs_redraw = 0;
+    return needs;
+}
 
 int r_ctrl_pressed(void)  { return (r_mod & 1) ? 1 : 0; }
 int r_shift_pressed(void) { return (r_mod & 2) ? 1 : 0; }
