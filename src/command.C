@@ -3028,10 +3028,6 @@ rxvt_term::x_cb (XEvent &ev)
   switch (ev.type) {
       case KeyPress:
         if (!search_shown) scr_overlay_off();
-#ifdef SETTINGS_UI_BACKDROP
-        /* Block keyboard input to the terminal while the settings UI is open. */
-        if (GET_R && GET_R->settings_ui.visible) break;
-#endif
         // If this pane received keyboard input but another split pane has focus,
         // route the key to the correct pane. This handles focus-follows-mouse WMs
         // that may deliver keys to whatever window is under the pointer.
@@ -3217,14 +3213,6 @@ rxvt_term::x_cb (XEvent &ev)
             && ev.xfocus.detail != NotifyPointer
             && ev.xfocus.mode != NotifyGrab
             && ev.xfocus.mode != NotifyUngrab) {
-#ifdef SETTINGS_UI_BACKDROP
-              /* If the settings UI is open, redirect focus back to it instead
-                 of letting the terminal pane receive keyboard input. */
-              if (GET_R && GET_R->settings_ui.visible) {
-                XSetInputFocus (dpy, GET_R->settings_ui.win, RevertToParent, CurrentTime);
-                break;
-              }
-#endif
               // If we are not the currently active pane's parent window, redirect
               // focus back to the correct pane. This prevents focus-follows-mouse
               // from stealing keyboard input to a non-focused split pane.

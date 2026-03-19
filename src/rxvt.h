@@ -319,7 +319,6 @@ struct settings_ui_t {
   Pixmap backdrop_buf; // pre-rendered dimmed pixmap for backdrop
   GC gc;
   bool visible;
-  bool needs_redraw;   // set by event handlers; cleared after each draw
   int width, height;   // panel dimensions (PANEL_WIDTH x PANEL_HEIGHT)
   int parent_w, parent_h; // cached parent size (for backdrop)
 };

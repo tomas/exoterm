@@ -126,9 +126,8 @@ int main(int argc, char **argv) {
   int width = 800, height = 600;
   Display *dpy = XOpenDisplay(NULL);
   int screen   = DefaultScreen(dpy);
-  Window win   = XCreateSimpleWindow(dpy, RootWindow(dpy, screen), 0, 0, width, height, 0, BlackPixel(dpy, screen), BlackPixel(dpy, screen));
+  Window win   = XCreateSimpleWindow(dpy, RootWindow(dpy, screen), 0, 0, width, height, 0, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
   GC gc        = XCreateGC(dpy, win, 0, NULL);
-
   XStoreName(dpy, win, "microui demo");
   XMapWindow(dpy, win);
   XSync(dpy, False);
