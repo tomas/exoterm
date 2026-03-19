@@ -654,7 +654,7 @@ rxvt_term::show_settings_ui ()
     settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
 
     settings_ui.win = XCreateWindow (
-      dpy, parent,
+      dpy, root_win,
       panel_x, 0, panel_w, panel_h, 0,
       depth, InputOutput, visual,
       CWBackPixel | CWBorderPixel | CWColormap, &attr);
@@ -687,7 +687,7 @@ rxvt_term::show_settings_ui ()
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
     if (settings_ui.backdrop_buf != None)
       XFreePixmap (dpy, settings_ui.backdrop_buf);
-    settings_ui.backdrop_buf = XCreatePixmap (dpy, parent, pw, ph, depth);
+      settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
 
     XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
     r_resize (panel_w, panel_h);
@@ -758,7 +758,7 @@ rxvt_term::recenter_settings_ui ()
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
   if (settings_ui.backdrop_buf != None)
     XFreePixmap (dpy, settings_ui.backdrop_buf);
-  settings_ui.backdrop_buf = XCreatePixmap (dpy, parent, pw, ph, depth);
+  settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
 
   /* Panel moves to the new right edge. */
   XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
