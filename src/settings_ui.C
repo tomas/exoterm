@@ -282,10 +282,15 @@ static bool draw_scheme_row (mu_Context *ctx, int idx) {
 static int build_settings_window (mu_Context *ctx) {
   int changed = 0;
   mu_Rect rect = mu_rect (0, 0, PANEL_WIDTH, s_panel_h);
+
   int opt = MU_OPT_NOCLOSE | MU_OPT_NORESIZE | MU_OPT_NOINTERACT;
 
   if (mu_begin_window_ex (ctx, "Settings", rect, opt)) {
     int lw = 120; /* label column width — tuned for PANEL_WIDTH 320 */
+
+    // set container to match the window's height
+    mu_Container *win = mu_get_current_container(ctx);
+    win->rect.h = s_panel_h;
 
     /* ---- Appearance ---- */
     section_header (ctx, "Appearance");
@@ -359,8 +364,7 @@ static int build_settings_window (mu_Context *ctx) {
     mu_begin_panel (ctx, "##fonts");
     for (int i = 0; i < NUM_FONTS; i++) {
       char label[64];
-      snprintf (label, sizeof (label), "%s%s",
-                (s_active_font == i) ? ">  " : "   ", font_entries[i].name);
+      snprintf (label, sizeof (label), "%s%s", (s_active_font == i) ? ">  " : "   ", font_entries[i].name);
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 22); }
       if (mu_button (ctx, label)) {
         s_pending_font = i;
