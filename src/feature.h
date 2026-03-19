@@ -23,6 +23,18 @@
 #ifndef FEATURE_H
 #define FEATURE_H
 
+/*-----------------------SETTINGS UI OPTIONS----------------------------*/
+/* Define SETTINGS_UI_BACKDROP to enable the dimmed backdrop overlay and
+   keyboard-blocking when the settings panel is open.  Undefine (or set to 0)
+   to skip both, which makes the panel open without any overlay and leaves the
+   terminal panes fully interactive — useful for debugging drawing issues. */
+// #define SETTINGS_UI_BACKDROP 1
+
+/* Define to print verbose diagnostics to stderr: window IDs, depths, positions,
+   and XSync after each XPutImage to surface X errors immediately.
+   Useful for diagnosing a blank/disappearing settings panel. */
+// #define SETTINGS_UI_DEBUG 1
+
 #ifndef X11USRLIBDIR
 # define X11USRLIBDIR       "/usr/lib"
 #endif
