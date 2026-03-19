@@ -598,16 +598,18 @@ static void backdrop_refresh (rxvt_term *t)
   int      pw  = t->settings_ui.parent_w;
   int      ph  = t->settings_ui.parent_h;
 
-  /* Primary pane (root term): its parent IS the root window so the vt's
-     position within root_win is just (window_vt_x, window_vt_y). */
-  XCopyArea (dpy, t->vt, pix, gc,
-             0, 0, t->vt_width, t->vt_height,
-             t->window_vt_x, t->window_vt_y);
+  /* Capture from the currently active terminal (GET_R), not the root term,
+     since root's vt may be unmapped when on another tab. */
+  rxvt_term *active = GET_R;
 
-  /* In split mode also capture the child pane's vt.  child->parent is a
-     child of root_win positioned at (child_attr.x, child_attr.y). */
-  if (t->split_partner && !t->split_is_child) {
-    rxvt_term *child = t->split_partner;
+  /* Primary pane (active term's vt): copy at its position within root_win. */
+  XCopyArea (dpy, active->vt, pix, gc,
+             0, 0, active->vt_width, active->vt_height,
+             active->window_vt_x, active->window_vt_y);
+
+  /* In split mode also capture the child pane's vt. */
+  if (active->split_partner && !active->split_is_child) {
+    rxvt_term *child = active->split_partner;
     XWindowAttributes child_attr;
     XGetWindowAttributes (dpy, child->parent, &child_attr);
     XCopyArea (dpy, child->vt, pix, gc,
