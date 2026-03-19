@@ -4103,7 +4103,7 @@ rxvt_term::button_release (XButtonEvent &ev)
               else if (option (Opt_mouseWheelScrollPage))
                 lines = nrow - 1;
               else
-                lines = 5;
+                lines = wheel_scroll_lines;
 
 # ifdef MOUSE_SLIP_WHEELING
               if (ev.state & ControlMask)

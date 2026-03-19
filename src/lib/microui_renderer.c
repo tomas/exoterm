@@ -85,7 +85,7 @@ void r_init(Display *display, Window window, GC context, int width, int height) 
   r_clear(mu_color(0, 0, 0, 255));
 }
 
-static void r_resize(int width, int height) {
+void r_resize(int width, int height) {
   /* XDestroyImage would free img->data (our buf), so clear it first */
   img->data = NULL;
   XDestroyImage(img);
@@ -232,6 +232,8 @@ void r_set_clip_rect(mu_Rect rect) {
   int xend   = mu_min(win_width,  rect.x + rect.w);
   clip_rect  = mu_rect(xstart, ystart, xend - xstart, yend - ystart);
 }
+
+uint32_t *r_get_buffer(void) { return buf; }
 
 void r_clear(mu_Color clr) {
   flush();

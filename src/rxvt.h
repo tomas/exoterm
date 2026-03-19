@@ -314,10 +314,13 @@ struct minimap_t {
 #endif
 
 struct settings_ui_t {
-  Window win;
+  Window win;          // settings panel window (microui)
+  Window backdrop_win; // full-size dim overlay behind the panel
+  Pixmap backdrop_buf; // pre-rendered dimmed pixmap for backdrop
   GC gc;
   bool visible;
-  int width, height;
+  int width, height;   // panel dimensions (PANEL_WIDTH x PANEL_HEIGHT)
+  int parent_w, parent_h; // cached parent size (for backdrop)
 };
 
 struct tabpopup_t {
@@ -1055,6 +1058,8 @@ struct TermWin_t
   int            ext_bwidth;    /* external border width                    */
   int            lineSpace;     /* number of extra pixels between rows      */
   int            letterSpace;   /* number of extra pixels between columns   */
+  int            wheel_scroll_lines; /* lines to scroll per mouse wheel tick */
+  int            bg_shading;    /* background shading % (fake transparency) */
   int            saveLines;     /* number of lines that fit in scrollback   */
   int            total_rows;    /* total number of rows in this terminal    */
   int            term_start;    /* term lines start here                    */
@@ -1430,6 +1435,7 @@ Pixmap icon_mask; //  = None;
   void show_settings_ui ();
   void hide_settings_ui ();
   void draw_settings_ui ();
+  void recenter_settings_ui ();
   void x_settings_ui_cb (XEvent &xev);
   void settings_ui_refresh_cb (ev::timer &w, int revents);
 

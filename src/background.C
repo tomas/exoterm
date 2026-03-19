@@ -444,7 +444,7 @@ rxvt_term::bg_window_position_sensitive ()
   return false;
 }
 
-Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out) {
+Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out, int shading_val = 20) {
   Pixmap bg = getRootPixmap(dpy);
   if (bg == None) {
     printf("Unable to get root pixmap\n");
@@ -461,7 +461,7 @@ Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out)
 
   // shade it
   ShadingInfo shade;
-  shade.shading = 20;
+  shade.shading = shading_val;
   shade.tintColor.red   = 0x0000;
   shade.tintColor.green = 0xFFFF;
   shade.tintColor.blue  = 0xFFFF;
@@ -520,7 +520,7 @@ rxvt_term::bg_init ()
       // the background with no windows
 
       int w, h;
-      root_img = load_root_img(dpy, parent, gc, &w, &h);
+      root_img = load_root_img(dpy, parent, gc, &w, &h, bg_shading);
 
       // printf("creating pixmap: %d/%d, depth: %d\n", w, h, depth);
       if (root_img) winbg = XCreatePixmap(dpy, parent, w, h, depth);

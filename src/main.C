@@ -207,6 +207,8 @@ rxvt_term::rxvt_term ()
 #endif
   settings_ui_ev.set         <rxvt_term, &rxvt_term::x_settings_ui_cb> (this);
   settings_ui_refresh_ev.set <rxvt_term, &rxvt_term::settings_ui_refresh_cb> (this);
+  wheel_scroll_lines = 5;
+  bg_shading         = 20;
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
@@ -1577,6 +1579,7 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   }
 
   resize_tabpopup ();
+  recenter_settings_ui ();
 
   if (fix_screen || old_height == 0) {
     // printf("scr_reset on resizing\n");

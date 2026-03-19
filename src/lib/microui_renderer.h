@@ -15,6 +15,8 @@ void r_set_clip_rect(mu_Rect rect);
 void r_clear(mu_Color color);
 void r_present(void);
 void r_present_noevents(void);
+void r_resize(int width, int height);
+uint32_t *r_get_buffer(void); /* pre-fill before rendering; called before render loop */
 // Can only be checked once per frame; side-effecting.
  int r_mouse_down(void);
 // Can only be checked once per frame; side-effecting.
