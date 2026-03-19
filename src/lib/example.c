@@ -22,6 +22,10 @@ static int uint8_slider(mu_Context *ctx, unsigned char *value, int low, int high
   return res;
 }
 
+static const char *fruits[] = {"Apple", "Banana", "Cherry", "Date", "Elderberry"};
+static int num_fruits = 5;
+int selected_fruit = 0;
+
 static void style_window(mu_Context *ctx) {
   static struct { const char *label; int idx; } colors[] = {
     { "text:",         MU_COLOR_TEXT        },
@@ -42,10 +46,25 @@ static void style_window(mu_Context *ctx) {
   };
 
   if (mu_begin_window(ctx, "Style Editor", mu_rect(350, 250, 300, 240))) {
+
+    mu_layout_row(ctx, 1, (int[]){150}, 0);
+
+    const char *current = fruits[selected_fruit];
+    if (mu_begin_combo_ex(ctx, "##fruit", current, num_fruits, 0)) {
+      mu_layout_row(ctx, 1, (int[]){-1}, 0);
+      for (int i = 0; i < num_fruits; i++) {
+        if (mu_button(ctx, fruits[i])) {
+          selected_fruit = i;
+          mu_close_popup(ctx, "##fruit");
+        }
+      }
+      mu_end_combo(ctx);
+    }
+
     int sw = mu_get_current_container(ctx)->body.w * 0.14;
     mu_layout_row(ctx, 6, (int[]) { 80, sw, sw, sw, sw, -1 }, 0);
     for (int i = 0; colors[i].label; i++) {
-      mu_label(ctx, colors[i].label);
+      mu_label(ctx, colors[i].label, 0);
       uint8_slider(ctx, &ctx->style->colors[i].r, 0, 255);
       uint8_slider(ctx, &ctx->style->colors[i].g, 0, 255);
       uint8_slider(ctx, &ctx->style->colors[i].b, 0, 255);
@@ -61,7 +80,7 @@ static int text_width(mu_Font font, const char *text, int len) {
   return r_get_text_width(text, len);
 }
 
-static int text_height(mu_Font font) {
+static int font_height(mu_Font font) {
   return r_get_text_height();
 }
 
@@ -142,7 +161,7 @@ int main(int argc, char **argv) {
   mu_Context *ctx = malloc(sizeof(mu_Context));
   mu_init(ctx);
   ctx->text_width = text_width;
-  ctx->text_height = text_height;
+  ctx->font_height = font_height;
 
   int fps = 60;
 

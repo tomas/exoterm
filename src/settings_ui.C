@@ -205,7 +205,7 @@ static int text_width_cb (mu_Font font, const char *text, int len) {
   if (len == -1) len = strlen (text);
   return r_get_text_width (text, len);
 }
-static int text_height_cb (mu_Font font) { return r_get_text_height (); }
+static int font_height_cb (mu_Font font) { return r_get_text_height (); }
 
 /* --- slider helper --- */
 static int float_slider (mu_Context *ctx, float *value, float lo, float hi,
@@ -252,9 +252,9 @@ enum {
 /* --- section header --- */
 static void section_header (mu_Context *ctx, const char *label) {
   { int c[] = {-1}; mu_layout_row (ctx, 1, c, 6); }
-  mu_label (ctx, "");
+  mu_label (ctx, "", 0);
   { int c[] = {-1}; mu_layout_row (ctx, 1, c, 20); }
-  mu_label (ctx, label);
+  mu_label (ctx, label, 0);
 }
 
 /* --- draw one color scheme row, return true if clicked --- */
@@ -295,66 +295,66 @@ static int build_settings_window (mu_Context *ctx) {
     /* ---- Appearance ---- */
     section_header (ctx, "Appearance");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Shading:");
+    mu_label (ctx, "Shading:", 0);
     if (float_slider (ctx, &s_shading, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
       changed |= CHANGED_SHADING;
-    mu_label (ctx, "Border:");
+    mu_label (ctx, "Border:", 0);
     if (float_slider (ctx, &s_border_width, 0.0f, 30.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_BORDER;
-    mu_label (ctx, "Line spacing:");
+    mu_label (ctx, "Line spacing:", 0);
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
-    mu_label (ctx, "Letter spacing:");
+    mu_label (ctx, "Letter spacing:", 0);
     if (float_slider (ctx, &s_letter_space, -4.0f, 8.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LETTER_SPACE;
 
     /* ---- Cursor ---- */
     section_header (ctx, "Cursor");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Blink:");
+    mu_label (ctx, "Blink:", 0);
     if (mu_checkbox (ctx, "##cblink", &s_cursor_blink) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_BLINK;
-    mu_label (ctx, "Underline:");
+    mu_label (ctx, "Underline:", 0);
     if (mu_checkbox (ctx, "##cul", &s_cursor_underline) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_UL;
 
     /* ---- Scrolling ---- */
     section_header (ctx, "Scrolling");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Speed:");
+    mu_label (ctx, "Speed:", 0);
     if (float_slider (ctx, &s_scroll_speed, 1.0f, 20.0f, 1.0f, "%.0f lines") & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL;
-    mu_label (ctx, "Scrollback:");
+    mu_label (ctx, "Scrollback:", 0);
     if (float_slider (ctx, &s_save_lines, 100.0f, 50000.0f, 100.0f, "%.0f") & MU_RES_CHANGE)
       changed |= CHANGED_SAVE_LINES;
 
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Scrollbar:");
+    mu_label (ctx, "Scrollbar:", 0);
     if (mu_checkbox (ctx, "##sbar", &s_scrollbar) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLLBAR;
-    mu_label (ctx, "Jump scroll:");
+    mu_label (ctx, "Jump scroll:", 0);
     if (mu_checkbox (ctx, "##jscroll", &s_jump_scroll) & MU_RES_CHANGE)
       changed |= CHANGED_JUMP_SCROLL;
-    mu_label (ctx, "On output:");
+    mu_label (ctx, "On output:", 0);
     if (mu_checkbox (ctx, "##sout", &s_scroll_on_output) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_OUTPUT;
-    mu_label (ctx, "On keypress:");
+    mu_label (ctx, "On keypress:", 0);
     if (mu_checkbox (ctx, "##skey", &s_scroll_on_keypress) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_KEY;
-    mu_label (ctx, "Page on wheel:");
+    mu_label (ctx, "Page on wheel:", 0);
     if (mu_checkbox (ctx, "##wpage", &s_mouse_wheel_page) & MU_RES_CHANGE)
       changed |= CHANGED_WHEEL_PAGE;
 
     /* ---- Alerts & misc ---- */
     section_header (ctx, "Alerts & Misc");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Visual bell:");
+    mu_label (ctx, "Visual bell:", 0);
     if (mu_checkbox (ctx, "##vbell", &s_visual_bell) & MU_RES_CHANGE)
       changed |= CHANGED_VISUAL_BELL;
-    mu_label (ctx, "Urgent on bell:");
+    mu_label (ctx, "Urgent on bell:", 0);
     if (mu_checkbox (ctx, "##urgbell", &s_urgent_on_bell) & MU_RES_CHANGE)
       changed |= CHANGED_URGENT_BELL;
-    mu_label (ctx, "Blank pointer:");
+    mu_label (ctx, "Blank pointer:", 0);
     if (mu_checkbox (ctx, "##pblank", &s_pointer_blank) & MU_RES_CHANGE)
       changed |= CHANGED_PTR_BLANK;
 
@@ -384,9 +384,9 @@ static int build_settings_window (mu_Context *ctx) {
 
     /* ---- Buttons ---- */
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 10); }
-    mu_label (ctx, "");
+    mu_label (ctx, "", 0);
     { int c[] = {-160, -80, -1}; mu_layout_row (ctx, 3, c, 0); }
-    mu_label (ctx, "");
+    mu_label (ctx, "", 0);
     if (mu_button (ctx, "Cancel")) changed |= CHANGED_CANCEL;
     if (mu_button (ctx, "Apply"))  changed |= CHANGED_APPLY;
 
@@ -690,7 +690,7 @@ rxvt_term::show_settings_ui ()
       mu_ctx = (mu_Context *) malloc (sizeof (mu_Context));
       mu_init (mu_ctx);
       mu_ctx->text_width  = text_width_cb;
-      mu_ctx->text_height = text_height_cb;
+      mu_ctx->font_height = font_height_cb;
     }
 
     int res = r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
