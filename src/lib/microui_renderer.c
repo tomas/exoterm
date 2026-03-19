@@ -233,8 +233,6 @@ void r_set_clip_rect(mu_Rect rect) {
   clip_rect  = mu_rect(xstart, ystart, xend - xstart, yend - ystart);
 }
 
-uint32_t *r_get_buffer(void) { return buf; }
-
 void r_clear(mu_Color clr) {
   flush();
   uint32_t c = r_color(clr);

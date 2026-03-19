@@ -597,42 +597,19 @@ static void backdrop_refresh (rxvt_term *t)
   int      pw  = t->settings_ui.parent_w;
   int      ph  = t->settings_ui.parent_h;
 
-  /* Fill with black (border areas not covered by vt) */
-  XSetForeground (dpy, gc, BlackPixel (dpy, DefaultScreen (dpy)));
-  XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+  XCopyArea (dpy, t->vt, pix, gc,
+             0, 0, t->vt_width, t->vt_height,
+             t->window_vt_x, t->window_vt_y);
 
-  /* Copy vt content at its position within the parent */
-  if (t->vt_width > 0 && t->vt_height > 0)
-    XCopyArea (dpy, t->vt, pix, gc,
-               0, 0, t->vt_width, t->vt_height,
-               t->window_vt_x, t->window_vt_y);
-
-  /* Darken with a semi-transparent black overlay via XRender */
   XRenderPictFormat *fmt = XRenderFindVisualFormat (dpy, t->visual);
-  if (!fmt) fmt = XRenderFindStandardFormat (dpy, PictStandardRGB24);
   if (fmt) {
     Picture pic = XRenderCreatePicture (dpy, pix, fmt, 0, nullptr);
-    if (pic) {
-      XRenderColor dark = {0, 0, 0, 0x9000}; /* ~56% opacity */
-      XRenderFillRectangle (dpy, PictOpOver, pic, &dark, 0, 0, pw, ph);
-      XRenderFreePicture (dpy, pic);
-    }
+    XRenderColor dark = {0, 0, 0, 0x9000}; /* ~56% opacity */
+    XRenderFillRectangle (dpy, PictOpOver, pic, &dark, 0, 0, pw, ph);
+    XRenderFreePicture (dpy, pic);
   }
 
-  /* Blit to backdrop window */
   XCopyArea (dpy, pix, t->settings_ui.backdrop_win, gc, 0, 0, pw, ph, 0, 0);
-}
-
-/* Query the actual pixel dimensions of the parent window from the X server.
-   Avoids relying on szHint which can lag behind the real window size. */
-static void query_parent_size (rxvt_term *t, int *pw_out, int *ph_out)
-{
-  Window root_ret;
-  int x, y;
-  unsigned int w = 0, h = 0, bw, d;
-  XGetGeometry (t->dpy, t->parent, &root_ret, &x, &y, &w, &h, &bw, &d);
-  *pw_out = w ? (int)w : (t->szHint.width  ? t->szHint.width  : 800);
-  *ph_out = h ? (int)h : (t->szHint.height ? t->szHint.height : 600);
 }
 
 void
@@ -640,8 +617,8 @@ rxvt_term::show_settings_ui ()
 {
   if (settings_ui.visible) return;
 
-  int pw, ph;
-  query_parent_size (this, &pw, &ph);
+  int pw = szHint.width  ? szHint.width  : 800;
+  int ph = szHint.height ? szHint.height : 600;
 
   int panel_w = (PANEL_WIDTH < pw) ? PANEL_WIDTH : pw;
   int panel_h = ph;
@@ -746,8 +723,8 @@ rxvt_term::recenter_settings_ui ()
 {
   if (!settings_ui.visible || settings_ui.win == None) return;
 
-  int pw, ph;
-  query_parent_size (this, &pw, &ph);
+  int pw = szHint.width;
+  int ph = szHint.height;
   if (!pw || !ph) return;
   if (pw == settings_ui.parent_w && ph == settings_ui.parent_h) return;
 
