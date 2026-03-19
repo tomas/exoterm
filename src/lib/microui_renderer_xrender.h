@@ -5,7 +5,7 @@
 #include <X11/Xlib.h>
 #include <stdint.h>
 
-void r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
+int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
 /* Update the display/window/GC without touching the pixel buffer or image. */
 void r_update_context(Display *display, Window window, GC context);
 void r_draw_rect(mu_Rect rect, mu_Color color);

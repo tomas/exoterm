@@ -133,7 +133,12 @@ int main(int argc, char **argv) {
   XSync(dpy, False);
 
   /* init renderer and microui */
-  r_init(dpy, win, gc, DefaultVisual(dpy, screen), DefaultDepth(dpy, screen), width, height);
+  int res = r_init(dpy, win, gc, DefaultVisual(dpy, screen), DefaultDepth(dpy, screen), width, height);
+  if (res != 0) {
+    // exit(1);
+    return 1;
+  }
+
   mu_Context *ctx = malloc(sizeof(mu_Context));
   mu_init(ctx);
   ctx->text_width = text_width;

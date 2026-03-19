@@ -6,16 +6,12 @@
 #include <X11/extensions/Xrender.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "microui_renderer.h"
 #include "atlas.inl"
-
-/* Debug macro (optional, can be removed) */
-#define DBG(fmt, ...) fprintf(stderr, "[microui_renderer] " fmt "\n", ##__VA_ARGS__)
 
 /* X11 & XRender state */
 static Display  *dpy;
@@ -43,7 +39,7 @@ static Atom wm_delete_window;
 /* Current clip rectangle */
 static mu_Rect clip_rect;
 
-/* Keycode mapping (unchanged) */
+/* Keycode mapping */
 static int KEYCODES[124] = {
   XK_BackSpace,8,  XK_Delete,127,    XK_Down,18,       XK_End,5,
   XK_Escape,27,    XK_Home,2,        XK_Insert,26,     XK_Left,20,
@@ -61,6 +57,8 @@ static int KEYCODES[124] = {
   XK_5,53, XK_6,54, XK_7,55, XK_8,56, XK_9,57,
 };
 
+static void process_events(void);
+
 /* Convert mu_Color to XRenderColor (0‑65535 scale) */
 static XRenderColor to_xrcolor(mu_Color c) {
     XRenderColor xc;
@@ -71,26 +69,17 @@ static XRenderColor to_xrcolor(mu_Color c) {
     return xc;
 }
 
-/* Create a 1×1 solid picture with repeat enabled.
-   Returns None on failure. */
+/* Create a 1×1 solid picture with repeat enabled */
 static Picture create_solid_picture(mu_Color color) {
     XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, s_visual);
-    if (!fmt) {
-        DBG("create_solid_picture: no visual format");
-        return None;
-    }
+    if (!fmt) return None;
 
     Pixmap pix = XCreatePixmap(dpy, win, 1, 1, s_depth);
-    if (!pix) {
-        DBG("create_solid_picture: failed to create pixmap");
-        return None;
-    }
+    if (!pix) return None;
+
     Picture pic = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
     XFreePixmap(dpy, pix);  /* picture holds a reference */
-    if (!pic) {
-        DBG("create_solid_picture: failed to create picture");
-        return None;
-    }
+    if (!pic) return None;
 
     XRenderColor xc = to_xrcolor(color);
     XRenderFillRectangle(dpy, PictOpSrc, pic, &xc, 0, 0, 1, 1);
@@ -99,25 +88,18 @@ static Picture create_solid_picture(mu_Color color) {
     pa.repeat = RepeatNormal;
     XRenderChangePicture(dpy, pic, CPRepeat, &pa);
 
-    DBG("create_solid_picture: success for color (%d,%d,%d,%d)",
-        color.r, color.g, color.b, color.a);
     return pic;
 }
 
 /* Create the atlas picture (A8) from the in‑memory grayscale data */
-static void create_atlas_picture(void) {
+static int create_atlas_picture(void) {
     XImage *img;
     Pixmap pix;
     GC gc;
     XRenderPictFormat *fmt;
 
-    DBG("Creating atlas picture...");
-
     pix = XCreatePixmap(dpy, win, ATLAS_WIDTH, ATLAS_HEIGHT, 8);
-    if (!pix) {
-        DBG("Failed to create atlas pixmap");
-        exit(1);
-    }
+    if (!pix) return -1;
 
     gc = XCreateGC(dpy, pix, 0, NULL);
     img = XCreateImage(dpy, NULL, 8, ZPixmap, 0, NULL,
@@ -130,24 +112,19 @@ static void create_atlas_picture(void) {
 
     fmt = XRenderFindStandardFormat(dpy, PictStandardA8);
     if (!fmt) {
-        DBG("No A8 format available");
-        exit(1);
+        XFreePixmap(dpy, pix);
+        return -1;
     }
 
     atlas_picture = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
     XFreePixmap(dpy, pix);
-    if (!atlas_picture) {
-        DBG("Failed to create atlas picture");
-        exit(1);
-    }
-    DBG("Atlas picture created successfully");
+
+    return atlas_picture ? 0 : -1;
 }
 
 /* Public functions */
 
-void r_init(Display *display, Window window, GC context,
-            Visual *visual, int depth, int width, int height) {
-    DBG("Initializing direct renderer");
+int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height) {
     dpy = display;
     win = window;
     s_visual = visual;
@@ -160,23 +137,18 @@ void r_init(Display *display, Window window, GC context,
 
     int event_base, error_base;
     if (!XRenderQueryExtension(dpy, &event_base, &error_base)) {
-        DBG("XRender extension not available");
-        exit(1);
+        return -1;
     }
 
     XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, visual);
-    if (!fmt) {
-        DBG("No XRender format for visual");
-        exit(1);
-    }
+    if (!fmt) return -1;
+
     win_picture = XRenderCreatePicture(dpy, win, fmt, 0, NULL);
-    if (!win_picture) {
-        DBG("Failed to create window picture");
-        exit(1);
-    }
+    if (!win_picture) return -1;
 
-    create_atlas_picture();
+    if (create_atlas_picture() < 0) return -1;
 
+    /* Input selection */
     XSelectInput(dpy, win,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
                  ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
@@ -185,11 +157,13 @@ void r_init(Display *display, Window window, GC context,
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, win, &wm_delete_window, 1);
 
-    /* Test: draw a green rectangle directly to window */
-    XRenderColor green = {0x0000, 0xffff, 0x0000, 0xffff};
-    XRenderFillRectangle(dpy, PictOpSrc, win_picture, &green, 50, 50, 100, 100);
-    XFlush(dpy);
-    DBG("Test green rectangle drawn at (50,50)");
+    /* Initial clip rect */
+    clip_rect = mu_rect(0, 0, width, height);
+    XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
+                                    (XRectangle*)&clip_rect, 1);
+
+    r_clear(mu_color(0, 0, 0, 255));
+    return 0;
 }
 
 void r_update_context(Display *display, Window window, GC context) {
@@ -198,25 +172,20 @@ void r_update_context(Display *display, Window window, GC context) {
 }
 
 void r_resize(int width, int height) {
-    DBG("Resize to %dx%d", width, height);
     win_width = width;
     win_height = height;
     clip_rect = mu_rect(0, 0, width, height);
-    /* No need to recreate back buffer; just update clip */
     XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
                                     (XRectangle*)&clip_rect, 1);
 }
 
 void r_clear(mu_Color clr) {
-    DBG("Clear with color (%d,%d,%d,%d)", clr.r, clr.g, clr.b, clr.a);
     XRenderColor xc = to_xrcolor(clr);
     XRenderFillRectangle(dpy, PictOpSrc, win_picture, &xc,
                          0, 0, win_width, win_height);
 }
 
 void r_draw_rect(mu_Rect rect, mu_Color color) {
-    DBG("Draw rect at (%d,%d) size %dx%d color (%d,%d,%d,%d)",
-        rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     XRenderColor xc = to_xrcolor(color);
     XRenderFillRectangle(dpy, PictOpOver, win_picture, &xc,
                          rect.x, rect.y, rect.w, rect.h);
@@ -224,13 +193,8 @@ void r_draw_rect(mu_Rect rect, mu_Color color) {
 
 void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
     mu_Rect src = atlas[id];
-    DBG("Draw icon id=%d at (%d,%d) size %dx%d color (%d,%d,%d,%d)",
-        id, rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     Picture solid = create_solid_picture(color);
-    if (solid == None) {
-        DBG("Failed to create solid picture for icon");
-        return;
-    }
+    if (solid == None) return;
 
     XRenderComposite(dpy, PictOpOver,
                      solid,               /* source (solid color) */
@@ -241,17 +205,11 @@ void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
                      rect.x, rect.y,       /* dest x, y */
                      src.w, src.h);
     XRenderFreePicture(dpy, solid);
-    DBG("Icon composited");
 }
 
 void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color) {
-    DBG("Draw text '%s' at (%d,%d) color (%d,%d,%d,%d)",
-        text, pos.x, pos.y, color.r, color.g, color.b, color.a);
     Picture solid = create_solid_picture(color);
-    if (solid == None) {
-        DBG("Failed to create solid picture for text");
-        return;
-    }
+    if (solid == None) return;
 
     int x = pos.x;
     for (const char *p = text; *p; p++) {
@@ -265,7 +223,6 @@ void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color) {
         x += src.w;
     }
     XRenderFreePicture(dpy, solid);
-    DBG("Text drawn");
 }
 
 int r_get_text_width(const char *text, int len) {
@@ -283,37 +240,36 @@ int r_get_text_height(void) {
 }
 
 void r_set_clip_rect(mu_Rect rect) {
-    DBG("Set clip rect (%d,%d) %dx%d", rect.x, rect.y, rect.w, rect.h);
     clip_rect = rect;
     XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
                                     (XRectangle*)&clip_rect, 1);
 }
 
-static void process_events(void);
-
 void r_present(void) {
-    DBG("Presenting frame");
     XFlush(dpy);
     process_events();
 }
 
 void r_present_noevents(void) {
-    DBG("Presenting frame (no events)");
     XFlush(dpy);
 }
 
-/* ------------------------------------------------------------------------- */
-/* Input handling (unchanged) */
-/* ------------------------------------------------------------------------- */
-
+/* Input handling - now properly updates all state */
 static void process_events(void) {
     XEvent ev;
     while (XPending(dpy)) {
         XNextEvent(dpy, &ev);
         switch (ev.type) {
         case ButtonPress:
+            r_mouse_btn = 1;
+            /* Also update mouse position on button press */
+            r_mx = ev.xbutton.x;
+            r_my = ev.xbutton.y;
+            break;
         case ButtonRelease:
-            r_mouse_btn = (ev.type == ButtonPress);
+            r_mouse_btn = 0;
+            r_mx = ev.xbutton.x;
+            r_my = ev.xbutton.y;
             break;
         case MotionNotify:
             r_mx = ev.xmotion.x;
@@ -323,16 +279,21 @@ static void process_events(void) {
         case KeyRelease: {
             int m = ev.xkey.state;
             int k = XkbKeycodeToKeysym(dpy, ev.xkey.keycode, 0, 0);
+            int is_press = (ev.type == KeyPress);
+
+            /* Update key states */
             for (unsigned int i = 0; i < 124; i += 2) {
                 if (KEYCODES[i] == k) {
-                    r_keys[KEYCODES[i + 1]] = (ev.type == KeyPress);
+                    r_keys[KEYCODES[i + 1]] = is_press;
                     break;
                 }
             }
-            r_mod = (!!(m & ControlMask))       |
-                    (!!(m & ShiftMask)    << 1)  |
-                    (!!(m & Mod1Mask)     << 2)  |
-                    (!!(m & Mod4Mask)     << 3);
+
+            /* Update modifier states */
+            r_mod = ((m & ControlMask) ? 1 : 0) |
+                    ((m & ShiftMask)   ? 2 : 0) |
+                    ((m & Mod1Mask)    ? 4 : 0) |
+                    ((m & Mod4Mask)    ? 8 : 0);
             break;
         }
         case ClientMessage:
@@ -379,9 +340,9 @@ int r_mouse_moved(int *mousex, int *mousey) {
 
 int r_should_close(void)  { return r_close_requested; }
 
-int r_ctrl_pressed(void)  { return r_mod & 1; }
-int r_shift_pressed(void) { return r_mod & 2; }
-int r_alt_pressed(void)   { return r_mod & 4; }
+int r_ctrl_pressed(void)  { return (r_mod & 1) ? 1 : 0; }
+int r_shift_pressed(void) { return (r_mod & 2) ? 1 : 0; }
+int r_alt_pressed(void)   { return (r_mod & 4) ? 1 : 0; }
 
 int r_key_down(int key) {
     if (r_keys[key] == 1) {
@@ -392,7 +353,7 @@ int r_key_down(int key) {
 }
 
 int r_key_up(int key) {
-    if (r_keys[key] < 1) {
+    if (r_keys[key] == 0) {
         return 1;
     }
     return 0;
