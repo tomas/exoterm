@@ -205,6 +205,8 @@ rxvt_term::rxvt_term ()
 #ifdef ENABLE_MINIMAP
   minimap_ev.set          <rxvt_term, &rxvt_term::x_minimap_cb> (this);
 #endif
+  settings_ui_ev.set         <rxvt_term, &rxvt_term::x_settings_ui_cb> (this);
+  settings_ui_refresh_ev.set <rxvt_term, &rxvt_term::settings_ui_refresh_cb> (this);
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
@@ -322,6 +324,8 @@ rxvt_term::~rxvt_term ()
     }
   }
 #endif
+
+  destroy_settings_ui ();
 
   tabpopup_refresh_ev.stop ();
   if (tabpopup.win != None) {

@@ -1139,6 +1139,13 @@ rxvt_term::key_press (XKeyEvent &ev)
     return next_tab(0);
   }
 
+  // Ctrl+, → toggle settings UI
+  if (ctrl && !shft && keysym == XK_comma) {
+    if (settings_ui.visible) hide_settings_ui ();
+    else show_settings_ui ();
+    return;
+  }
+
   // Ctrl+Tab → next tab (show popup briefly)
   if (ctrl && !shft && keysym == XK_Tab) {
     show_tabpopup (1.0);

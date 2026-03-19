@@ -292,6 +292,14 @@ void r_present(void) {
   process_events();
 }
 
+/* Like r_present but without draining the X event queue.
+   Use this when the host application handles its own event dispatch. */
+void r_present_noevents(void) {
+  flush();
+  XPutImage(dpy, win, gc, img, 0, 0, 0, 0, win_width, win_height);
+  XFlush(dpy);
+}
+
 static int mouse_down = 0;
 
 int r_mouse_down(void) {

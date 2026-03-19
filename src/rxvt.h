@@ -313,6 +313,13 @@ struct minimap_t {
 
 #endif
 
+struct settings_ui_t {
+  Window win;
+  GC gc;
+  bool visible;
+  int width, height;
+};
+
 struct tabpopup_t {
     Window win;
     GC gc;
@@ -1414,6 +1421,17 @@ Pixmap icon_mask; //  = None;
   void minimap_handle_drag(int y);
   void x_minimap_cb (XEvent &xev);
 #endif
+
+  settings_ui_t settings_ui;
+  xevent_watcher settings_ui_ev;
+  ev::timer settings_ui_refresh_ev;
+  void init_settings_ui ();
+  void destroy_settings_ui ();
+  void show_settings_ui ();
+  void hide_settings_ui ();
+  void draw_settings_ui ();
+  void x_settings_ui_cb (XEvent &xev);
+  void settings_ui_refresh_cb (ev::timer &w, int revents);
 
   tabpopup_t tabpopup;
   xevent_watcher tabpopup_ev;
