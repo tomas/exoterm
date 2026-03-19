@@ -6,13 +6,16 @@
 #include <X11/extensions/Xrender.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>   /* for fprintf */
+#include <stdio.h>      /* for debug prints */
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "microui_renderer.h"
 #include "atlas.inl"
+
+/* Debug macro */
+#define DBG(fmt, ...) fprintf(stderr, "[microui_renderer] " fmt "\n", ##__VA_ARGS__)
 
 /* X11 & XRender state */
 static Display  *dpy;
@@ -28,7 +31,7 @@ static Picture   back_picture;     /* back buffer pixmap */
 static Pixmap    back_pixmap;
 static Picture   atlas_picture;    /* font atlas (A8 format) */
 
-/* Input state (unchanged) */
+/* Input state */
 static int r_keys[256];
 static int r_mod;
 static int r_mx;
@@ -69,17 +72,26 @@ static XRenderColor to_xrcolor(mu_Color c) {
 }
 
 /* Create a 1×1 solid picture with repeat enabled.
-   This uses XRenderFillRectangle to set the pixel, avoiding any pixel‑value conversion issues. */
+   Returns None on failure. */
 static Picture create_solid_picture(mu_Color color) {
     XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, s_visual);
-    if (!fmt) return None;
+    if (!fmt) {
+        DBG("create_solid_picture: no visual format");
+        return None;
+    }
 
     /* Create a 1x1 pixmap and picture */
     Pixmap pix = XCreatePixmap(dpy, win, 1, 1, s_depth);
-    if (!pix) return None;
+    if (!pix) {
+        DBG("create_solid_picture: failed to create pixmap");
+        return None;
+    }
     Picture pic = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
-    XFreePixmap(dpy, pix);  /* picture holds a reference, we can free the pixmap */
-    if (!pic) return None;
+    XFreePixmap(dpy, pix);  /* picture holds a reference */
+    if (!pic) {
+        DBG("create_solid_picture: failed to create picture");
+        return None;
+    }
 
     /* Fill the picture with the solid color */
     XRenderColor xc = to_xrcolor(color);
@@ -90,6 +102,8 @@ static Picture create_solid_picture(mu_Color color) {
     pa.repeat = RepeatNormal;
     XRenderChangePicture(dpy, pic, CPRepeat, &pa);
 
+    DBG("create_solid_picture: success for color (%d,%d,%d,%d)",
+        color.r, color.g, color.b, color.a);
     return pic;
 }
 
@@ -100,9 +114,11 @@ static void create_atlas_picture(void) {
     GC gc;
     XRenderPictFormat *fmt;
 
+    DBG("Creating atlas picture...");
+
     pix = XCreatePixmap(dpy, win, ATLAS_WIDTH, ATLAS_HEIGHT, 8);
     if (!pix) {
-        fprintf(stderr, "Failed to create atlas pixmap\n");
+        DBG("Failed to create atlas pixmap");
         exit(1);
     }
 
@@ -117,43 +133,51 @@ static void create_atlas_picture(void) {
 
     fmt = XRenderFindStandardFormat(dpy, PictStandardA8);
     if (!fmt) {
-        fprintf(stderr, "No A8 format available\n");
+        DBG("No A8 format available");
         exit(1);
     }
 
     atlas_picture = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
-    XFreePixmap(dpy, pix);  /* picture holds a reference */
+    XFreePixmap(dpy, pix);
     if (!atlas_picture) {
-        fprintf(stderr, "Failed to create atlas picture\n");
+        DBG("Failed to create atlas picture");
         exit(1);
     }
+    DBG("Atlas picture created successfully");
 }
 
 /* Recreate back buffer when window size changes */
 static void recreate_back_buffer(int width, int height) {
+    DBG("Recreating back buffer: %dx%d", width, height);
     if (back_pixmap) {
         XRenderFreePicture(dpy, back_picture);
         XFreePixmap(dpy, back_pixmap);
     }
     back_pixmap = XCreatePixmap(dpy, win, width, height, s_depth);
     if (!back_pixmap) {
-        fprintf(stderr, "Failed to create back pixmap\n");
+        DBG("Failed to create back pixmap");
         exit(1);
     }
     XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, s_visual);
+    if (!fmt) {
+        DBG("No visual format for back buffer");
+        exit(1);
+    }
     back_picture = XRenderCreatePicture(dpy, back_pixmap, fmt, 0, NULL);
     if (!back_picture) {
-        fprintf(stderr, "Failed to create back picture\n");
+        DBG("Failed to create back picture");
         exit(1);
     }
     clip_rect = mu_rect(0, 0, width, height);
     XRenderSetPictureClipRectangles(dpy, back_picture, 0, 0, (XRectangle*)&clip_rect, 1);
+    DBG("Back buffer ready");
 }
 
 /* Public functions */
 
 void r_init(Display *display, Window window, GC context,
             Visual *visual, int depth, int width, int height) {
+    DBG("Initializing renderer");
     dpy = display;
     win = window;
     s_visual = visual;
@@ -166,18 +190,18 @@ void r_init(Display *display, Window window, GC context,
 
     int event_base, error_base;
     if (!XRenderQueryExtension(dpy, &event_base, &error_base)) {
-        fprintf(stderr, "XRender extension not available\n");
+        DBG("XRender extension not available");
         exit(1);
     }
 
     XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, visual);
     if (!fmt) {
-        fprintf(stderr, "No XRender format for visual\n");
+        DBG("No XRender format for visual");
         exit(1);
     }
     win_picture = XRenderCreatePicture(dpy, win, fmt, 0, NULL);
     if (!win_picture) {
-        fprintf(stderr, "Failed to create window picture\n");
+        DBG("Failed to create window picture");
         exit(1);
     }
 
@@ -192,7 +216,11 @@ void r_init(Display *display, Window window, GC context,
     wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, win, &wm_delete_window, 1);
 
-    r_clear(mu_color(0, 0, 0, 255));
+    /* Test: draw a green rectangle directly to back buffer and present */
+    XRenderColor green = {0x0000, 0xffff, 0x0000, 0xffff};
+    XRenderFillRectangle(dpy, PictOpSrc, win_picture, &green, 50, 50, 100, 100);
+    XFlush(dpy);
+    DBG("Initial test rectangle drawn (green at 50,50)");
 }
 
 void r_update_context(Display *display, Window window, GC context) {
@@ -201,18 +229,22 @@ void r_update_context(Display *display, Window window, GC context) {
 }
 
 void r_resize(int width, int height) {
+    DBG("Resize to %dx%d", width, height);
     win_width = width;
     win_height = height;
     recreate_back_buffer(width, height);
 }
 
 void r_clear(mu_Color clr) {
+    DBG("Clear with color (%d,%d,%d,%d)", clr.r, clr.g, clr.b, clr.a);
     XRenderColor xc = to_xrcolor(clr);
     XRenderFillRectangle(dpy, PictOpSrc, back_picture, &xc,
                          0, 0, win_width, win_height);
 }
 
 void r_draw_rect(mu_Rect rect, mu_Color color) {
+    DBG("Draw rect at (%d,%d) size %dx%d color (%d,%d,%d,%d)",
+        rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     XRenderColor xc = to_xrcolor(color);
     XRenderFillRectangle(dpy, PictOpOver, back_picture, &xc,
                          rect.x, rect.y, rect.w, rect.h);
@@ -220,8 +252,13 @@ void r_draw_rect(mu_Rect rect, mu_Color color) {
 
 void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
     mu_Rect src = atlas[id];
+    DBG("Draw icon id=%d at (%d,%d) size %dx%d color (%d,%d,%d,%d)",
+        id, rect.x, rect.y, rect.w, rect.h, color.r, color.g, color.b, color.a);
     Picture solid = create_solid_picture(color);
-    if (solid == None) return;
+    if (solid == None) {
+        DBG("Failed to create solid picture for icon");
+        return;
+    }
 
     XRenderComposite(dpy, PictOpOver,
                      solid,               /* source (solid color) */
@@ -232,11 +269,17 @@ void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
                      rect.x, rect.y,       /* dest x, y */
                      src.w, src.h);
     XRenderFreePicture(dpy, solid);
+    DBG("Icon composited");
 }
 
 void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color) {
+    DBG("Draw text '%s' at (%d,%d) color (%d,%d,%d,%d)",
+        text, pos.x, pos.y, color.r, color.g, color.b, color.a);
     Picture solid = create_solid_picture(color);
-    if (solid == None) return;
+    if (solid == None) {
+        DBG("Failed to create solid picture for text");
+        return;
+    }
 
     int x = pos.x;
     for (const char *p = text; *p; p++) {
@@ -250,6 +293,7 @@ void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color) {
         x += src.w;
     }
     XRenderFreePicture(dpy, solid);
+    DBG("Text drawn");
 }
 
 int r_get_text_width(const char *text, int len) {
@@ -267,6 +311,7 @@ int r_get_text_height(void) {
 }
 
 void r_set_clip_rect(mu_Rect rect) {
+    DBG("Set clip rect (%d,%d) %dx%d", rect.x, rect.y, rect.w, rect.h);
     clip_rect = rect;
     XRenderSetPictureClipRectangles(dpy, back_picture, 0, 0,
                                     (XRectangle*)&clip_rect, 1);
@@ -275,6 +320,7 @@ void r_set_clip_rect(mu_Rect rect) {
 static void process_events(void);
 
 void r_present(void) {
+    DBG("Presenting frame");
     XRenderComposite(dpy, PictOpSrc, back_picture, None, win_picture,
                      0, 0, 0, 0, 0, 0, win_width, win_height);
     XFlush(dpy);
@@ -282,13 +328,14 @@ void r_present(void) {
 }
 
 void r_present_noevents(void) {
+    DBG("Presenting frame (no events)");
     XRenderComposite(dpy, PictOpSrc, back_picture, None, win_picture,
                      0, 0, 0, 0, 0, 0, win_width, win_height);
     XFlush(dpy);
 }
 
 /* ------------------------------------------------------------------------- */
-/* Input handling (identical to original)                                    */
+/* Input handling (unchanged) */
 /* ------------------------------------------------------------------------- */
 
 static void process_events(void) {
