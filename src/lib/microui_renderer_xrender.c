@@ -1,31 +1,29 @@
-#define _DEFAULT_SOURCE 1
-#include <X11/XKBlib.h>
+#define _DEFAULT_SOURCE 1#include <X11/XKBlib.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/extensions/Xrender.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
-
 #include "microui_renderer.h"
-#include "atlas.inl"
+#include "atlas.inl"   /* must define ATLAS_WIDTH, ATLAS_HEIGHT, ATLAS_WHITE, ATLAS_FONT, atlas[] and atlas_texture[] */
 
-/* X11 & XRender state */
-static Display  *dpy;
-static Window    win;
-static Visual   *s_visual;
-static int       s_depth;
-static int       win_width;
-static int       win_height;
+static Display * dpy;
+static Window win;
+static GC gc; /* kept for compatibility with your host code */
+static Visual * s_visual;
+static int s_depth;
+static int win_width;
+static int win_height;
 
-/* XRender picture for the window (direct rendering) */
-static Picture   win_picture;
-
-/* Font atlas picture (A8) */
-static Picture   atlas_picture;
+/* XRender state */
+static Picture window_picture;
+static Picture atlas_picture;
+static Pixmap atlas_pixmap;
 
 /* Input state */
 static int r_keys[256];
@@ -34,24 +32,21 @@ static int r_mx;
 static int r_my;
 static int r_mouse_btn;
 static int r_close_requested;
-static int needs_redraw;  /* Flag for expose events */
 static Atom wm_delete_window;
-
-/* Current clip rectangle */
-static mu_Rect clip_rect;
+static int needs_redraw;  /* Flag for expose events */
 
 /* Last clear color - stored for expose redraws */
 static mu_Color last_clear_color;
 
-/* Keycode mapping */
+/* clang-format off */
 static int KEYCODES[124] = {
-  XK_BackSpace,8,  XK_Delete,127,    XK_Down,18,       XK_End,5,
-  XK_Escape,27,    XK_Home,2,        XK_Insert,26,     XK_Left,20,
-  XK_Page_Down,4,  XK_Page_Up,3,     XK_Return,10,     XK_Right,19,
-  XK_Tab,9,        XK_Up,17,         XK_apostrophe,39, XK_backslash,92,
-  XK_bracketleft,91, XK_bracketright,93, XK_comma,44,  XK_equal,61,
-  XK_grave,96,     XK_minus,45,      XK_period,46,     XK_semicolon,59,
-  XK_slash,47,     XK_space,32,
+  XK_BackSpace,8, XK_Delete,127, XK_Down,18, XK_End,5,
+  XK_Escape,27, XK_Home,2, XK_Insert,26, XK_Left,20,
+  XK_Page_Down,4, XK_Page_Up,3, XK_Return,10, XK_Right,19,
+  XK_Tab,9, XK_Up,17, XK_apostrophe,39, XK_backslash,92,
+  XK_bracketleft,91, XK_bracketright,93, XK_comma,44, XK_equal,61,
+  XK_grave,96, XK_minus,45, XK_period,46, XK_semicolon,59,
+  XK_slash,47, XK_space,32,
   XK_a,65, XK_b,66, XK_c,67, XK_d,68, XK_e,69, XK_f,70,
   XK_g,71, XK_h,72, XK_i,73, XK_j,74, XK_k,75, XK_l,76,
   XK_m,77, XK_n,78, XK_o,79, XK_p,80, XK_q,81, XK_r,82,
@@ -60,333 +55,298 @@ static int KEYCODES[124] = {
   XK_0,48, XK_1,49, XK_2,50, XK_3,51, XK_4,52,
   XK_5,53, XK_6,54, XK_7,55, XK_8,56, XK_9,57,
 };
+/* clang-format on */
 
-/* Forward declarations */
-static void process_events(void);
-
-/* Convert mu_Color to XRenderColor (0‑65535 scale) */
-static XRenderColor to_xrcolor(mu_Color c) {
-    XRenderColor xc;
-    xc.red   = (c.r << 8) | c.r;
-    xc.green = (c.g << 8) | c.g;
-    xc.blue  = (c.b << 8) | c.b;
-    xc.alpha = (c.a << 8) | c.a;
-    return xc;
+static XRenderColor to_xrender_color(mu_Color c) {
+  XRenderColor xc;
+  xc.red = (uint16_t) c.r << 8;
+  xc.green = (uint16_t) c.g << 8;
+  xc.blue = (uint16_t) c.b << 8;
+  xc.alpha = (uint16_t) c.a << 8;
+  return xc;
 }
 
-/* Create a 1×1 solid picture with repeat enabled */
-static Picture create_solid_picture(mu_Color color) {
-    XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, s_visual);
-    if (!fmt) return None;
+int r_init(Display * display, Window window, GC context, Visual * visual, int depth, int width, int height) {
+  dpy = display;
+  win = window;
+  gc = context;
+  s_visual = visual;
+  s_depth = depth;
+  win_width = width;
+  win_height = height;
+  needs_redraw = 1;
 
-    Pixmap pix = XCreatePixmap(dpy, win, 1, 1, s_depth);
-    if (!pix) return None;
+  XSelectInput(dpy, win,
+    ExposureMask | KeyPressMask | KeyReleaseMask |
+    ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+    StructureNotifyMask);
 
-    Picture pic = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
-    XFreePixmap(dpy, pix);  /* picture holds a reference */
-    if (!pic) return None;
+  wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+  XSetWMProtocols(dpy, win, & wm_delete_window, 1);
 
-    XRenderColor xc = to_xrcolor(color);
-    XRenderFillRectangle(dpy, PictOpSrc, pic, &xc, 0, 0, 1, 1);
+  /* XRender setup */
+  int dummy;
+  if (!XRenderQueryExtension(dpy, & dummy, & dummy)) {
+    /* XRender is required for this renderer */
+    return -1;
+  }
 
-    XRenderPictureAttributes pa;
-    pa.repeat = RepeatNormal;
-    XRenderChangePicture(dpy, pic, CPRepeat, &pa);
+  XRenderPictFormat * vis_fmt = XRenderFindVisualFormat(dpy, s_visual);
+  window_picture = XRenderCreatePicture(dpy, win, vis_fmt, 0, NULL);
 
-    return pic;
+  XRenderPictFormat * a8_fmt = XRenderFindStandardFormat(dpy, PictStandardA8);
+  atlas_pixmap = XCreatePixmap(dpy, win, ATLAS_WIDTH, ATLAS_HEIGHT, 8);
+
+  GC atlas_gc = XCreateGC(dpy, atlas_pixmap, 0, NULL);
+  XImage * atlas_img = XCreateImage(dpy, s_visual, 8, ZPixmap, 0,
+    NULL, ATLAS_WIDTH, ATLAS_HEIGHT, 8, ATLAS_WIDTH);
+  atlas_img -> data = (char * ) atlas_texture;
+  XPutImage(dpy, atlas_pixmap, atlas_gc, atlas_img, 0, 0, 0, 0, ATLAS_WIDTH, ATLAS_HEIGHT);
+  atlas_img -> data = NULL;
+  XDestroyImage(atlas_img);
+  XFreeGC(dpy, atlas_gc);
+
+  atlas_picture = XRenderCreatePicture(dpy, atlas_pixmap, a8_fmt, 0, NULL);
+
+  /* initial full clip + clear */
+  r_set_clip_rect(mu_rect(0, 0, width, height));
+  r_clear(mu_color(0, 0, 0, 255));
+
+  return 0;
 }
 
-/* Create the atlas picture (A8) from the in‑memory grayscale data */
-static int create_atlas_picture(void) {
-    XImage *img;
-    Pixmap pix;
-    GC gc;
-    XRenderPictFormat *fmt;
-
-    pix = XCreatePixmap(dpy, win, ATLAS_WIDTH, ATLAS_HEIGHT, 8);
-    if (!pix) return -1;
-
-    gc = XCreateGC(dpy, pix, 0, NULL);
-    img = XCreateImage(dpy, NULL, 8, ZPixmap, 0, NULL,
-                       ATLAS_WIDTH, ATLAS_HEIGHT, 8, 0);
-    img->data = (char*)atlas_texture;
-    XPutImage(dpy, pix, gc, img, 0, 0, 0, 0, ATLAS_WIDTH, ATLAS_HEIGHT);
-    img->data = NULL;
-    XDestroyImage(img);
-    XFreeGC(dpy, gc);
-
-    fmt = XRenderFindStandardFormat(dpy, PictStandardA8);
-    if (!fmt) {
-        XFreePixmap(dpy, pix);
-        return -1;
-    }
-
-    atlas_picture = XRenderCreatePicture(dpy, pix, fmt, 0, NULL);
-    XFreePixmap(dpy, pix);
-
-    return atlas_picture ? 0 : -1;
-}
-
-/* Input event processing */
-static void process_events(void) {
-    XEvent ev;
-    while (XPending(dpy)) {
-        XNextEvent(dpy, &ev);
-        switch (ev.type) {
-        case Expose:
-            /* Mark that we need to redraw on next frame */
-            needs_redraw = 1;
-            break;
-        case ButtonPress:
-            r_mouse_btn = 1;
-            r_mx = ev.xbutton.x;
-            r_my = ev.xbutton.y;
-            break;
-        case ButtonRelease:
-            r_mouse_btn = 0;
-            r_mx = ev.xbutton.x;
-            r_my = ev.xbutton.y;
-            break;
-        case MotionNotify:
-            r_mx = ev.xmotion.x;
-            r_my = ev.xmotion.y;
-            break;
-        case KeyPress:
-        case KeyRelease: {
-            int m = ev.xkey.state;
-            int k = XkbKeycodeToKeysym(dpy, ev.xkey.keycode, 0, 0);
-            int is_press = (ev.type == KeyPress);
-
-            for (unsigned int i = 0; i < 124; i += 2) {
-                if (KEYCODES[i] == k) {
-                    r_keys[KEYCODES[i + 1]] = is_press;
-                    break;
-                }
-            }
-
-            r_mod = ((m & ControlMask) ? 1 : 0) |
-                    ((m & ShiftMask)   ? 2 : 0) |
-                    ((m & Mod1Mask)    ? 4 : 0) |
-                    ((m & Mod4Mask)    ? 8 : 0);
-            break;
-        }
-        case ClientMessage:
-            if ((Atom)ev.xclient.data.l[0] == wm_delete_window) {
-                r_close_requested = 1;
-            }
-            break;
-        case ConfigureNotify:
-            if (ev.xconfigure.width  != win_width ||
-                ev.xconfigure.height != win_height) {
-                r_resize(ev.xconfigure.width, ev.xconfigure.height);
-                /* Clear the new area with last clear color */
-                r_clear(last_clear_color);
-            }
-            break;
-        }
-    }
-}
-
-/* Public functions */
-
-int r_init(Display *display, Window window, GC context,
-            Visual *visual, int depth, int width, int height) {
-    dpy = display;
-    win = window;
-    s_visual = visual;
-    s_depth = depth;
-    win_width = width;
-    win_height = height;
-    needs_redraw = 1;
-
-    /* Prevent X from painting the window background */
-    XSetWindowBackgroundPixmap(dpy, win, None);
-
-    int event_base, error_base;
-    if (!XRenderQueryExtension(dpy, &event_base, &error_base)) {
-        return -1;
-    }
-
-    XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, visual);
-    if (!fmt) return -1;
-
-    win_picture = XRenderCreatePicture(dpy, win, fmt, 0, NULL);
-    if (!win_picture) return -1;
-
-    if (create_atlas_picture() < 0) return -1;
-
-    /* Input selection - include ExposureMask for expose events */
-    XSelectInput(dpy, win,
-                 ExposureMask | KeyPressMask | KeyReleaseMask |
-                 ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
-                 StructureNotifyMask);
-
-    wm_delete_window = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
-    XSetWMProtocols(dpy, win, &wm_delete_window, 1);
-
-    /* Initial clip rect */
-    // clip_rect = mu_rect(0, 0, width, height);
-    // XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
-    //                                 (XRectangle*)&clip_rect, 1);
-
-    // r_clear(mu_color(0, 0, 0, 255));
-    return 0;
-}
-
-void r_update_context(Display *display, Window window, GC context) {
-    dpy = display;
-    win = window;
+void r_update_context(Display * display, Window window, GC context) {
+  dpy = display;
+  win = window;
+  gc = context;
 }
 
 void r_resize(int width, int height) {
-    win_width = width;
-    win_height = height;
-    clip_rect = mu_rect(0, 0, width, height);
-    XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
-                                    (XRectangle*)&clip_rect, 1);
-    needs_redraw = 1;
+  win_width = width;
+  win_height = height;
+  r_set_clip_rect(mu_rect(0, 0, width, height));
 }
 
-void r_clear(mu_Color clr) {
-    last_clear_color = clr;  /* Store for expose events */
-    XRenderColor xc = to_xrcolor(clr);
-    XRenderFillRectangle(dpy, PictOpSrc, win_picture, &xc,
-                         0, 0, win_width, win_height);
+int r_needs_redraw(void) {
+  int needs = needs_redraw;
+  needs_redraw = 0;
+  return needs;
 }
+
+/* ===================== DRAWING (XRender) ===================== */
 
 void r_draw_rect(mu_Rect rect, mu_Color color) {
-    XRenderColor xc = to_xrcolor(color);
-    XRenderFillRectangle(dpy, PictOpOver, win_picture, &xc,
-                         rect.x, rect.y, rect.w, rect.h);
+  if (rect.w <= 0 || rect.h <= 0) return;
+  XRenderColor xc = to_xrender_color(color);
+  XRenderFillRectangle(dpy, PictOpOver, window_picture, & xc,
+    rect.x, rect.y, rect.w, rect.h);
+}
+
+void r_draw_text(const char * text, mu_Vec2 pos, mu_Color color) {
+  if (!text || ! * text) return;
+
+  XRenderColor xc = to_xrender_color(color);
+  Picture solid = XRenderCreateSolidFill(dpy, & xc);
+
+  mu_Rect dst = {
+    pos.x,
+    pos.y,
+    0,
+    0
+  };
+  for (const char * p = text;* p; p++) {
+    if (( * p & 0xc0) == 0x80) continue;
+    int chr = mu_min((unsigned char) * p, 127);
+    mu_Rect src = atlas[ATLAS_FONT + chr];
+    dst.w = src.w;
+    dst.h = src.h;
+
+    XRenderComposite(dpy, PictOpOver,
+      solid, atlas_picture, window_picture,
+      0, 0, /* src (solid) coords ignored */
+      src.x, src.y, /* mask coords in atlas */
+      dst.x, dst.y, src.w, src.h);
+    dst.x += dst.w;
+  }
+  XRenderFreePicture(dpy, solid);
 }
 
 void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
-    mu_Rect src = atlas[id];
-    Picture solid = create_solid_picture(color);
-    if (solid == None) return;
+  mu_Rect src = atlas[id];
+  int x = rect.x + (rect.w - src.w) / 2;
+  int y = rect.y + (rect.h - src.h) / 2;
 
-    XRenderComposite(dpy, PictOpOver,
-                     solid,               /* source (solid color) */
-                     atlas_picture,       /* mask (alpha from atlas) */
-                     win_picture,
-                     0, 0,                 /* source x, y */
-                     src.x, src.y,         /* mask x, y */
-                     rect.x, rect.y,       /* dest x, y */
-                     src.w, src.h);
-    XRenderFreePicture(dpy, solid);
+  XRenderColor xc = to_xrender_color(color);
+  Picture solid = XRenderCreateSolidFill(dpy, & xc);
+
+  XRenderComposite(dpy, PictOpOver,
+    solid, atlas_picture, window_picture,
+    0, 0, src.x, src.y,
+    x, y, src.w, src.h);
+
+  XRenderFreePicture(dpy, solid);
 }
 
-void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color) {
-    Picture solid = create_solid_picture(color);
-    if (solid == None) return;
-
-    int x = pos.x;
-    for (const char *p = text; *p; p++) {
-        if ((*p & 0xc0) == 0x80) continue;
-        int chr = mu_min((unsigned char)*p, 127);
-        mu_Rect src = atlas[ATLAS_FONT + chr];
-        XRenderComposite(dpy, PictOpOver,
-                         solid, atlas_picture, win_picture,
-                         0, 0, src.x, src.y,
-                         x, pos.y, src.w, src.h);
-        x += src.w;
-    }
-    XRenderFreePicture(dpy, solid);
-}
-
-int r_get_text_width(const char *text, int len) {
-    int res = 0;
-    for (const char *p = text; *p && len--; p++) {
-        if ((*p & 0xc0) == 0x80) continue;
-        int chr = mu_min((unsigned char)*p, 127);
-        res += atlas[ATLAS_FONT + chr].w;
-    }
-    return res;
+int r_get_text_width(const char * text, int len) {
+  int res = 0;
+  for (const char * p = text;* p && len--; p++) {
+    if (( * p & 0xc0) == 0x80) continue;
+    int chr = mu_min((unsigned char) * p, 127);
+    res += atlas[ATLAS_FONT + chr].w;
+  }
+  return res;
 }
 
 int r_get_text_height(void) {
-    return 18;
+  return 18;
 }
 
-void r_set_clip_rect(mu_Rect rect) {
-    clip_rect = rect;
-    XRenderSetPictureClipRectangles(dpy, win_picture, 0, 0,
-                                    (XRectangle*)&clip_rect, 1);
+void r_set_clip_rect(mu_Rect r) {
+  int x = mu_max(0, r.x);
+  int y = mu_max(0, r.y);
+  int w = mu_min(win_width, r.x + r.w) - x;
+  int h = mu_min(win_height, r.y + r.h) - y;
+
+  if (w <= 0 || h <= 0) {
+    XRectangle zero = {
+      0,
+      0,
+      0,
+      0
+    };
+    XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & zero, 1);
+    return;
+  }
+
+  XRectangle clip = {
+    (short) x,
+    (short) y,
+    (unsigned short) w,
+    (unsigned short) h
+  };
+  XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & clip, 1);
+}
+
+void r_clear(mu_Color clr) {
+  last_clear_color = clr;  /* Store for expose events */
+
+  /* clear always affects the whole window */
+  XRectangle full = { 0, 0, (unsigned short) win_width, (unsigned short) win_height };
+  XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & full, 1);
+
+  XRenderColor xc = to_xrender_color(clr);
+  XRenderFillRectangle(dpy, PictOpSrc, window_picture, & xc, 0, 0, win_width, win_height);
 }
 
 void r_present(void) {
-    XFlush(dpy);
-    process_events();
+  XFlush(dpy);
+
+  /* event processing stays exactly as before */
+  XEvent ev;
+  while (XPending(dpy)) {
+    XNextEvent(dpy, & ev);
+    switch (ev.type) {
+    case ButtonPress:
+    case ButtonRelease:
+      r_mouse_btn = (ev.type == ButtonPress);
+      needs_redraw = 1;
+      break;
+    case MotionNotify:
+      r_mx = ev.xmotion.x;
+      r_my = ev.xmotion.y;
+      needs_redraw = 1;
+      break;
+    case KeyPress:
+    case KeyRelease: {
+      int m = ev.xkey.state;
+      KeySym k = XkbKeycodeToKeysym(dpy, ev.xkey.keycode, 0, 0);
+      for (unsigned int i = 0; i < 124; i += 2) {
+        if (KEYCODES[i] == k) {
+          r_keys[KEYCODES[i + 1]] = (ev.type == KeyPress);
+          break;
+        }
+      }
+      r_mod = (!!(m & ControlMask)) |
+        (!!(m & ShiftMask) << 1) |
+        (!!(m & Mod1Mask) << 2) |
+        (!!(m & Mod4Mask) << 3);
+
+      needs_redraw = 1;
+      break;
+    }
+    case ClientMessage:
+      if ((Atom) ev.xclient.data.l[0] == wm_delete_window) r_close_requested = 1;
+      break;
+    case ConfigureNotify:
+      if (ev.xconfigure.width != win_width || ev.xconfigure.height != win_height) {
+        r_resize(ev.xconfigure.width, ev.xconfigure.height);
+        r_clear(last_clear_color);
+        needs_redraw = 1;
+      }
+      break;
+    }
+  }
 }
 
 void r_present_noevents(void) {
-    XFlush(dpy);
+  XFlush(dpy);
 }
 
-/* Input state query functions */
+/* mouse / keyboard helpers — unchanged */
 static int mouse_down = 0;
-
 int r_mouse_down(void) {
-    if (r_mouse_btn && !mouse_down) {
-        mouse_down = 1;
-        return 1;
-    }
-    return 0;
+  if (r_mouse_btn && !mouse_down) {
+    mouse_down = 1;
+    return 1;
+  }
+  return 0;
 }
-
 int r_mouse_up(void) {
-    if (!r_mouse_btn && mouse_down) {
-        mouse_down = 0;
-        return 1;
-    }
-    return 0;
+  if (!r_mouse_btn && mouse_down) {
+    mouse_down = 0;
+    return 1;
+  }
+  return 0;
 }
-
-int r_mouse_moved(int *mousex, int *mousey) {
-    if (r_mx != *mousex || r_my != *mousey) {
-        *mousex = r_mx;
-        *mousey = r_my;
-        return 1;
-    }
-    return 0;
+int r_mouse_moved(int * mousex, int * mousey) {
+  if (r_mx != * mousex || r_my != * mousey) {
+    * mousex = r_mx;* mousey = r_my;
+    return 1;
+  }
+  return 0;
 }
-
-int r_should_close(void)  { return r_close_requested; }
-
-int r_needs_redraw(void) {
-    int needs = needs_redraw;
-    needs_redraw = 0;
-    return needs;
+int r_should_close(void) {
+  return r_close_requested;
 }
-
-int r_ctrl_pressed(void)  { return (r_mod & 1) ? 1 : 0; }
-int r_shift_pressed(void) { return (r_mod & 2) ? 1 : 0; }
-int r_alt_pressed(void)   { return (r_mod & 4) ? 1 : 0; }
-
+int r_ctrl_pressed(void) {
+  return r_mod & 1;
+}
+int r_shift_pressed(void) {
+  return r_mod & 2;
+}
+int r_alt_pressed(void) {
+  return r_mod & 4;
+}
 int r_key_down(int key) {
-    if (r_keys[key] == 1) {
-        r_keys[key]++;
-        return 1;
-    }
-    return 0;
+  if (r_keys[key] == 1) {
+    r_keys[key]++;
+    return 1;
+  }
+  return 0;
 }
-
 int r_key_up(int key) {
-    if (r_keys[key] == 0) {
-        return 1;
-    }
-    return 0;
+  if (r_keys[key] < 1) return 1;
+  return 0;
 }
-
 int64_t r_get_time(void) {
-    struct timespec t;
-    clock_gettime(CLOCK_REALTIME, &t);
-    return t.tv_sec * 1000 + (t.tv_nsec / 1000000);
+  struct timespec t;
+  clock_gettime(CLOCK_REALTIME, & t);
+  return t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
-
 void r_sleep(int64_t ms) {
-    struct timespec ts;
-    ts.tv_sec  = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000;
-    nanosleep(&ts, NULL);
+  struct timespec ts = {
+    ms / 1000,
+    (ms % 1000) * 1000000
+  };
+  nanosleep( & ts, NULL);
 }
