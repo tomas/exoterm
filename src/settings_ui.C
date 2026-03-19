@@ -585,7 +585,8 @@ rxvt_term::init_settings_ui ()
 
 /* Refresh the full-size backdrop: copy vt content to the backdrop window
    with a dark overlay.  backdrop_win covers the entire terminal at (0,0) and
-   shows the live (dimmed) terminal content behind the settings panel. */
+   shows the live (dimmed) terminal content behind the settings panel.
+   In split mode both panes' vt windows are captured. */
 static void backdrop_refresh (rxvt_term *t)
 {
   if (t->settings_ui.backdrop_win == None ||
@@ -597,9 +598,23 @@ static void backdrop_refresh (rxvt_term *t)
   int      pw  = t->settings_ui.parent_w;
   int      ph  = t->settings_ui.parent_h;
 
+  /* Primary pane (root term): its parent IS the root window so the vt's
+     position within root_win is just (window_vt_x, window_vt_y). */
   XCopyArea (dpy, t->vt, pix, gc,
              0, 0, t->vt_width, t->vt_height,
              t->window_vt_x, t->window_vt_y);
+
+  /* In split mode also capture the child pane's vt.  child->parent is a
+     child of root_win positioned at (child_attr.x, child_attr.y). */
+  if (t->split_partner && !t->split_is_child) {
+    rxvt_term *child = t->split_partner;
+    XWindowAttributes child_attr;
+    XGetWindowAttributes (dpy, child->parent, &child_attr);
+    XCopyArea (dpy, child->vt, pix, gc,
+               0, 0, child->vt_width, child->vt_height,
+               child_attr.x + child->window_vt_x,
+               child_attr.y + child->window_vt_y);
+  }
 
   XRenderPictFormat *fmt = XRenderFindVisualFormat (dpy, t->visual);
   if (fmt) {
@@ -615,10 +630,12 @@ static void backdrop_refresh (rxvt_term *t)
 void
 rxvt_term::show_settings_ui ()
 {
+  /* Always operate on the root term so state, windows, and event watchers
+     live on the longest-lived instance regardless of which pane triggered us. */
+  if (this != termlist.at (0)) { termlist.at (0)->show_settings_ui (); return; }
+
   if (settings_ui.visible) return;
 
-  /* Always use the top-level container window so that the backdrop and panel
-     cover the full terminal area even when we are a split pane. */
   rxvt_term *root_term = termlist.at (0);
   Window     root_win  = root_term->parent;
 
@@ -703,8 +720,14 @@ rxvt_term::show_settings_ui ()
 
   settings_ui.visible = true;
 
-  /* Map backdrop first (below), then panel on top. */
-  XMapWindow (dpy, settings_ui.backdrop_win);
+  /* Capture terminal content into the backdrop buffer before the backdrop
+     window is mapped.  This ensures a correct first frame with no black flash,
+     and works around the undefined-content issue for obscured windows. */
+  backdrop_refresh (this);
+
+  /* Use XMapRaised for both so they land on top of any split-pane child
+     windows that are already mapped as siblings of root_win. */
+  XMapRaised (dpy, settings_ui.backdrop_win);
   XMapRaised (dpy, settings_ui.win);
 
   XSetInputFocus (dpy, settings_ui.win, RevertToParent, CurrentTime);
@@ -719,13 +742,14 @@ rxvt_term::show_settings_ui ()
 void
 rxvt_term::hide_settings_ui ()
 {
+  if (this != termlist.at (0)) { termlist.at (0)->hide_settings_ui (); return; }
+
   if (!settings_ui.visible) return;
   settings_ui.visible = false;
   settings_ui_refresh_ev.stop ();
 
-  /* Explicitly return focus to the WM-managed parent window so that
-     the terminal resumes receiving keyboard events reliably. */
-  XSetInputFocus (dpy, parent, RevertToPointerRoot, CurrentTime);
+  /* Return focus to whichever pane is currently active. */
+  XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
 
   XUnmapWindow (dpy, settings_ui.win);
   if (settings_ui.backdrop_win != None)
@@ -736,10 +760,19 @@ rxvt_term::hide_settings_ui ()
 void
 rxvt_term::recenter_settings_ui ()
 {
+  /* Must run on root term: only it owns the settings windows, and only it
+     has the correct (full-window) dimensions — split panes have half-size
+     szHint values after apply_split_geometry. */
+  if (this != termlist.at (0)) { termlist.at (0)->recenter_settings_ui (); return; }
+
   if (!settings_ui.visible || settings_ui.win == None) return;
 
-  int pw = szHint.width;
-  int ph = szHint.height;
+  /* Query the actual WM window size rather than szHint, which may have been
+     corrupted to half-size by apply_split_geometry in split mode. */
+  XWindowAttributes wattr;
+  XGetWindowAttributes (dpy, parent, &wattr);
+  int pw = wattr.width  ? wattr.width  : settings_ui.parent_w;
+  int ph = wattr.height ? wattr.height : settings_ui.parent_h;
   if (!pw || !ph) return;
   if (pw == settings_ui.parent_w && ph == settings_ui.parent_h) return;
 
@@ -753,9 +786,13 @@ rxvt_term::recenter_settings_ui ()
   settings_ui.parent_w = pw;
   settings_ui.parent_h = ph;
 
+  rxvt_term *root_term = termlist.at (0);
+  Window     root_win  = root_term->parent;
+
   /* Backdrop covers the full terminal area. */
   if (settings_ui.backdrop_win != None)
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
+
   if (settings_ui.backdrop_buf != None)
     XFreePixmap (dpy, settings_ui.backdrop_buf);
   settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
@@ -763,6 +800,10 @@ rxvt_term::recenter_settings_ui ()
   /* Panel moves to the new right edge. */
   XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
   r_resize (panel_w, panel_h);
+
+  /* Re-raise both windows in case split operations stacked something above them. */
+  XRaiseWindow (dpy, settings_ui.backdrop_win);
+  XRaiseWindow (dpy, settings_ui.win);
   XFlush (dpy);
 
   draw_settings_ui ();
@@ -785,8 +826,9 @@ rxvt_term::destroy_settings_ui ()
     }
     XDestroyWindow (dpy, settings_ui.win);
     settings_ui.win = None;
+
+    if (mu_ctx) { free (mu_ctx); mu_ctx = nullptr; }
   }
-  if (mu_ctx) { free (mu_ctx); mu_ctx = nullptr; }
   settings_ui.visible = false;
 }
 
@@ -805,6 +847,8 @@ rxvt_term::draw_settings_ui ()
 
   if (changed & CHANGED_CANCEL) {
     restore_snapshot ();
+    for (rxvt_term *t : rxvt_term::termlist)
+      t->refresh_check ();
     hide_settings_ui ();
     return;
   }
@@ -814,6 +858,12 @@ rxvt_term::draw_settings_ui ()
   }
   if (changed) {
     apply_settings (changed);
+    /* Start the flush timer for every pane so colour/cursor changes are
+       painted immediately.  Normally refresh_check() is only called for
+       GET_R inside x_cb, so split child panes would never repaint from
+       a programmatic settings change without this explicit kick. */
+    for (rxvt_term *t : rxvt_term::termlist)
+      t->refresh_check ();
     /* Re-assert focus: some operations (set_fonts → resize_all_windows)
        can cause the X server or WM to redirect focus away from our panel. */
     if (settings_ui.visible)

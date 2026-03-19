@@ -1139,10 +1139,11 @@ rxvt_term::key_press (XKeyEvent &ev)
     return next_tab(0);
   }
 
-  // Ctrl+, → toggle settings UI
+  // Ctrl+, → toggle settings UI (always via root term)
   if (ctrl && !shft && keysym == XK_comma) {
-    if (settings_ui.visible) hide_settings_ui ();
-    else show_settings_ui ();
+    rxvt_term *root = termlist.at (0);
+    if (root->settings_ui.visible) root->hide_settings_ui ();
+    else root->show_settings_ui ();
     return;
   }
 
@@ -2098,6 +2099,16 @@ void rxvt_term::apply_split_geometry (int total_w, int total_h) {
       XMoveResizeWindow (dpy, split_bar_win, bar_x, bar_y, bar_w, bar_h);
       XRaiseWindow (dpy, split_bar_win);
     }
+
+  /* If the settings overlay is open, it must stay above everything — including
+     the split bar we just raised. */
+  rxvt_term *sroot = termlist.at (0);
+  if (sroot->settings_ui.visible) {
+    if (sroot->settings_ui.backdrop_win != None)
+      XRaiseWindow (dpy, sroot->settings_ui.backdrop_win);
+    if (sroot->settings_ui.win != None)
+      XRaiseWindow (dpy, sroot->settings_ui.win);
+  }
 }
 
 void rxvt_term::new_split_pane (bool vertical) {
@@ -3213,10 +3224,13 @@ rxvt_term::x_cb (XEvent &ev)
             && ev.xfocus.detail != NotifyPointer
             && ev.xfocus.mode != NotifyGrab
             && ev.xfocus.mode != NotifyUngrab) {
-              // If we are not the currently active pane's parent window, redirect
-              // focus back to the correct pane. This prevents focus-follows-mouse
-              // from stealing keyboard input to a non-focused split pane.
-              if (GET_R && parent != GET_R->parent) {
+              /* If the settings panel is open, always steal focus back to it.
+                 This handles alt-tab away and back without XGrabKeyboard. */
+              rxvt_term *root = termlist.at (0);
+              if (root->settings_ui.visible) {
+                XSetInputFocus (dpy, root->settings_ui.win, RevertToParent, CurrentTime);
+              } else if (GET_R && parent != GET_R->parent) {
+                // Redirect focus-follows-mouse away from non-focused split panes.
                 XSetInputFocus(dpy, GET_R->parent, RevertToParent, CurrentTime);
               } else {
                 // printf("calling focus in, %d\n", GET_R->tab_index);

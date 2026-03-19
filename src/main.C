@@ -1490,54 +1490,68 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
 
   if (!ignoreparent)
     {
-#ifdef SMART_RESIZE
-      /*
-       * resize by Marius Gedminas <marius.gedminas@uosis.mif.vu.lt>
-       * reposition window on resize depending on placement on screen
-       */
-      int x, y, x1, y1;
-      int dx, dy;
-      unsigned int unused_w1, unused_h1, unused_b1, unused_d1;
-      Window unused_cr;
-
-      XTranslateCoordinates (dpy, parent, display->root,
-                             0, 0, &x, &y, &unused_cr);
-      XGetGeometry (dpy, parent, &unused_cr, &x1, &y1,
-                    &unused_w1, &unused_h1, &unused_b1, &unused_d1);
-      /*
-       * if display->root isn't the parent window, a WM will probably have offset
-       * our position for handles and decorations.  Counter it
-       */
-      if (x1 != x || y1 != y)
+      // In split mode the root term (tab_index==0) has its ncol/nrow set to
+      // half-size by apply_split_geometry, but its parent window stays full-size.
+      // When set_fonts() calls resize_all_windows(0, 0, 0) on root, window_calc
+      // computes a half-size szHint from those half-size ncol/nrow values.
+      // Sending that to XResizeWindow would shrink the WM top-level window,
+      // cascading into quarter-size panes ("1 row per pane").
+      // Skip the parent resize here — apply_split_geometry below will query the
+      // actual WM dimensions via XGetWindowAttributes and re-layout correctly.
+      bool skip_parent_resize = (newwidth == 0 && newheight == 0
+                                 && tab_index == 0
+                                 && split_partner && !split_is_child);
+      if (!skip_parent_resize)
         {
-          unsigned int border_width = get_parent_bw (dpy, parent);
+#ifdef SMART_RESIZE
+          /*
+           * resize by Marius Gedminas <marius.gedminas@uosis.mif.vu.lt>
+           * reposition window on resize depending on placement on screen
+           */
+          int x, y, x1, y1;
+          int dx, dy;
+          unsigned int unused_w1, unused_h1, unused_b1, unused_d1;
+          Window unused_cr;
 
-          x -= x1 + border_width;
-          y -= y1 + border_width;
-        }
+          XTranslateCoordinates (dpy, parent, display->root,
+                                 0, 0, &x, &y, &unused_cr);
+          XGetGeometry (dpy, parent, &unused_cr, &x1, &y1,
+                        &unused_w1, &unused_h1, &unused_b1, &unused_d1);
+          /*
+           * if display->root isn't the parent window, a WM will probably have offset
+           * our position for handles and decorations.  Counter it
+           */
+          if (x1 != x || y1 != y)
+            {
+              unsigned int border_width = get_parent_bw (dpy, parent);
 
-      x1 = (DisplayWidth  (dpy, display->screen) - old_width ) / 2;
-      y1 = (DisplayHeight (dpy, display->screen) - old_height) / 2;
-      dx = old_width  - szHint.width;
-      dy = old_height - szHint.height;
+              x -= x1 + border_width;
+              y -= y1 + border_width;
+            }
 
-      /* Check position of the center of the window */
-      if (x < x1)             /* left half */
-        dx = 0;
-      else if (x == x1)       /* exact center */
-        dx /= 2;
-      if (y < y1)             /* top half */
-        dy = 0;
-      else if (y == y1)       /* exact center */
-        dy /= 2;
+          x1 = (DisplayWidth  (dpy, display->screen) - old_width ) / 2;
+          y1 = (DisplayHeight (dpy, display->screen) - old_height) / 2;
+          dx = old_width  - szHint.width;
+          dy = old_height - szHint.height;
 
-      // printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
-      XMoveResizeWindow (dpy, parent, x + dx, y + dy,
-                         szHint.width, szHint.height);
+          /* Check position of the center of the window */
+          if (x < x1)             /* left half */
+            dx = 0;
+          else if (x == x1)       /* exact center */
+            dx /= 2;
+          if (y < y1)             /* top half */
+            dy = 0;
+          else if (y == y1)       /* exact center */
+            dy /= 2;
+
+          // printf("smart resize window to %dx%d at %dx%d\n", szHint.width, szHint.height, x + dx, y + dy);
+          XMoveResizeWindow (dpy, parent, x + dx, y + dy,
+                             szHint.width, szHint.height);
 #else
-      // printf("resizing window to %dx%d\n", szHint.width, szHint.height);
-      XResizeWindow (dpy, parent, szHint.width, szHint.height);
+          // printf("resizing window to %dx%d\n", szHint.width, szHint.height);
+          XResizeWindow (dpy, parent, szHint.width, szHint.height);
 #endif
+        }
     } else {
 
       // is current tab isn't the one that caught the resize event, update parent size
