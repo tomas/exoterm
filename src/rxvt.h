@@ -309,6 +309,7 @@ struct minimap_t {
     XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
     XRenderColor bg_render_color;    // 80% opaque background color for XRender composite
     XRenderColor sel_render_color;   // Selection highlight overlay color
+    XRenderColor prompt_render_color; // Prompt mark highlight overlay color
 };
 
 #endif
@@ -503,6 +504,10 @@ enum {
 #define RS_customCount          16UL
 #define RS_customShift          (RS_selShift + 1)
 #define RS_customMask           ((rend_t) ((RS_customCount - 1UL) << RS_customShift))
+
+// Marks the line where Enter was last pressed; used for prompt navigation and minimap highlight.
+// Stored in rend_t r[0] so it survives terminal resize (rend_t is memcpy'd during line re-wrap).
+#define RS_PromptMark           ((rend_t) (1UL << RS_customShift))
 
 // font styles
 #define RS_Bold                 ((rend_t) (1UL << RS_styleShift))

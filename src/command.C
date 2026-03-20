@@ -1247,6 +1247,20 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
+        // Alt + P → jump to previous prompt (scan backwards for RS_PromptMark in rend_t r[0])
+        // Each press goes one prompt further back in scrollback.
+        if (meta && !ctrl && !shft && keysym == XK_p) {
+          for (int r = view_start - 1; r >= top_row; r--) {
+            line_t &l = ROW(r);
+            if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+              scr_changeview (r);
+              want_refresh = 1;
+              break;
+            }
+          }
+          return;
+        }
+
 #ifdef ENABLE_MINIMAP
         // Alt + M -> toggle minimap
         if (meta && (keysym == 109)) {
@@ -1388,6 +1402,39 @@ rxvt_term::key_press (XKeyEvent &ev)
   if (search_shown) {
     append_to_search(kbuf, (unsigned int)len);
     return;
+  }
+
+  // Stamp RS_PromptMark on the current line when Enter is sent to the pty,
+  // but only when the line looks like a real command submission:
+  //   - it contains a prompt indicator ("$ ", "# ", "% ", or "> ")
+  //   - there is at least one non-whitespace character after that indicator
+  // This filters out bare Enter presses on an empty prompt and Enter presses
+  // inside TUI apps.  The mark lives in rend_t r[0], which is memcpy'd during
+  // line re-wrap on resize, surviving terminal resizing.
+  if ((unsigned char)kbuf[0] == '\015') {
+    line_t &pl = ROW(screen.cur.row);
+    if (pl.valid () && pl.t && pl.r && pl.l > 0) {
+      int llen = min (pl.l, ncol - 1);
+
+      // Find the last prompt-indicator sequence on the line ("$ ", "# ", etc.)
+      int prompt_end = -1;
+      for (int i = 0; i < llen; i++) {
+        text_t ch = pl.t[i];
+        if ((ch == '$' || ch == '#' || ch == '%' || ch == '>') && pl.t[i + 1] == ' ')
+          prompt_end = i + 2; // position of first char after "X "
+      }
+
+      if (prompt_end >= 0) {
+        // Check for any non-whitespace content after the prompt indicator
+        for (int i = prompt_end; i < pl.l; i++) {
+          text_t ch = pl.t[i];
+          if (ch != ' ' && ch != 0 && ch != NOCHAR) {
+            pl.r[0] |= RS_PromptMark;
+            break;
+          }
+        }
+      }
+    }
   }
 
   tt_write_user_input (kbuf, (unsigned int)len);

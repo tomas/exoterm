@@ -4688,6 +4688,25 @@ void rxvt_term::render_minimap() {
         XRenderFreePicture(dpy, buf_pic);
     }
 
+    // Draw prompt mark highlights (RS_PromptMark in rend_t r[0])
+    if (minimap.xr_format) {
+        Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
+        for (int i = 0; i < minimap.display_lines; i++) {
+            int row = minimap.display_start + i;
+            if (row < top_row || row >= top_row + total_rows)
+                continue;
+            line_t &line = ROW(row);
+            if (!line.valid () || !line.r)
+                continue;
+            if (line.r[0] & RS_PromptMark) {
+                int y = i * total_line_height;
+                XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color,
+                                     0, y, minimap.width, total_line_height);
+            }
+        }
+        XRenderFreePicture(dpy, buf_pic);
+    }
+
     int viewport_height = nrow * total_line_height;
 
     // Ensure minimum height for usability
