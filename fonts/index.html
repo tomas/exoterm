@@ -1705,15 +1705,67 @@
             return font;
         }
 
+        // Port of the Python bdf-scale script.
+        // Works on the parsed font object: scales all metric numbers and
+        // expands each bitmap row by repeating every bit `scale` times,
+        // then repeating each row `scale` times.
+        function scaleFont(font, scale) {
+            if (scale === 1) return font;
+            const b = font.bounds;
+            const newGlyphs = {};
+            for (const [enc, g] of Object.entries(font.glyphs)) {
+                const scaledBitmap = [];
+                for (const rowBin of g.bitmap) {
+                    // Python: binary = bin(int(hex,16))[2:]
+                    // then rescaled = "".join([x*scale for x in binary])
+                    // Our bitmap rows are already binary strings — just repeat each bit.
+                    // But we must first pad to the proper hex-aligned width, as the
+                    // Python script does (pad hex to even length before scaling).
+                    const hexLen  = Math.ceil(rowBin.length / 8) * 2; // even hex chars
+                    const bitLen  = hexLen * 4;                        // bits in that hex
+                    const padded  = rowBin.padEnd(bitLen, '0');
+
+                    // Repeat each bit `scale` times — matches Python list comprehension
+                    const rescaled = padded.split('').map(b => b.repeat(scale)).join('');
+
+                    // Keep as binary string — same format parseBDF uses.
+                    // Repeat the row `scale` times (one row becomes `scale` rows).
+                    for (let r = 0; r < scale; r++) scaledBitmap.push(rescaled);
+                }
+
+                newGlyphs[enc] = {
+                    ...g,
+                    dwidth: (g.dwidth !== undefined ? g.dwidth : g.bbx.w) * scale,
+                    swidth: (g.swidth || 0) * scale,
+                    bbx: {
+                        w: g.bbx.w * scale,
+                        h: g.bbx.h * scale,
+                        x: g.bbx.x * scale,
+                        y: g.bbx.y * scale,
+                    },
+                    bitmap: scaledBitmap,
+                };
+            }
+            return {
+                ...font,
+                glyphs:  newGlyphs,
+                ascent:  (font.ascent  || 0) * scale,
+                descent: (font.descent || 0) * scale,
+                bounds:  { w: b.w * scale, h: b.h * scale, x: b.x * scale, y: b.y * scale },
+            };
+        }
+
         // =====================================================================
         // BDF Serializer
         // =====================================================================
 
-        function fontToBDF(font) {
+        function fontToBDF(font, pixelScale) {
+            const s     = pixelScale || 1;
+            const f     = s > 1 ? scaleFont(font, s) : font;
             const lines = [];
-            const b = font.bounds;
-            const ascent  = font.ascent  || (b.h + b.y);
-            const descent = font.descent || (-b.y);
+            const b     = f.bounds;
+            const ascent  = f.ascent  || (b.h + b.y);
+            const descent = f.descent || (-b.y);
 
             lines.push('STARTFONT 2.1');
             lines.push('FONT ' + (font.name || '-custom-bitmap'));
@@ -1725,11 +1777,10 @@
             lines.push('ENDPROPERTIES');
             lines.push('');
 
-            const glyphs = Object.values(font.glyphs);
+            const glyphs = Object.values(f.glyphs);
             lines.push('CHARS ' + glyphs.length);
             lines.push('');
 
-            // Sort by encoding value for a clean file
             glyphs.sort((a, b) => a.encoding - b.encoding);
 
             for (const g of glyphs) {
@@ -1744,10 +1795,10 @@
                 lines.push('BBX ' + g.bbx.w + ' ' + g.bbx.h + ' ' + g.bbx.x + ' ' + g.bbx.y);
                 lines.push('BITMAP');
 
-                // Each bitmap row is stored as a binary string; convert to hex
-                for (const rowBin of g.bitmap) {
-                    // Pad binary string to multiple of 8 bits
-                    const padded = rowBin.padEnd(Math.ceil(rowBin.length / 8) * 8, '0');
+                // All bitmap rows are binary strings (from parseBDF or scaleFont).
+                // Convert each to hex for BDF output.
+                for (const row of g.bitmap) {
+                    const padded = row.padEnd(Math.ceil(row.length / 8) * 8, '0');
                     let hex = '';
                     for (let i = 0; i < padded.length; i += 8) {
                         hex += parseInt(padded.slice(i, i + 8), 2)
@@ -1764,17 +1815,18 @@
 
         function downloadFont() {
             if (!currentFont) return;
-            const boldScale = parseInt(boldScaleInput.value, 10) || 1;
+            const boldScale  = parseInt(boldScaleInput.value, 10) || 1;
+            const pixelScale = parseInt(scaleInput.value, 10) || 1;
             const font = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
 
-            const bdfText = fontToBDF(font);
+            const bdfText = fontToBDF(font, pixelScale);
             const blob    = new Blob([bdfText], { type: 'text/plain' });
             const url     = URL.createObjectURL(blob);
             const a       = document.createElement('a');
 
-            // Build filename: base name + optional -bold suffix + .bdf
             let name = (currentFontName || 'font').replace(/\.(bdf|pcf|pcf\.gz)$/i, '');
             if (boldToggle.checked) name += '-bold' + boldScale + 'px';
+            if (pixelScale > 1)    name += '-x' + pixelScale;
             a.href     = url;
             a.download = name + '.bdf';
             a.click();
