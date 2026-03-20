@@ -598,15 +598,11 @@ static void backdrop_refresh (rxvt_term *t)
   int      pw  = t->settings_ui.parent_w;
   int      ph  = t->settings_ui.parent_h;
 
-  /* Use the root term (t) that owns the backdrop, not GET_R.
-     When show_settings_ui is called from a non-root tab, it redirects to
-     tab 0, but the backdrop is a child of tab 0's parent (the WM window).
-     GET_R may be a different tab with a different parent, so we need to
-     capture from the visible tab that shares tab 0's parent. */
+  /* Find the visible terminal - the one whose parent is the WM window
+     (root->parent). After closing a primary pane, the promoted child
+     becomes the new root with parent = WM window. Other tabs may have
+     been reparented to root, so they won't match. */
   rxvt_term *root = t;  /* the term that owns the settings UI */
-
-  /* Find the visible terminal that shares root's parent (the WM window).
-     This could be root itself, or another tab that was switched to. */
   rxvt_term *visible = nullptr;
   for (rxvt_term *term : rxvt_term::termlist) {
     if (term->parent == root->parent && term->vt != None) {
@@ -618,15 +614,27 @@ static void backdrop_refresh (rxvt_term *t)
 
   /* Get the position of visible's parent within the root window.
      For root term, parent is the root window at (0,0).
-     For split child, parent is a child of root window at (attr.x, attr.y). */
+     For other tabs, parent is an intermediate window at (attr.x, attr.y). */
   XWindowAttributes parent_attr;
-  XGetWindowAttributes (dpy, visible->parent, &parent_attr);
+  Status status = XGetWindowAttributes (dpy, visible->parent, &parent_attr);
+  if (!status) {
+    /* Parent window doesn't exist (e.g., after tab close), fallback to root */
+    visible = root;
+    XGetWindowAttributes (dpy, visible->parent, &parent_attr);
+  }
 
-  /* Primary pane (visible term's vt): copy at its position within root_win. */
+  /* Primary pane (visible term's vt): copy at its position within root_win.
+     visible->parent might be the root window itself, or an intermediate window.
+     In both cases, parent_attr gives the position within root->parent. */
+  int copy_x = parent_attr.x + visible->window_vt_x;
+  int copy_y = parent_attr.y + visible->window_vt_y;
+
+  /* For root term with parent == root->parent, parent_attr.x/y = 0, so this works.
+     For non-root tabs, parent_attr.x/y gives the offset of their intermediate
+     window within the root window. */
   XCopyArea (dpy, visible->vt, pix, gc,
              0, 0, visible->vt_width, visible->vt_height,
-             parent_attr.x + visible->window_vt_x,
-             parent_attr.y + visible->window_vt_y);
+             copy_x, copy_y);
 
   /* In split mode also capture the other pane's vt. */
   if (visible->split_partner) {
