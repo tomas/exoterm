@@ -2140,6 +2140,7 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
   mu_Rect body;
   mu_Id id = mu_get_id(ctx, title, strlen(title));
   mu_Container *cnt = get_container(ctx, id, opt);
+
   if (!cnt || !cnt->open) { return 0; }
   cnt->opt = opt;
   if (cnt->zorder == 0)
@@ -2402,21 +2403,19 @@ if (gs_gui_combo_begin(gui, "#snaps", "Snap", 3)) {
 */
 
 int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item, int32_t max_items, int32_t opt) {
-    int res = 0;
-    opt = MU_OPT_NODRAG | MU_OPT_NORESIZE | MU_OPT_NOTITLE;
+    opt = MU_OPT_NODRAG | MU_OPT_NORESIZE | MU_OPT_NOTITLE | MU_OPT_HIDE_ON_CLICK;
 
     if (mu_button(ctx, current_item)) {
         mu_open_popup(ctx, id);
     }
 
-    int ct = max_items > 0 ? max_items : 0;
-
-    // mu_Rect r = mu_layout_next(ctx);
     mu_Rect rect = ctx->last_rect;
     rect.y += rect.h;
-    // rect.h = ct ? (ct + 1) * ctx->styles[MU_ELEMENT_BUTTON][0x00].size[1] : rect.h;
-    rect.h = ct ? (ct + 1) * (ctx->style->size.y + ctx->style->spacing + ctx->style->padding * 2) : rect.h;
-    // rect.h = ct ? (ct + 1) * ctx->style->size.y : rect.h;
+    if (max_items > 0) {
+        rect.h = (max_items * (ctx->style->size.y + ctx->style->padding))
+                 + (ctx->style->spacing * 2)
+                 + ctx->style->padding; // remove trailing spacing after last item
+    }
     return mu_begin_popup_ex(ctx, id, rect, opt);
 }
 

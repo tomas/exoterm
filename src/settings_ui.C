@@ -283,7 +283,7 @@ static int build_settings_window (mu_Context *ctx) {
   int changed = 0;
   mu_Rect rect = mu_rect (0, 0, PANEL_WIDTH, s_panel_h);
 
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NORESIZE | MU_OPT_NOINTERACT;
+  int opt = MU_OPT_NOCLOSE | MU_OPT_NORESIZE | MU_OPT_NODRAG; //  | MU_OPT_NOINTERACT;
 
   if (mu_begin_window_ex (ctx, "Settings", rect, opt)) {
     int lw = 120; /* label column width — tuned for PANEL_WIDTH 320 */
@@ -304,9 +304,29 @@ static int build_settings_window (mu_Context *ctx) {
     mu_label (ctx, "Line spacing:", 0);
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
-    mu_label (ctx, "Letter spacing:", 0);
-    if (float_slider (ctx, &s_letter_space, -4.0f, 8.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
-      changed |= CHANGED_LETTER_SPACE;
+
+    // mu_label (ctx, "Letter spacing:", 0);
+    // if (float_slider (ctx, &s_letter_space, -4.0f, 8.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
+    //   changed |= CHANGED_LETTER_SPACE;
+
+    /* ---- Fonts ---- */
+    section_header (ctx, "Font");
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+
+    const char *current = s_active_font == -1 ? "Choose one" : font_entries[s_active_font].name;
+    if (mu_begin_combo_ex(ctx, "##fonts", current, NUM_FONTS, 0)) {
+      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+      for (int i = 0; i < NUM_FONTS; i++) {
+        char label[64];
+        snprintf (label, sizeof (label), "%s%s", (s_active_font == i) ? ">  " : "   ", font_entries[i].name);
+        if (mu_button(ctx, label)) {
+          s_pending_font = i;
+          changed |= CHANGED_FONT;
+          mu_close_popup(ctx, "##fonts");
+        }
+      }
+      mu_end_combo(ctx);
+    }
 
     /* ---- Cursor ---- */
     section_header (ctx, "Cursor");
@@ -358,20 +378,6 @@ static int build_settings_window (mu_Context *ctx) {
     if (mu_checkbox (ctx, "##pblank", &s_pointer_blank) & MU_RES_CHANGE)
       changed |= CHANGED_PTR_BLANK;
 
-    /* ---- Fonts ---- */
-    section_header (ctx, "Fonts");
-    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 180); }
-    mu_begin_panel (ctx, "##fonts");
-    for (int i = 0; i < NUM_FONTS; i++) {
-      char label[64];
-      snprintf (label, sizeof (label), "%s%s", (s_active_font == i) ? ">  " : "   ", font_entries[i].name);
-      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 22); }
-      if (mu_button (ctx, label)) {
-        s_pending_font = i;
-        changed |= CHANGED_FONT;
-      }
-    }
-    mu_end_panel (ctx);
 
     /* ---- Color Schemes ---- */
     section_header (ctx, "Color Schemes");
@@ -632,7 +638,7 @@ static void backdrop_refresh (rxvt_term *t)
   XRenderPictFormat *fmt = XRenderFindVisualFormat (dpy, t->visual);
   if (fmt) {
     Picture pic = XRenderCreatePicture (dpy, pix, fmt, 0, nullptr);
-    XRenderColor dark = {0, 0, 0, 0x9000}; /* ~56% opacity */
+    XRenderColor dark = {0, 0, 0, 0x4000}; /* ~56% opacity */
     XRenderFillRectangle (dpy, PictOpOver, pic, &dark, 0, 0, pw, ph);
     XRenderFreePicture (dpy, pic);
   }
@@ -891,15 +897,19 @@ rxvt_term::draw_settings_ui ()
 
   if (changed & CHANGED_CANCEL) {
     restore_snapshot ();
+
     for (rxvt_term *t : rxvt_term::termlist)
       t->refresh_check ();
+
     hide_settings_ui ();
     return;
   }
+
   if (changed & CHANGED_APPLY) {
     hide_settings_ui ();
     return;
   }
+
   if (changed) {
     apply_settings (changed);
     /* Start the flush timer for every pane so colour/cursor changes are
@@ -918,24 +928,28 @@ rxvt_term::draw_settings_ui ()
 void
 rxvt_term::x_settings_ui_cb (XEvent &xev)
 {
-  if (!mu_ctx) return;
+  if (!mu_ctx)  {
+    return;
+  }
 
   switch (xev.type) {
     case Expose:
-      if (xev.xexpose.count == 0)
-        draw_settings_ui ();
+      // if (xev.xexpose.count == 0)
+      //   draw_settings_ui ();
+
       break;
 
     case MotionNotify:
       s_mousex = xev.xmotion.x;
       s_mousey = xev.xmotion.y;
       mu_input_mousemove (mu_ctx, s_mousex, s_mousey);
-      draw_settings_ui ();
+      // draw_settings_ui ();
       break;
 
     case ButtonPress:
       s_mousex = xev.xbutton.x;
       s_mousey = xev.xbutton.y;
+
       if (xev.xbutton.button == Button1)
         mu_input_mousedown (mu_ctx, s_mousex, s_mousey, MU_MOUSE_LEFT);
       else if (xev.xbutton.button == Button3)
@@ -944,6 +958,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
         mu_input_scroll (mu_ctx, 0, -30);
       else if (xev.xbutton.button == Button5)
         mu_input_scroll (mu_ctx, 0,  30);
+
       draw_settings_ui ();
       break;
 
@@ -954,6 +969,7 @@ rxvt_term::x_settings_ui_cb (XEvent &xev)
         mu_input_mouseup (mu_ctx, s_mousex, s_mousey, MU_MOUSE_LEFT);
       else if (xev.xbutton.button == Button3)
         mu_input_mouseup (mu_ctx, s_mousex, s_mousey, MU_MOUSE_RIGHT);
+
       draw_settings_ui ();
       break;
 
