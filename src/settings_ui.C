@@ -598,26 +598,40 @@ static void backdrop_refresh (rxvt_term *t)
   int      pw  = t->settings_ui.parent_w;
   int      ph  = t->settings_ui.parent_h;
 
-  /* Capture from the currently active terminal (GET_R), not the root term,
-     since root's vt may be unmapped when on another tab. */
-  rxvt_term *active = GET_R;
+  /* Use the root term (t) that owns the backdrop, not GET_R.
+     When show_settings_ui is called from a non-root tab, it redirects to
+     tab 0, but the backdrop is a child of tab 0's parent (the WM window).
+     GET_R may be a different tab with a different parent, so we need to
+     capture from the visible tab that shares tab 0's parent. */
+  rxvt_term *root = t;  /* the term that owns the settings UI */
 
-  /* Get the position of active's parent within the root window.
+  /* Find the visible terminal that shares root's parent (the WM window).
+     This could be root itself, or another tab that was switched to. */
+  rxvt_term *visible = nullptr;
+  for (rxvt_term *term : rxvt_term::termlist) {
+    if (term->parent == root->parent && term->vt != None) {
+      visible = term;
+      break;
+    }
+  }
+  if (!visible) visible = root;
+
+  /* Get the position of visible's parent within the root window.
      For root term, parent is the root window at (0,0).
      For split child, parent is a child of root window at (attr.x, attr.y). */
   XWindowAttributes parent_attr;
-  XGetWindowAttributes (dpy, active->parent, &parent_attr);
+  XGetWindowAttributes (dpy, visible->parent, &parent_attr);
 
-  /* Primary pane (active term's vt): copy at its position within root_win. */
-  XCopyArea (dpy, active->vt, pix, gc,
-             0, 0, active->vt_width, active->vt_height,
-             parent_attr.x + active->window_vt_x,
-             parent_attr.y + active->window_vt_y);
+  /* Primary pane (visible term's vt): copy at its position within root_win. */
+  XCopyArea (dpy, visible->vt, pix, gc,
+             0, 0, visible->vt_width, visible->vt_height,
+             parent_attr.x + visible->window_vt_x,
+             parent_attr.y + visible->window_vt_y);
 
   /* In split mode also capture the other pane's vt. */
-  if (active->split_partner) {
-    rxvt_term *other = active->split_is_child ? active->split_partner : active->split_partner;
-    if (other == active) other = nullptr; /* sanity check */
+  if (visible->split_partner) {
+    rxvt_term *other = visible->split_is_child ? visible->split_partner : visible->split_partner;
+    if (other == visible) other = nullptr;
 
     if (other) {
       XWindowAttributes other_parent_attr;
