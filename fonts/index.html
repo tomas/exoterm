@@ -211,6 +211,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
+            margin-bottom: 8px;
         }
 
         .pill {
@@ -301,6 +302,14 @@
             font-size: 0.72rem;
             color: var(--text-muted);
             text-align: right;
+        }
+
+        #font-search:focus {
+            border-color: var(--accent);
+        }
+
+        #font-list:focus {
+            outline: none;
         }
 
         /* Main Preview Area */
@@ -396,6 +405,13 @@
                 <label>Height (px)</label>
                 <div class="pill-group" id="h-pills"></div>
             </div>
+
+            <input type="text" id="font-search" placeholder="Search fonts…"
+                style="background:var(--bg-color);border:1px solid var(--border);
+                       color:var(--text-main);padding:7px 10px;border-radius:4px;
+                       font-size:0.85rem;outline:none;width:100%;
+                       transition:border-color 0.2s;"
+                autocomplete="off" spellcheck="false">
 
             <div id="font-count"></div>
             <div id="font-list"></div>
@@ -1021,6 +1037,8 @@
         const themeSelect     = document.getElementById('theme-select');
         const fontList        = document.getElementById('font-list');
         const fontCount       = document.getElementById('font-count');
+        const fontSearch      = document.getElementById('font-search');
+        let   fontSearchQuery = '';
         const wPills          = document.getElementById('w-pills');
         const hPills          = document.getElementById('h-pills');
 
@@ -1144,7 +1162,7 @@
             { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' },
 
             // Mplus fonts
-            { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' },
+            // { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' },
             { name: 'Mplus Q06r',            author: 'coz',               w:  3, h:  6, url: CDN+'mplus/mplus_q06r.bdf' },
             { name: 'Mplus F10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10r.bdf' },
             { name: 'Mplus F10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10b.bdf' },
@@ -1386,11 +1404,18 @@
         }
 
         function getFilteredFonts() {
+            const q = fontSearchQuery.toLowerCase();
             return FONT_DB.map((f, i) => ({ ...f, index: i })).filter(f => {
                 if (activeW !== null && f.w !== activeW) return false;
                 if (activeH !== null && f.h !== activeH) return false;
+                if (q && !f.name.toLowerCase().includes(q)) return false;
                 return true;
             });
+        }
+
+        function scrollActiveIntoView() {
+            const active = fontList.querySelector('.font-item.active');
+            if (active) active.scrollIntoView({ block: 'nearest' });
         }
 
         function renderFontList() {
@@ -1404,10 +1429,41 @@
                 item.innerHTML =
                     '<span class="font-name">' + f.name + '</span>' +
                     '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
-                item.addEventListener('click', () => loadFontFromDB(f.index));
+                item.addEventListener('click', () => { loadFontFromDB(f.index); fontList.focus(); });
                 fontList.appendChild(item);
             }
+            scrollActiveIntoView();
         }
+
+        // Arrow key navigation — move through the currently filtered list
+        function navigateList(dir) {
+            const filtered = getFilteredFonts();
+            if (filtered.length === 0) return;
+            const currentPos = filtered.findIndex(f => f.index === activeFontIndex);
+            let nextPos;
+            if (currentPos === -1) {
+                nextPos = dir > 0 ? 0 : filtered.length - 1;
+            } else {
+                nextPos = (currentPos + dir + filtered.length) % filtered.length;
+            }
+            loadFontFromDB(filtered[nextPos].index);
+        }
+
+        fontList.addEventListener('keydown', e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); navigateList(+1); }
+            if (e.key === 'ArrowUp')   { e.preventDefault(); navigateList(-1); }
+        });
+
+        // Also allow arrow keys from the search box
+        fontSearch.addEventListener('keydown', e => {
+            if (e.key === 'ArrowDown') { e.preventDefault(); navigateList(+1); fontList.focus(); }
+            if (e.key === 'ArrowUp')   { e.preventDefault(); navigateList(-1); fontList.focus(); }
+        });
+
+        fontSearch.addEventListener('input', () => {
+            fontSearchQuery = fontSearch.value;
+            renderFontList();
+        });
 
         function setFontLoaded(name) {
             currentFontName = name;
@@ -2086,13 +2142,30 @@
                     box:      t.cmt,
                     block:    t.cmt,
                 };
-                const maxW = Math.max(...rows.map(([chars]) => linePixelWidth(chars)), 1);
+                // Rows that get an extra half-glyph space between each character
+                const SPACED_KEYS = new Set(['symbol', 'box', 'block', 'punct']);
+                const charGap = Math.max(1, Math.floor((font.bounds.w || 6) / 2));
+
+                function rowPixelWidth([chars, key]) {
+                    const spaced = SPACED_KEYS.has(key);
+                    let w = 0;
+                    for (const ch of chars) {
+                        const cc = ch.charCodeAt(0);
+                        const g = font.glyphs[cc];
+                        if (!g) continue;
+                        w += (g.dwidth !== undefined ? g.dwidth : g.bbx.w) + (spaced ? charGap : 0);
+                    }
+                    return w;
+                }
+
+                const maxW = Math.max(...rows.map(rowPixelWidth), 1);
                 canvas.width  = (maxW + padX * 2) * scale;
                 canvas.height = (rows.length * (lineH + lineGap) + padY * 2) * scale;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 for (let li = 0; li < rows.length; li++) {
                     const [chars, key] = rows[li];
                     ctx.fillStyle = charsetColors[key] || t.text;
+                    const spaced = SPACED_KEYS.has(key);
                     const baselineY = padY + li * (lineH + lineGap) + font.ascent;
                     let cx = padX;
                     for (const ch of chars) {
@@ -2101,7 +2174,7 @@
                         const g = font.glyphs[cc];
                         if (!g) continue;
                         drawGlyph(g, cx, baselineY);
-                        cx += g.dwidth !== undefined ? g.dwidth : g.bbx.w;
+                        cx += (g.dwidth !== undefined ? g.dwidth : g.bbx.w) + (spaced ? charGap : 0);
                     }
                 }
                 return;
