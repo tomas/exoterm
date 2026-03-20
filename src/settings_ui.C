@@ -52,6 +52,7 @@ static int   s_active_scheme      = -1;
 static int   s_pending_scheme     = -1;
 static int   s_active_font        = -1;
 static int   s_pending_font       = -1;
+static char *s_active_font_xlfd   = nullptr;
 
 /* ======================================================================
    Snapshot — saved on open, restored on Cancel
@@ -185,7 +186,10 @@ struct font_entry_t {
 
 static font_entry_t *s_font_entries = nullptr;
 static int s_num_fonts = 0;
-static bool s_font_list_initialized = false;
+
+static int   s_active_bold_font   = -1;
+static int   s_pending_bold_font  = -1;
+static char *s_active_bold_xlfd   = nullptr;
 
 static char *xlfd_to_name(const char *xlfd) {
   if (!xlfd || xlfd[0] != '-') return xlfd ? strdup(xlfd) : strdup("Unknown");
@@ -211,6 +215,60 @@ static char *xlfd_to_name(const char *xlfd) {
   }
   free(copy);
   return strdup(buf);
+}
+
+static char *bold_xlfd(const char *xlfd) {
+  if (!xlfd || xlfd[0] != '-') return nullptr;
+
+  char *copy = strdup(xlfd);
+  char *fields[14] = {nullptr};
+  int n = 0;
+  char *p = copy;
+  while (n < 14 && *p) {
+    if (*p == '-') { *p = '\0'; fields[n++] = p + 1; }
+    p++;
+  }
+
+  if (!fields[0] || !fields[1] || !fields[2]) {
+    free(copy);
+    return nullptr;
+  }
+
+  char *foundry = fields[1];
+  char *weight  = fields[2];
+
+  if (strcmp(weight, "medium") == 0) {
+    weight[0] = 'b'; weight[1] = 'o'; weight[2] = 'l'; weight[3] = 'd'; weight[4] = '\0';
+  } else {
+    free(copy);
+    return nullptr;
+  }
+
+  char buf[512];
+  snprintf(buf, sizeof(buf), "-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s-%s",
+    fields[0], foundry, weight,
+    fields[3] ? fields[3] : "*",
+    fields[4] ? fields[4] : "*",
+    fields[5] ? fields[5] : "*",
+    fields[6] ? fields[6] : "*",
+    fields[7] ? fields[7] : "*",
+    fields[8] ? fields[8] : "*",
+    fields[9] ? fields[9] : "*",
+    fields[10] ? fields[10] : "*",
+    fields[11] ? fields[11] : "*",
+    fields[12] ? fields[12] : "*");
+
+  free(copy);
+  return strdup(buf);
+}
+
+static int find_bold_font_idx(const char *bold_xlfd) {
+  for (int i = 0; i < s_num_fonts; i++) {
+    if (strcmp(s_font_entries[i].xlfd, bold_xlfd) == 0) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 static void scan_fonts_dir(const char *dir) {
@@ -270,6 +328,14 @@ static void ensure_font_dir(Display *dpy, const char *dir) {
 }
 
 static void init_font_list(Display *dpy) {
+  for (int i = 0; i < s_num_fonts; i++) {
+    free(s_font_entries[i].name);
+    free(s_font_entries[i].xlfd);
+  }
+  free(s_font_entries);
+  s_font_entries = nullptr;
+  s_num_fonts = 0;
+
   char *user_dir = g_build_filename(g_get_user_data_dir(), "exoterm", "fonts", NULL);
   ensure_font_dir(dpy, user_dir);
   scan_fonts_dir(user_dir);
@@ -280,6 +346,32 @@ static void init_font_list(Display *dpy) {
     s_font_entries[0].name = strdup("(no fonts — see ~/.local/share/exoterm/fonts)");
     s_font_entries[0].xlfd = strdup("fixed");
     s_num_fonts = 1;
+  }
+
+  if (s_active_font_xlfd) {
+    for (int i = 0; i < s_num_fonts; i++) {
+      if (strcmp(s_font_entries[i].xlfd, s_active_font_xlfd) == 0) {
+        s_active_font = i;
+        break;
+      }
+    }
+  }
+
+  if (s_active_font >= 0 && s_active_font < s_num_fonts) {
+    char *bold = bold_xlfd(s_font_entries[s_active_font].xlfd);
+    if (bold) {
+      int bold_idx = find_bold_font_idx(bold);
+      if (bold_idx >= 0) {
+        s_active_bold_font = bold_idx;
+        free(s_active_bold_xlfd);
+        s_active_bold_xlfd = strdup(bold);
+      } else {
+        s_active_bold_font = -1;
+        free(s_active_bold_xlfd);
+        s_active_bold_xlfd = nullptr;
+      }
+      free(bold);
+    }
   }
 }
 
@@ -328,6 +420,7 @@ enum {
   CHANGED_PTR_BLANK      = 1 << 16,
   CHANGED_COLOR_SCHEME   = 1 << 17,
   CHANGED_FONT           = 1 << 18,
+  CHANGED_BOLD_FONT      = 1 << 19,
   CHANGED_APPLY          = 1 << 29,
   CHANGED_CANCEL         = 1 << 30,
 };
@@ -406,6 +499,29 @@ static int build_settings_window (mu_Context *ctx) {
           s_pending_font = i;
           changed |= CHANGED_FONT;
           mu_close_popup(ctx, "##fonts");
+        }
+      }
+      mu_end_combo(ctx);
+    }
+
+    mu_label (ctx, "Bold:", 0);
+    const char *bold_current = s_active_bold_font == -1 ? "(auto)"
+        : s_font_entries[s_active_bold_font].name;
+    if (mu_begin_combo_ex(ctx, "##boldfonts", bold_current, s_num_fonts * 34, 0)) {
+      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+      if (mu_button(ctx, "   (auto-detect)")) {
+        s_pending_bold_font = -1;
+        changed |= CHANGED_BOLD_FONT;
+        mu_close_popup(ctx, "##boldfonts");
+      }
+      for (int i = 0; i < s_num_fonts; i++) {
+        char label[128];
+        snprintf (label, sizeof (label), "%s%s",
+            (s_active_bold_font == i) ? ">  " : "   ", s_font_entries[i].name);
+        if (mu_button(ctx, label)) {
+          s_pending_bold_font = i;
+          changed |= CHANGED_BOLD_FONT;
+          mu_close_popup(ctx, "##boldfonts");
         }
       }
       mu_end_combo(ctx);
@@ -522,13 +638,67 @@ static void apply_settings (int changed) {
     int idx = s_pending_font;
     if (idx >= 0 && idx < s_num_fonts) {
       for (rxvt_term *t : rxvt_term::termlist) {
+        Window root;
+        unsigned int w, h, bw, d;
+        XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
+
         free ((void *) t->rs[Rs_font]);
         t->rs[Rs_font] = strdup (s_font_entries[idx].xlfd);
         t->set_fonts ();
+
+        XResizeWindow(t->dpy, t->parent, w, h);
       }
       s_active_font = idx;
+      free(s_active_font_xlfd);
+      s_active_font_xlfd = strdup(s_font_entries[idx].xlfd);
+
+      char *bold = bold_xlfd(s_font_entries[idx].xlfd);
+      if (bold) {
+        int bold_idx = find_bold_font_idx(bold);
+        if (bold_idx >= 0) {
+          s_active_bold_font = bold_idx;
+          free(s_active_bold_xlfd);
+          s_active_bold_xlfd = strdup(bold);
+          for (rxvt_term *t : rxvt_term::termlist) {
+            free((void *)t->rs[Rs_boldFont]);
+            t->rs[Rs_boldFont] = strdup(bold);
+            t->set_fonts();
+          }
+        }
+        free(bold);
+      }
     }
     s_pending_font = -1;
+  }
+
+  if (changed & CHANGED_BOLD_FONT) {
+    int idx = s_pending_bold_font;
+    for (rxvt_term *t : rxvt_term::termlist) {
+      Window root;
+      unsigned int w, h, bw, d;
+      XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
+
+      if (idx >= 0 && idx < s_num_fonts) {
+        free ((void *) t->rs[Rs_boldFont]);
+        t->rs[Rs_boldFont] = strdup (s_font_entries[idx].xlfd);
+        t->set_fonts ();
+      } else {
+        free ((void *) t->rs[Rs_boldFont]);
+        t->rs[Rs_boldFont] = nullptr;
+        t->set_fonts ();
+      }
+      XResizeWindow(t->dpy, t->parent, w, h);
+    }
+    if (idx >= 0 && idx < s_num_fonts) {
+      s_active_bold_font = idx;
+      free(s_active_bold_xlfd);
+      s_active_bold_xlfd = strdup(s_font_entries[idx].xlfd);
+    } else {
+      s_active_bold_font = -1;
+      free(s_active_bold_xlfd);
+      s_active_bold_xlfd = nullptr;
+    }
+    s_pending_bold_font = -1;
   }
 
   for (rxvt_term *t : rxvt_term::termlist) {
@@ -611,7 +781,13 @@ static void restore_snapshot () {
   s_mouse_wheel_page   = s_snapshot.mouse_wheel_page;
   s_pointer_blank      = s_snapshot.pointer_blank;
   s_active_scheme      = s_snapshot.active_scheme;
-  s_active_font        = s_snapshot.active_font;
+
+  free(s_active_font_xlfd);
+  s_active_font_xlfd = s_snapshot.font ? strdup(s_snapshot.font) : nullptr;
+  s_active_font = -1;
+  free(s_active_bold_xlfd);
+  s_active_bold_xlfd = nullptr;
+  s_active_bold_font = -1;
 
   int all = CHANGED_BORDER | CHANGED_SCROLL | CHANGED_CURSOR_BLINK |
             CHANGED_SHADING | CHANGED_LINE_SPACE | CHANGED_LETTER_SPACE |
@@ -654,6 +830,8 @@ static void read_settings_from_term (rxvt_term *t) {
 #ifdef POINTER_BLANK
   s_pointer_blank      = t->option (Opt_pointerBlank)         ? 1 : 0;
 #endif
+  free(s_active_font_xlfd);
+  s_active_font_xlfd = t->rs[Rs_font] ? strdup(t->rs[Rs_font]) : nullptr;
 }
 
 /* ======================================================================= */
@@ -817,9 +995,9 @@ rxvt_term::show_settings_ui ()
   settings_ui.parent_w = pw;
   settings_ui.parent_h = ph;
 
-  if (!s_font_list_initialized) init_font_list(dpy);
-
   read_settings_from_term (this);
+  init_font_list(dpy);
+
   save_snapshot (this);
 
   settings_ui.visible = true;
@@ -990,7 +1168,14 @@ rxvt_term::destroy_settings_ui ()
   free (s_font_entries);
   s_font_entries = nullptr;
   s_num_fonts = 0;
-  s_font_list_initialized = false;
+  free(s_active_font_xlfd);
+  s_active_font_xlfd = nullptr;
+  s_active_font = -1;
+  s_pending_font = -1;
+  free(s_active_bold_xlfd);
+  s_active_bold_xlfd = nullptr;
+  s_active_bold_font = -1;
+  s_pending_bold_font = -1;
 }
 
 void

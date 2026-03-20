@@ -2276,12 +2276,12 @@ void mu_close_popup(mu_Context *ctx, const char *name) {
 }
 
 int mu_begin_popup(mu_Context *ctx, const char *name, int opt) {
-  opt |= (MU_OPT_POPUP | MU_OPT_AUTOSIZE | MU_OPT_NORESIZE | MU_OPT_NOSCROLL | MU_OPT_NOTITLE | MU_OPT_CLOSED);
+  opt |= (MU_OPT_POPUP | MU_OPT_AUTOSIZE | MU_OPT_NORESIZE | MU_OPT_NOTITLE | MU_OPT_CLOSED);
   return mu_begin_window_ex(ctx, name, mu_rect(0, 0, 0, 0), opt);
 }
 
 int mu_begin_popup_ex(mu_Context *ctx, const char *name, mu_Rect r, int opt) {
-  opt |= (MU_OPT_POPUP | MU_OPT_NORESIZE | MU_OPT_NOSCROLL | MU_OPT_CLOSED);
+  opt |= (MU_OPT_POPUP | MU_OPT_NORESIZE | MU_OPT_CLOSED);
   return mu_begin_window_ex(ctx, name, r, opt);
 }
 
@@ -2412,6 +2412,15 @@ int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item,
     mu_Rect rect = ctx->last_rect;
     rect.y += rect.h;
 
+
+    mu_Container *root = ctx->root_list.items[ctx->root_list.idx - 1];
+    int window_bottom = root->rect.y + root->rect.h;
+    int space_below = window_bottom - rect.y - ctx->style->padding;
+    int max_height = mu_max(space_below, ctx->style->size.y * 2); // at least 2 items tall
+    // int max_height = 300;
+
+
+
     if (max_items > 40) {
       rect.h = max_items;
     } else if (max_items > 0) {
@@ -2420,6 +2429,7 @@ int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item,
                - ctx->style->spacing; // remove trailing spacing after last item
     }
 
+    rect.h = mu_min(rect.h, max_height);
     return mu_begin_popup_ex(ctx, id, rect, opt);
 }
 

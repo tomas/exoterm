@@ -9,3 +9,5 @@ src/perlxsi.c
 src/rxvtperl.C
 rxvt-unicode-9.30
 fonts
+src/lib/microui.o
+src/lib/microui_renderer_xrender.o
