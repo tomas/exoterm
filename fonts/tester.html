@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitmap Font Previewer</title>
+    <style>
+        :root {
+            /* Default Theme (Material Dark) */
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-muted: #888888;
+            --accent: #bb86fc;
+            --border: #333333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* Sidebar Controls */
+        #sidebar {
+            width: 300px;
+            background-color: var(--panel-bg);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        h1 {
+            font-size: 1.2rem;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+            transition: color 0.3s;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+
+        select, input[type="text"], input[type="number"] {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+
+        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--accent);
+        }
+
+        /* Main Preview Area */
+        #main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #canvas-container {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            background-color: var(--bg-color);
+            /* Dynamic checkerboard based on theme variables */
+            background-image:
+                linear-gradient(45deg, var(--panel-bg) 25%, transparent 25%),
+                linear-gradient(-45deg, var(--panel-bg) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, var(--panel-bg) 75%),
+                linear-gradient(-45deg, transparent 75%, var(--panel-bg) 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            transition: background-color 0.3s;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            border: 1px solid var(--border);
+            background-color: var(--panel-bg);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        /* Drag and Drop Overlay */
+        #drop-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            border: 2px dashed var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: var(--accent);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, border-color 0.3s, color 0.3s;
+            z-index: 100;
+        }
+
+        body.dragover #drop-overlay {
+            opacity: 1;
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: auto;
+            transition: color 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h1>Bitmap Previewer</h1>
+
+        <div class="control-group">
+            <label for="theme-select">Color Scheme</label>
+            <select id="theme-select">
+                <option value="default">Default Dark</option>
+                <option value="dracula">Dracula</option>
+                <option value="monokai">Monokai</option>
+                <option value="tokyonight">Tokyo Night</option>
+                <option value="nord">Nord</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="font-select">Bundled Fonts</label>
+            <select id="font-select">
+                <option value="none">-- Drop a file or select --</option>
+                <option value="builtin">Built-in Mini Font (Demo)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="preview-text">Preview Text</label>
+            <input type="text" id="preview-text" value="Hello, Bitmap!">
+        </div>
+
+        <div class="control-group">
+            <label for="scale">Pixel Scale</label>
+            <input type="number" id="scale" value="3" min="1" max="10">
+        </div>
+
+        <div class="status" id="status-msg">Ready. Drop a .bdf file anywhere.</div>
+    </div>
+
+    <div id="main">
+        <div id="canvas-container">
+            <canvas id="preview-canvas"></canvas>
+        </div>
+        <div id="drop-overlay">Drop .bdf or .pcf font here</div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let currentFont = null;
+        const canvas = document.getElementById('preview-canvas');
+        const ctx = canvas.getContext('2d');
+        const textInput = document.getElementById('preview-text');
+        const scaleInput = document.getElementById('scale');
+        const statusMsg = document.getElementById('status-msg');
+        const fontSelect = document.getElementById('font-select');
+        const themeSelect = document.getElementById('theme-select');
+
+        // --- Themes ---
+        const themes = {
+            default: { bg: '#121212', panel: '#1e1e1e', text: '#e0e0e0', muted: '#888888', accent: '#bb86fc', border: '#333333' },
+            dracula: { bg: '#282a36', panel: '#44475a', text: '#f8f8f2', muted: '#6272a4', accent: '#ff79c6', border: '#6272a4' },
+            monokai: { bg: '#272822', panel: '#3e3d32', text: '#f8f8f2', muted: '#75715e', accent: '#a6e22e', border: '#75715e' },
+            tokyonight: { bg: '#1a1b26', panel: '#24283b', text: '#c0caf5', muted: '#565f89', accent: '#7aa2f7', border: '#414868' },
+            nord: { bg: '#2e3440', panel: '#3b4252', text: '#d8dee9', muted: '#4c566a', accent: '#88c0d0', border: '#434c5e' }
+        };
+
+        function applyTheme(themeName) {
+            const theme = themes[themeName];
+            const root = document.documentElement;
+            root.style.setProperty('--bg-color', theme.bg);
+            root.style.setProperty('--panel-bg', theme.panel);
+            root.style.setProperty('--text-main', theme.text);
+            root.style.setProperty('--text-muted', theme.muted);
+            root.style.setProperty('--accent', theme.accent);
+            root.style.setProperty('--border', theme.border);
+
+            // Re-render text to apply the new accent color to the canvas pixels
+            renderText();
+        }
+
+        themeSelect.addEventListener('change', (e) => {
+            applyTheme(e.target.value);
+        });
+
+        // --- Demo Data (A tiny 5x7 BDF font for testing) ---
+        const demoBdf = `
+STARTFONT 2.1
+FONT -demo-minifont
+SIZE 10 75 75
+FONTBOUNDINGBOX 5 7 0 -1
+STARTCHAR H
+ENCODING 72
+DWIDTH 6 0
+BBX 5 7 0 0
+BITMAP
+11
+11
+11
+1f
+11
+11
+11
+ENDCHAR
+STARTCHAR e
+ENCODING 101
+DWIDTH 6 0
+BBX 5 5 0 0
+BITMAP
+0e
+11
+1f
+10
+0e
+ENDCHAR
+STARTCHAR l
+ENCODING 108
+DWIDTH 4 0
+BBX 2 7 1 0
+BITMAP
+03
+01
+01
+01
+01
+01
+03
+ENDCHAR
+STARTCHAR o
+ENCODING 111
+DWIDTH 6 0
+BBX 5 5 0 0
+BITMAP
+0e
+11
+11
+11
+0e
+ENDCHAR
+STARTCHAR comma
+ENCODING 44
+DWIDTH 4 0
+BBX 2 2 1 -1
+BITMAP
+01
+02
+ENDCHAR
+STARTCHAR B
+ENCODING 66
+DWIDTH 6 0
+BBX 5 7 0 0
+BITMAP
+1e
+11
+11
+1e
+11
+11
+1e
+ENDCHAR
+STARTCHAR i
+ENCODING 105
+DWIDTH 4 0
+BBX 1 7 1 0
+BITMAP
+01
+00
+01
+01
+01
+01
+01
+ENDCHAR
+STARTCHAR t
+ENCODING 116
+DWIDTH 5 0
+BBX 4 7 0 0
+BITMAP
+04
+04
+0e
+04
+04
+04
+03
+ENDCHAR
+STARTCHAR m
+ENCODING 109
+DWIDTH 8 0
+BBX 7 5 0 0
+BITMAP
+1a
+25
+25
+25
+25
+ENDCHAR
+STARTCHAR a
+ENCODING 97
+DWIDTH 6 0
+BBX 5 5 0 0
+BITMAP
+0e
+01
+0f
+11
+0f
+ENDCHAR
+STARTCHAR p
+ENCODING 112
+DWIDTH 6 0
+BBX 5 7 0 -2
+BITMAP
+1e
+11
+11
+1e
+10
+10
+10
+ENDCHAR
+STARTCHAR excl
+ENCODING 33
+DWIDTH 4 0
+BBX 1 7 1 0
+BITMAP
+01
+01
+01
+01
+00
+00
+01
+ENDCHAR
+        `.trim();
+
+        // --- Parsers ---
+        function parseBDF(bdfText) {
+            const lines = bdfText.split('\n');
+            const font = { glyphs: {}, bounds: { w: 0, h: 0, x: 0, y: 0 }, ascent: 0, descent: 0 };
+            let currentChar = null;
+            let inBitmap = false;
+
+            for (let line of lines) {
+                line = line.trim();
+                if (line.startsWith('FONTBOUNDINGBOX')) {
+                    const parts = line.split(/\s+/);
+                    font.bounds = { w: parseInt(parts[1]), h: parseInt(parts[2]), x: parseInt(parts[3]), y: parseInt(parts[4]) };
+                } else if (line.startsWith('FONT_ASCENT')) {
+                    font.ascent = parseInt(line.split(/\s+/)[1]);
+                } else if (line.startsWith('FONT_DESCENT')) {
+                    font.descent = parseInt(line.split(/\s+/)[1]);
+                } else if (line.startsWith('STARTCHAR')) {
+                    currentChar = { bitmap: [] };
+                } else if (line.startsWith('ENCODING') && currentChar) {
+                    currentChar.encoding = parseInt(line.split(/\s+/)[1]);
+                } else if (line.startsWith('DWIDTH') && currentChar) {
+                    currentChar.dwidth = parseInt(line.split(/\s+/)[1]);
+                } else if (line.startsWith('BBX') && currentChar) {
+                    const parts = line.split(/\s+/);
+                    currentChar.bbx = { w: parseInt(parts[1]), h: parseInt(parts[2]), x: parseInt(parts[3]), y: parseInt(parts[4]) };
+                } else if (line === 'BITMAP') {
+                    inBitmap = true;
+                } else if (line === 'ENDCHAR') {
+                    if (currentChar && currentChar.encoding !== undefined) {
+                        font.glyphs[currentChar.encoding] = currentChar;
+                    }
+                    currentChar = null;
+                    inBitmap = false;
+                } else if (inBitmap && currentChar) {
+                    const byteLen = Math.ceil(currentChar.bbx.w / 8) * 2;
+                    const paddedHex = line.padEnd(byteLen, '0').substring(0, byteLen);
+                    let binString = '';
+                    for (let i = 0; i < paddedHex.length; i++) {
+                        binString += parseInt(paddedHex[i], 16).toString(2).padStart(4, '0');
+                    }
+                    currentChar.bitmap.push(binString);
+                }
+            }
+
+            if (!font.ascent && !font.descent) {
+                font.ascent = font.bounds.h + font.bounds.y;
+                font.descent = -font.bounds.y;
+            }
+            return font;
+        }
+
+        function parsePCF(arrayBuffer) {
+            alert("PCF format detected. Full binary PCF parsing requires an external library. Please drop a .bdf file instead.");
+            return null;
+        }
+
+        // --- Rendering ---
+        function renderText() {
+            if (!currentFont) return;
+
+            const text = textInput.value;
+            const scale = parseInt(scaleInput.value, 10);
+
+            let totalWidth = 0;
+            let maxHeight = currentFont.bounds.h;
+
+            for (let i = 0; i < text.length; i++) {
+                const charCode = text.charCodeAt(i);
+                const glyph = currentFont.glyphs[charCode];
+                if (glyph) {
+                    totalWidth += glyph.dwidth || glyph.bbx.w;
+                } else if (charCode === 32) {
+                    totalWidth += currentFont.bounds.w / 2;
+                }
+            }
+
+            canvas.width = Math.max(totalWidth * scale, 1);
+            canvas.height = Math.max(maxHeight * scale * 1.5, 1);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Read the accent color dynamically from the CSS variables
+            const computedStyle = getComputedStyle(document.documentElement);
+            ctx.fillStyle = computedStyle.getPropertyValue('--accent').trim();
+
+            let cursorX = 0;
+            const baselineY = currentFont.ascent;
+
+            for (let i = 0; i < text.length; i++) {
+                const charCode = text.charCodeAt(i);
+
+                if (charCode === 32) {
+                    cursorX += Math.floor(currentFont.bounds.w / 2);
+                    continue;
+                }
+
+                const glyph = currentFont.glyphs[charCode];
+                if (!glyph) continue;
+
+                const startX = cursorX + glyph.bbx.x;
+                const startY = baselineY - glyph.bbx.y - glyph.bbx.h;
+
+                for (let r = 0; r < glyph.bitmap.length; r++) {
+                    const rowStr = glyph.bitmap[r];
+                    for (let c = 0; c < glyph.bbx.w; c++) {
+                        if (rowStr[c] === '1') {
+                            ctx.fillRect((startX + c) * scale, (startY + r) * scale, scale, scale);
+                        }
+                    }
+                }
+
+                cursorX += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
+            }
+        }
+
+        // --- Event Listeners ---
+        textInput.addEventListener('input', renderText);
+        scaleInput.addEventListener('input', renderText);
+
+        fontSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'builtin') {
+                currentFont = parseBDF(demoBdf);
+                statusMsg.innerText = 'Loaded Demo Font';
+                renderText();
+            } else {
+                currentFont = null;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                statusMsg.innerText = 'Awaiting font file...';
+            }
+        });
+
+        // --- Drag and Drop Logic ---
+        document.body.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            document.body.classList.add('dragover');
+        });
+
+        document.body.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            document.body.classList.remove('dragover');
+        });
+
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            document.body.classList.remove('dragover');
+
+            if (e.dataTransfer.files.length === 0) return;
+
+            const file = e.dataTransfer.files[0];
+            const reader = new FileReader();
+
+            if (file.name.toLowerCase().endsWith('.bdf')) {
+                reader.onload = (event) => {
+                    try {
+                        currentFont = parseBDF(event.target.result);
+                        statusMsg.innerText = `Loaded: ${file.name}`;
+                        fontSelect.value = "none";
+                        renderText();
+                    } catch (err) {
+                        statusMsg.innerText = `Error parsing BDF: ${err.message}`;
+                    }
+                };
+                reader.readAsText(file);
+            }
+            else if (file.name.toLowerCase().endsWith('.pcf')) {
+                reader.onload = (event) => {
+                    currentFont = parsePCF(event.target.result);
+                    if (currentFont) renderText();
+                };
+                reader.readAsArrayBuffer(file);
+            }
+            else {
+                statusMsg.innerText = 'Unsupported file type. Please use .bdf';
+            }
+        });
+
+        // Initialize default theme (optional, ensures baseline sync)
+        applyTheme('default');
+    </script>
+</body>
+</html>
