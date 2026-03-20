@@ -620,7 +620,36 @@ rxvt_term::destroy_cb (ev::idle &w, int revents)
         delete this;
         return;
       }
-      // Non-root primary: fall through to normal tab-switching/deletion.
+      // Non-root primary (tab_index > 0): promote child to regular tab.
+      // The child was using an intermediate parent window which now becomes
+      // a regular tab (child of root window instead of sibling).
+      destroy_split_bar ();
+      partner->split_is_child = false;
+      partner->split_partner  = nullptr;
+      split_partner = nullptr;
+
+      // Resize partner to full window size using its current parent (the
+      // intermediate window that will become a regular tab).
+      if (partner->pre_split_width <= 0 || partner->pre_split_height <= 0) {
+        XWindowAttributes _wattr;
+        XGetWindowAttributes (dpy, partner->parent, &_wattr);
+        partner->pre_split_width  = _wattr.width;
+        partner->pre_split_height = _wattr.height;
+      }
+
+      // Resize the intermediate parent window to full size and treat it as a regular tab.
+      if (partner->parent != None) {
+        XMoveResizeWindow (dpy, partner->parent, 0, 0,
+                           partner->pre_split_width, partner->pre_split_height);
+      }
+
+      partner->make_current ();
+      partner->resize_all_windows (partner->pre_split_width, partner->pre_split_height, 1);
+#ifdef ENABLE_MINIMAP
+      if (partner->minimap.enabled) partner->resize_minimap ();
+#endif
+
+      // Fall through to normal tab-switching/deletion.
     }
   }
 
