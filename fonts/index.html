@@ -151,6 +151,41 @@
             font-size: 0.9rem;
         }
 
+        /* Mode toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 7px 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            text-align: center;
+        }
+
+        .mode-btn:not(:last-child) {
+            border-right: 1px solid var(--border);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: var(--bg-color);
+        }
+
+        .mode-btn:not(.active):hover {
+            background: var(--panel-bg);
+            color: var(--text-main);
+        }
         /* Font browser */
         .font-browser {
             display: flex;
@@ -961,6 +996,17 @@
         const langSelect      = document.getElementById('lang-select');
         const indentSelect    = document.getElementById('indent-select');
         const customTextGroup = document.getElementById('custom-text-group');
+        const codeControls    = document.getElementById('code-controls');
+        const modeBtns        = document.querySelectorAll('.mode-btn');
+        let   previewMode     = 'code'; // 'code' | 'text' | 'charset'
+
+        function setMode(mode) {
+            previewMode = mode;
+            modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+            codeControls.style.display = mode === 'code' ? '' : 'none';
+            renderText();
+        }
+        modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
         const scaleInput      = document.getElementById('scale');
         const boldToggle      = document.getElementById('bold-toggle');
         const boldScaleInput  = document.getElementById('bold-scale');
@@ -1834,6 +1880,65 @@
         }
 
         // =====================================================================
+        // Text mode — book-page-style paragraphs
+        // =====================================================================
+
+        const TEXT_PARAGRAPHS = [
+            "The quick brown fox jumps over",
+            "the lazy dog by the riverbank.",
+            "",
+            "Pack my box with five dozen",
+            "liquor jugs, if you please.",
+            "",
+            "How vexingly quick daft zebras",
+            "jump! Sphinx of black quartz,",
+            "judge my vow — 1234567890.",
+            "",
+            ""Blowzy night-frumps vex'd Jack Q."",
+            "Was 42 the answer all along?",
+            "",
+            "The five boxing wizards jump",
+            "quickly at dawn, age 7 to 99.",
+        ];
+
+        function getTextLines() {
+            return TEXT_PARAGRAPHS;
+        }
+
+        // =====================================================================
+        // Charset mode — Cozette-style glyph grid
+        // =====================================================================
+
+        const CHARSET_ROWS = [
+            'ABCDEFGHIJKLM',
+            'NOPQRSTUVWXYZ',
+            '',
+            '1234567890',
+            '',
+            'abcdefghijklm',
+            'nopqrstuvwxyz',
+            '',
+            '()[]{}\\<>/?\'":;',
+            '!@#$%^&*_=+-|~',
+            '`,.',
+        ];
+
+        function getCharsetLines(font) {
+            // Only include rows where the font actually has glyphs for most chars
+            return CHARSET_ROWS.map(row => {
+                if (row === '') return '';
+                // Filter to chars the font actually has
+                return row.split('').filter(ch => font.glyphs[ch.charCodeAt(0)]).join('');
+            }).filter((row, i) => {
+                // Keep empty separator rows only if neighbour rows have content
+                if (row !== '') return true;
+                const prev = CHARSET_ROWS[i - 1];
+                const next = CHARSET_ROWS[i + 1];
+                return prev && next && prev !== '' && next !== '';
+            });
+        }
+
+        // =====================================================================
         // Code snippets + tokenizer
         // =====================================================================
 
@@ -2034,93 +2139,136 @@
             const boldScale = parseInt(boldScaleInput.value, 10) || 1;
             const font  = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
             const scale = parseInt(scaleInput.value, 10);
-            const lang  = langSelect.value;
+            const themeName = themeSelect.value;
+            const t = themes[themeName] || themes.default;
+            const lineH   = font.bounds.h;
+            const lineGap = Math.max(1, Math.round(lineH * 0.25));
+            const padX    = lineH * 2;
+            const padY    = lineH;
 
-            // Build lines + tokenize
-            const lines  = getCodeLines();
-            const lineH  = font.bounds.h;
-            const lineGap = Math.max(1, Math.round(lineH * 0.25)); // leading between lines
+            // ── Shared glyph-width measurer ───────────────────────────────
+            function glyphW(cc) {
+                if (cc === 32) return font.bounds.w || 6;
+                if (cc === 9)  return (font.bounds.w || 8) * 4;
+                const g = font.glyphs[cc];
+                return g ? (g.dwidth !== undefined ? g.dwidth : g.bbx.w) : 0;
+            }
 
-            // Measure canvas width (longest line in glyphs)
-            function linePixelWidth(lineTokens) {
+            function linePixelWidth(str) {
                 let w = 0;
-                for (const tok of lineTokens) {
-                    for (const ch of tok.text) {
-                        const cc = ch.charCodeAt(0);
-                        if (cc === 9) { // tab — expand to 4 glyph widths
-                            w += (font.bounds.w || 8) * 4;
-                            continue;
-                        }
-                        const glyph = font.glyphs[cc];
-                        if (glyph) w += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
-                        else if (cc === 32) w += font.bounds.w || 6;
-                    }
-                }
+                for (const ch of str) w += glyphW(ch.charCodeAt(0));
                 return w;
             }
 
-            const tokenizedLines = lines.map(l => tokenizeLine(l, lang));
-            const maxLineW = Math.max(...tokenizedLines.map(linePixelWidth), 1);
-
-            // Padding: 2 line-heights on each side (in glyph-pixels, scaled up)
-            const padX = lineH * 2;
-            const padY = lineH;
-
-            canvas.width  = (maxLineW + padX * 2) * scale;
-            canvas.height = (lines.length * (lineH + lineGap) + padY * 2) * scale;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Resolve token colors from current theme
-            const themeName = themeSelect.value;
-            const t = themes[themeName] || themes.default;
-            const colorMap = {
-                plain: t.text,
-                kw:    t.kw,
-                str:   t.str,
-                cmt:   t.cmt,
-                num:   t.num,
-                fn:    t.fn,
-            };
-
-            // Draw each line
-            for (let li = 0; li < tokenizedLines.length; li++) {
-                const tokens    = tokenizedLines[li];
-                const baselineY = padY + li * (lineH + lineGap) + font.ascent;
-                let cursorX     = padX;
-
-                for (const tok of tokens) {
-                    ctx.fillStyle = colorMap[tok.type] || t.text;
-                    for (const ch of tok.text) {
-                        const cc = ch.charCodeAt(0);
-                        if (cc === 9) { // tab
-                            cursorX += (font.bounds.w || 8) * 4;
-                            continue;
+            // ── Shared single-glyph draw ──────────────────────────────────
+            function drawGlyph(g, px, py) {
+                const startX = px + g.bbx.x;
+                const startY = py - g.bbx.y - g.bbx.h;
+                for (let r = 0; r < g.bitmap.length; r++) {
+                    const row = g.bitmap[r];
+                    for (let c = 0; c < g.bbx.w; c++) {
+                        if (row[c] === '1') {
+                            ctx.fillRect(
+                                (startX + c) * scale,
+                                (startY + r) * scale,
+                                scale, scale
+                            );
                         }
-                        if (cc === 32) {
-                            cursorX += font.bounds.w || 6;
-                            continue;
-                        }
-                        const glyph = font.glyphs[cc];
-                        if (!glyph) continue;
-
-                        const startX = cursorX + glyph.bbx.x;
-                        const startY = baselineY - glyph.bbx.y - glyph.bbx.h;
-
-                        for (let r = 0; r < glyph.bitmap.length; r++) {
-                            const rowStr = glyph.bitmap[r];
-                            for (let c = 0; c < glyph.bbx.w; c++) {
-                                if (rowStr[c] === '1') {
-                                    ctx.fillRect(
-                                        (startX + c) * scale,
-                                        (startY + r) * scale,
-                                        scale, scale
-                                    );
-                                }
-                            }
-                        }
-                        cursorX += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
                     }
                 }
+            }
+
+            // ── Draw a list of plain-colored lines ────────────────────────
+            function drawPlainLines(lines, color) {
+                const maxW = Math.max(...lines.map(linePixelWidth), 1);
+                canvas.width  = (maxW + padX * 2) * scale;
+                canvas.height = (lines.length * (lineH + lineGap) + padY * 2) * scale;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = color;
+                for (let li = 0; li < lines.length; li++) {
+                    const baselineY = padY + li * (lineH + lineGap) + font.ascent;
+                    let cx = padX;
+                    for (const ch of lines[li]) {
+                        const cc = ch.charCodeAt(0);
+                        if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                        const g = font.glyphs[cc];
+                        if (!g) continue;
+                        drawGlyph(g, cx, baselineY);
+                        cx += g.dwidth !== undefined ? g.dwidth : g.bbx.w;
+                    }
+                }
+            }
+
+            // ── MODE: CODE ────────────────────────────────────────────────
+            if (previewMode === 'code') {
+                const lang  = langSelect.value;
+                const lines = getCodeLines();
+                const colorMap = { plain:t.text, kw:t.kw, str:t.str, cmt:t.cmt, num:t.num, fn:t.fn };
+                const tokenizedLines = lines.map(l => tokenizeLine(l, lang));
+
+                function tokenLineW(toks) {
+                    let w = 0;
+                    for (const tok of toks)
+                        for (const ch of tok.text) w += glyphW(ch.charCodeAt(0));
+                    return w;
+                }
+                const maxW = Math.max(...tokenizedLines.map(tokenLineW), 1);
+                canvas.width  = (maxW + padX * 2) * scale;
+                canvas.height = (lines.length * (lineH + lineGap) + padY * 2) * scale;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                for (let li = 0; li < tokenizedLines.length; li++) {
+                    const baselineY = padY + li * (lineH + lineGap) + font.ascent;
+                    let cx = padX;
+                    for (const tok of tokenizedLines[li]) {
+                        ctx.fillStyle = colorMap[tok.type] || t.text;
+                        for (const ch of tok.text) {
+                            const cc = ch.charCodeAt(0);
+                            if (cc === 9) { cx += (font.bounds.w || 8) * 4; continue; }
+                            if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                            const g = font.glyphs[cc];
+                            if (!g) continue;
+                            drawGlyph(g, cx, baselineY);
+                            cx += g.dwidth !== undefined ? g.dwidth : g.bbx.w;
+                        }
+                    }
+                }
+                return;
+            }
+
+            // ── MODE: TEXT ────────────────────────────────────────────────
+            if (previewMode === 'text') {
+                drawPlainLines(getTextLines(), t.text);
+                return;
+            }
+
+            // ── MODE: CHARSET ─────────────────────────────────────────────
+            if (previewMode === 'charset') {
+                const rows = getCharsetLines(font);
+                // Color mapping: digits→num, upper→accent, lower→text, punct→muted
+                const maxW = Math.max(...rows.map(linePixelWidth), 1);
+                canvas.width  = (maxW + padX * 2) * scale;
+                canvas.height = (rows.length * (lineH + lineGap) + padY * 2) * scale;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let li = 0; li < rows.length; li++) {
+                    const row = rows[li];
+                    const baselineY = padY + li * (lineH + lineGap) + font.ascent;
+                    let cx = padX;
+                    for (const ch of row) {
+                        const cc = ch.charCodeAt(0);
+                        if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                        const g = font.glyphs[cc];
+                        if (!g) continue;
+                        // Pick color by character class
+                        if (cc >= 48 && cc <= 57)        ctx.fillStyle = t.num;    // 0-9
+                        else if (cc >= 65 && cc <= 90)   ctx.fillStyle = t.kw;     // A-Z
+                        else if (cc >= 97 && cc <= 122)  ctx.fillStyle = t.text;   // a-z
+                        else                              ctx.fillStyle = t.muted;  // punct
+                        drawGlyph(g, cx, baselineY);
+                        cx += g.dwidth !== undefined ? g.dwidth : g.bbx.w;
+                    }
+                }
+                return;
             }
         }
 
