@@ -401,14 +401,21 @@
             <div id="font-list"></div>
         </div>
 
-            <div class="control-group">
-                <label for="scale">Pixel Scale</label>
-                <input type="range" id="scale" value="1" min="1" max="3">
-            </div>
+        <div class="mode-toggle">
+            <button class="mode-btn active" data-mode="code">Code</button>
+            <button class="mode-btn"        data-mode="text">Text</button>
+            <button class="mode-btn"        data-mode="charset">Charset</button>
+        </div>
+
+        <div class="control-group">
+            <label for="scale">Pixel Scale</label>
+            <input type="range" id="scale" value="1" min="1" max="3">
+        </div>
+
 
         <div style="display: none">
 
-            <div class="control-group">
+            <div id="code-controls" class="control-group">
                 <label for="lang-select">Preview Language</label>
                 <select id="lang-select">
                     <option value="js">JavaScript</option>
@@ -1894,7 +1901,7 @@
             "jump! Sphinx of black quartz,",
             "judge my vow — 1234567890.",
             "",
-            ""Blowzy night-frumps vex'd Jack Q."",
+            "Blowzy night-frumps vex'd Jack Q.",
             "Was 42 the answer all along?",
             "",
             "The five boxing wizards jump",
