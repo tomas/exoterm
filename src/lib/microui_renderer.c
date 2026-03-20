@@ -1,3 +1,5 @@
+// unused, we're now using the xrender version
+
 #define _DEFAULT_SOURCE 1
 #include <X11/XKBlib.h>
 #include <X11/Xlib.h>
@@ -254,7 +256,6 @@ static void r_process_events(void) {
   XEvent ev;
   while (XPending(dpy)) {
     XNextEvent(dpy, &ev);
-    printf("events\n")
 
     switch (ev.type) {
     case ButtonPress:
