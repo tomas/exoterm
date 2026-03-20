@@ -1,6 +1,7 @@
 DATE = @DATE@
 VERSION = @VERSION@
 RXVTNAME = @RXVTNAME@
+EXOTERM_FONT_DIR = @EXOTERM_FONT_DIR@
 SHELL = /bin/sh
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -40,7 +41,8 @@ COMMON = \
 	screen.o scrollbar.o scrollbar-next.o scrollbar-rxvt.o \
 	scrollbar-xterm.o scrollbar-plain.o xdefaults.o encoding.o \
 	rxvttoolkit.o rxvtutil.o keyboard.o rxvtimg.o \
-	ev_cpp.o fdpass_wrapper.o ptytty_wrapper.o sixel.o @PERL_O@
+	ev_cpp.o fdpass_wrapper.o ptytty_wrapper.o sixel.o \
+	settings_ui.o lib/microui.o lib/microui_renderer_xrender.o @PERL_O@
 
 COMMON_DAEMON = rxvtdaemon.o
 
@@ -61,7 +63,10 @@ RXVTD_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)d$(EXEEXT)
 
 #-------------------------------------------------------------------------
 
-all: allbin
+all: fonts-build allbin
+
+fonts-build:
+	$(MAKE) -C ../fonts build
 
 rxvt: rxvt.o $(COMMON)
 	$(LINK) -o $@ rxvt.o $(COMMON) $(LIBS) $(XLIB) $(PERLLIB)
@@ -89,6 +94,7 @@ alldoc:
 clean:
 	rm -f rxvt rxvtc rxvtd perlxsi.c rxvtperl.C manlst mantmp
 	rm -f *.o
+	$(MAKE) -C ../fonts clean
 
 distclean: clean
 	rm -f Makefile
@@ -130,7 +136,12 @@ install-bin: allbin
 	$(INSTALL_PROGRAM) rxvtc $(RXVTC_BINNAME)
 	$(INSTALL_PROGRAM) rxvtd $(RXVTD_BINNAME)
 
-install: install-bin install-perl
+install: install-bin install-perl install-fonts
+
+install-fonts:
+	$(INSTALL) -d $(DESTDIR)$(EXOTERM_FONT_DIR)
+	$(INSTALL_DATA) fonts/*.pcf.gz $(DESTDIR)$(EXOTERM_FONT_DIR)/
+	cd $(DESTDIR)$(EXOTERM_FONT_DIR) && mkfontdir
 
 perlxsi.c: Makefile
 	$(PERL) -MExtUtils::Embed -e xsinit -- -std urxvt
@@ -291,3 +302,9 @@ rxvtperl.o: rxvtperl.h hookinc.h rsinc.h optinc.h keyboard.h perlxsi.c
 rxvtperl.o: iom_perl.h
 sixel.o: sixel.h
 sixel_hls.o: sixel_hls.h
+settings_ui.o: ../config.h rxvt.h feature.h ../libptytty/src/ecb.h encoding.h
+settings_ui.o: rxvtutil.h ../libptytty/src/estl.h emman.h rxvtfont.h
+settings_ui.o: rxvttoolkit.h ev_cpp.h ../config.h ../libev/ev++.h ../libev/ev.h
+settings_ui.o: callback.h rxvtimg.h scrollbar.h ../libptytty/src/libptytty.h
+settings_ui.o: rxvtperl.h hookinc.h rsinc.h optinc.h lib/microui.h
+settings_ui.o: lib/microui_renderer.h
