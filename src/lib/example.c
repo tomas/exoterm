@@ -193,6 +193,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  free(ctx);
   XFreeGC(dpy, gc);
   XDestroyWindow(dpy, win);
   XCloseDisplay(dpy);
