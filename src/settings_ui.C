@@ -16,6 +16,11 @@ extern "C" {
 
 #include <X11/extensions/Xrender.h>
 
+#include <glib.h>
+#include <glib/gstdio.h>
+
+#include <sys/stat.h>
+
 /* Panel sits flush on the right edge, full parent height. */
 #define PANEL_WIDTH 320
 
@@ -171,34 +176,134 @@ static const color_scheme_t color_schemes[] = {
 static const int NUM_SCHEMES = (int)(sizeof (color_schemes) / sizeof (color_schemes[0]));
 
 /* ======================================================================
-   Font list  (replace with real bitmap-font entries later)
+   Font list — loaded dynamically from ~/.local/share/exoterm/fonts
    ====================================================================== */
 struct font_entry_t {
-  const char *name;
-  const char *spec;
+  char *name;
+  char *xlfd;
 };
 
-static const font_entry_t font_entries[] = {
-  { "Cozette 13px",          "-*-cozette-medium-r-normal-*-13-*-*-*-*-*-*-*"                },
-  { "Terminus 12px",         "-*-terminus-medium-r-normal-*-12-*-*-*-*-*-iso8859-1"         },
-  { "Terminus 14px",         "-*-terminus-medium-r-normal-*-14-*-*-*-*-*-iso8859-1"         },
-  { "Terminus 16px",         "-*-terminus-medium-r-normal-*-16-*-*-*-*-*-iso8859-1"         },
-  { "Terminus Bold 16px",    "-*-terminus-bold-r-normal-*-16-*-*-*-*-*-iso8859-1"           },
-  { "Misc Fixed 13px",       "-misc-fixed-medium-r-normal-*-13-*-*-*-c-*-iso10646-1"        },
-  { "Misc Fixed 14px",       "-misc-fixed-medium-r-normal-*-14-*-*-*-c-*-iso10646-1"        },
-  { "Misc Fixed 15px",       "-misc-fixed-medium-r-semicondensed-*-15-*-*-*-c-*-iso10646-1" },
-  { "Misc Fixed 18px",       "-misc-fixed-medium-r-normal-*-18-*-*-*-c-*-iso10646-1"        },
-  { "Spleen 8x16",           "-*-spleen-medium-r-normal-*-16-*-*-*-c-80-*-*"               },
-  { "Spleen 12x24",          "-*-spleen-medium-r-normal-*-24-*-*-*-c-120-*-*"              },
-  { "Spleen 16x32",          "-*-spleen-medium-r-normal-*-32-*-*-*-c-160-*-*"              },
-  { "GohuFont 11px",         "-*-gohufont-medium-r-normal-*-11-*-*-*-c-*-iso10646-1"        },
-  { "GohuFont 14px",         "-*-gohufont-medium-r-normal-*-14-*-*-*-c-*-iso10646-1"        },
-  { "Dina 8px",              "-*-dina-medium-r-normal-*-8-*-*-*-*-*-iso8859-1"              },
-  { "Dina 9px",              "-*-dina-medium-r-normal-*-9-*-*-*-*-*-iso8859-1"              },
-  { "Scientifica 11px",      "-*-scientifica-medium-r-normal-*-11-*-*-*-c-*-iso10646-1"     },
-};
+static font_entry_t *s_font_entries = nullptr;
+static int s_num_fonts = 0;
+static bool s_font_list_initialized = false;
 
-static const int NUM_FONTS = (int)(sizeof (font_entries) / sizeof (font_entries[0]));
+static char *xlfd_to_name(const char *xlfd) {
+  if (!xlfd || xlfd[0] != '-') return xlfd ? strdup(xlfd) : strdup("Unknown");
+
+  char *copy = strdup(xlfd);
+  const char *fields[14] = {nullptr};
+  int n = 0;
+  char *p = copy;
+  while (n < 14 && *p) {
+    if (*p == '-') { *p = '\0'; fields[n++] = p + 1; }
+    p++;
+  }
+
+  const char *foundry = fields[1] && fields[1][0] ? fields[1] : "misc";
+  const char *weight  = fields[2] && strcmp(fields[2], "medium") != 0 ? fields[2] : "";
+  const char *size    = fields[6] ? fields[6] : "?";
+
+  char buf[128];
+  if (weight[0]) {
+    snprintf(buf, sizeof(buf), "%s %s %spx", foundry, weight, size);
+  } else {
+    snprintf(buf, sizeof(buf), "%s %spx", foundry, size);
+  }
+  free(copy);
+  return strdup(buf);
+}
+
+static void scan_fonts_dir(const char *dir) {
+  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
+  char *contents = NULL;
+  gsize len = 0;
+
+  if (!g_file_get_contents(fdir_path, &contents, &len, NULL)) {
+    g_free(fdir_path);
+    return;
+  }
+
+  char *line = contents;
+  int line_num = 0;
+
+  while (line && *line) {
+    char *next = strchr(line, '\n');
+    if (next) { *next = '\0'; next++; }
+
+    if (line_num > 0 && *line) {
+      char *space = strchr(line, ' ');
+      if (space) {
+        *space = '\0';
+        char *xlfd = space + 1;
+        while (*xlfd == ' ') xlfd++;
+        if (*xlfd) {
+          s_font_entries = (font_entry_t *)realloc(s_font_entries,
+            (s_num_fonts + 1) * sizeof(font_entry_t));
+          s_font_entries[s_num_fonts].name = xlfd_to_name(xlfd);
+          s_font_entries[s_num_fonts].xlfd = strdup(xlfd);
+          s_num_fonts++;
+        }
+      }
+    }
+    line = next;
+    line_num++;
+  }
+
+  g_free(contents);
+  g_free(fdir_path);
+}
+
+static void ensure_font_dir(Display *dpy, const char *dir) {
+  struct stat st;
+  if (stat(dir, &st) != 0) {
+    g_mkdir_with_parents(dir, 0755);
+  }
+
+  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
+  if (stat(fdir_path, &st) != 0) {
+    char *cmd = g_strdup_printf("mkfontdir '%s' 2>/dev/null", dir);
+    system(cmd);
+    g_free(cmd);
+  }
+  g_free(fdir_path);
+
+  int count = 0;
+  char **orig = XGetFontPath(dpy, &count);
+  bool found = false;
+  for (int i = 0; i < count; i++) {
+    if (strcmp(orig[i], dir) == 0) { found = true; break; }
+  }
+
+  if (!found) {
+    char **new_paths = (char **)malloc((count + 1) * sizeof(char *));
+    new_paths[0] = strdup(dir);
+    memcpy(new_paths + 1, orig, count * sizeof(char *));
+    XSetFontPath(dpy, new_paths, count + 1);
+    for (int i = 0; i <= count; i++) free(new_paths[i]);
+    free(new_paths);
+
+    char *cmd = g_strdup_printf("xset +fp '%s' 2>/dev/null", dir);
+    system(cmd);
+    g_free(cmd);
+  }
+
+  if (orig) XFreeFontPath(orig);
+}
+
+static void init_font_list(Display *dpy) {
+  const char *user_dir = g_build_filename(g_get_user_data_dir(), "exoterm", "fonts", NULL);
+  ensure_font_dir(dpy, user_dir);
+  scan_fonts_dir(user_dir);
+
+  if (s_num_fonts == 0) {
+    s_font_entries = (font_entry_t *)calloc(1, sizeof(font_entry_t));
+    s_font_entries[0].name = strdup("(no fonts — see ~/.local/share/exoterm/fonts)");
+    s_font_entries[0].xlfd = strdup("fixed");
+    s_num_fonts = 1;
+  }
+
+  s_font_list_initialized = true;
+}
 
 /* --- microui callbacks --- */
 static int text_width_cb (mu_Font font, const char *text, int len) {
@@ -313,12 +418,12 @@ static int build_settings_window (mu_Context *ctx) {
     section_header (ctx, "Font");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
-    const char *current = s_active_font == -1 ? "Choose one" : font_entries[s_active_font].name;
-    if (mu_begin_combo_ex(ctx, "##fonts", current, NUM_FONTS, 0)) {
+    const char *current = s_active_font == -1 ? "Choose one" : s_font_entries[s_active_font].name;
+    if (mu_begin_combo_ex(ctx, "##fonts", current, s_num_fonts, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
-      for (int i = 0; i < NUM_FONTS; i++) {
-        char label[64];
-        snprintf (label, sizeof (label), "%s%s", (s_active_font == i) ? ">  " : "   ", font_entries[i].name);
+      for (int i = 0; i < s_num_fonts; i++) {
+        char label[128];
+        snprintf (label, sizeof (label), "%s%s", (s_active_font == i) ? ">  " : "   ", s_font_entries[i].name);
         if (mu_button(ctx, label)) {
           s_pending_font = i;
           changed |= CHANGED_FONT;
@@ -437,10 +542,10 @@ static void apply_settings (int changed) {
 
   if (changed & CHANGED_FONT) {
     int idx = s_pending_font;
-    if (idx >= 0 && idx < NUM_FONTS) {
+    if (idx >= 0 && idx < s_num_fonts) {
       for (rxvt_term *t : rxvt_term::termlist) {
         free ((void *) t->rs[Rs_font]);
-        t->rs[Rs_font] = strdup (font_entries[idx].spec);
+        t->rs[Rs_font] = strdup (s_font_entries[idx].xlfd);
         t->set_fonts ();
       }
       s_active_font = idx;
@@ -734,6 +839,8 @@ rxvt_term::show_settings_ui ()
   settings_ui.parent_w = pw;
   settings_ui.parent_h = ph;
 
+  if (!s_font_list_initialized) init_font_list(dpy);
+
   read_settings_from_term (this);
   save_snapshot (this);
 
@@ -800,6 +907,23 @@ rxvt_term::hide_settings_ui ()
   }
 
   XFlush (dpy);
+
+  /* Ensure backdrop is fully unmapped before restoring minimap */
+  XSync(dpy, False);
+
+  /* Restore minimap transparency after hiding settings UI */
+#ifdef ENABLE_MINIMAP
+  for (rxvt_term *t : termlist) {
+    if (t->minimap.enabled && t->minimap.win != None) {
+      XRaiseWindow(dpy, t->minimap.win);
+      XSetWindowAttributes attr;
+      attr.background_pixmap = ParentRelative;
+      XChangeWindowAttributes(dpy, t->minimap.win, CWBackPixmap, &attr);
+      XClearArea(dpy, t->minimap.win, 0, 0, 0, 0, False);
+      t->render_minimap();
+    }
+  }
+#endif
 
   /* Repaint only the active pane now that the backdrop is gone.
      Touching non-active tabs can cause issues (e.g., stale selection state
@@ -880,6 +1004,15 @@ rxvt_term::destroy_settings_ui ()
     if (mu_ctx) { free (mu_ctx); mu_ctx = nullptr; }
   }
   settings_ui.visible = false;
+
+  for (int i = 0; i < s_num_fonts; i++) {
+    free (s_font_entries[i].name);
+    free (s_font_entries[i].xlfd);
+  }
+  free (s_font_entries);
+  s_font_entries = nullptr;
+  s_num_fonts = 0;
+  s_font_list_initialized = false;
 }
 
 void
