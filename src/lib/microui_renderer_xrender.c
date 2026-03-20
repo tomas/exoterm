@@ -307,8 +307,6 @@ void r_process_events(void) {
   }
 }
 
-
-
 /* mouse / keyboard helpers — unchanged */
 static int mouse_down = 0;
 int r_mouse_down(void) {

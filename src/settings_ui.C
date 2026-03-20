@@ -63,16 +63,21 @@ struct settings_snapshot_t {
   int   cursor_blink, cursor_underline, scrollbar;
   int   scroll_on_output, scroll_on_keypress, jump_scroll;
   int   visual_bell, urgent_on_bell, mouse_wheel_page, pointer_blank;
-  char  colors[18][8]; /* "#rrggbb\0" for fg, bg, ANSI 0-15 */
+  char  colors[18][16]; /* "[alpha]#rrggbb\0" for fg, bg, ANSI 0-15 */
   char *font;          /* owned copy of rs[Rs_font], may be NULL */
   int   active_scheme, active_font;
 };
 
 static settings_snapshot_t s_snapshot = {};
 
-static void color_to_hex (rxvt_term *t, int idx, char *dst7) {
+static void color_to_hex (rxvt_term *t, int idx, char *dst) {
   rgba c = (rgba) t->pix_colors_focused[idx];
-  snprintf (dst7, 8, "#%02x%02x%02x", c.r >> 8, c.g >> 8, c.b >> 8);
+  if (c.a < rgba::MAX_CC) {
+    int alpha_pct = (int)((uint32_t)c.a * 100 / rgba::MAX_CC);
+    snprintf (dst, 16, "[%d]#%02x%02x%02x", alpha_pct, c.r >> 8, c.g >> 8, c.b >> 8);
+  } else {
+    snprintf (dst, 16, "#%02x%02x%02x", c.r >> 8, c.g >> 8, c.b >> 8);
+  }
 }
 
 static void save_snapshot (rxvt_term *t) {
@@ -619,10 +624,26 @@ static void apply_color_scheme (int idx) {
   if (idx < 0 || idx >= NUM_SCHEMES) return;
   const color_scheme_t &s = color_schemes[idx];
   for (rxvt_term *t : rxvt_term::termlist) {
-    t->set_window_color (Color_fg, s.palette[0]);
-    t->set_window_color (Color_bg, s.palette[1]);
+    /* Preserve the alpha channel of the existing colors.  Color scheme
+       palettes define RGB only; any ARGB transparency the user configured
+       (e.g. "[75]#282a36") lives in the current color's alpha and must be
+       kept so that real (non-pseudo) transparency survives a scheme switch. */
+    auto set_preserving_alpha = [&](int cidx, const char *hex) {
+      rgba cur = (rgba) t->pix_colors_focused[cidx];
+      if (cur.a < rgba::MAX_CC) {
+        char buf[16];
+        int alpha_pct = (int)((uint32_t)cur.a * 100 / rgba::MAX_CC);
+        snprintf (buf, sizeof (buf), "[%d]%s", alpha_pct, hex);
+        t->set_window_color (cidx, buf);
+      } else {
+        t->set_window_color (cidx, hex);
+      }
+    };
+    set_preserving_alpha (Color_fg, s.palette[0]);
+    set_preserving_alpha (Color_bg, s.palette[1]);
+    set_preserving_alpha (Color_border, s.palette[1]); /* border tracks bg */
     for (int i = 0; i < 16; i++)
-      t->set_window_color (minCOLOR + i, s.palette[2 + i]);
+      set_preserving_alpha (minCOLOR + i, s.palette[2 + i]);
   }
   s_active_scheme = idx;
 }
@@ -869,6 +890,14 @@ static void backdrop_refresh (rxvt_term *t)
      since root's vt may be unmapped when on another tab. */
   rxvt_term *active = GET_R;
 
+  /* Seed the entire pixmap with the border/background color so that the
+     internal-border strips around the vt (internalBorder padding) are not
+     left as undefined pixmap content.  XCopyArea from the vt only fills
+     the vt area; the surrounding strips would otherwise show as stale or
+     garbage pixels after the dark overlay is composited. */
+  XSetForeground (dpy, gc, t->lookup_color (Color_border, t->pix_colors));
+  XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+
   /* Get the position of active's parent within the root window.
      For root term, parent is the root window at (0,0).
      For split child, parent is a child of root window at (attr.x, attr.y). */
@@ -1051,12 +1080,18 @@ rxvt_term::hide_settings_ui ()
   if (settings_ui.backdrop_win != None)
     XUnmapWindow (dpy, settings_ui.backdrop_win);
 
-  /* Restore default backing store now that the backdrop is gone. */
+  /* Restore default backing store now that the backdrop is gone.
+     Exception: leave backing_store = Always on any vt whose minimap is
+     active — render_minimap reads the obscured minimap strip via XCopyArea
+     and needs the server to retain that content. */
   {
     XSetWindowAttributes bsa;
     bsa.backing_store = NotUseful;
     for (rxvt_term *t : termlist) {
-      XChangeWindowAttributes (dpy, t->vt, CWBackingStore, &bsa);
+#ifdef ENABLE_MINIMAP
+      if (!t->minimap.enabled || t->minimap.win == None)
+#endif
+        XChangeWindowAttributes (dpy, t->vt, CWBackingStore, &bsa);
       if (t->split_partner && !t->split_is_child)
         XChangeWindowAttributes (dpy, t->split_partner->parent, CWBackingStore, &bsa);
     }
