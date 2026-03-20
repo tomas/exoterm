@@ -2411,11 +2411,15 @@ int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item,
 
     mu_Rect rect = ctx->last_rect;
     rect.y += rect.h;
-    if (max_items > 0) {
-        rect.h = (max_items * (ctx->style->size.y + ctx->style->spacing))
-                 + (ctx->style->padding * 2)
-                 + ctx->style->spacing; // remove trailing spacing after last item
+
+    if (max_items > 40) {
+      rect.h = max_items;
+    } else if (max_items > 0) {
+      rect.h = (max_items * (ctx->style->size.y + ctx->style->spacing))
+               + (ctx->style->padding * 2)
+               - ctx->style->spacing; // remove trailing spacing after last item
     }
+
     return mu_begin_popup_ex(ctx, id, rect, opt);
 }
 

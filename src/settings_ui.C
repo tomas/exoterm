@@ -254,46 +254,26 @@ static void scan_fonts_dir(const char *dir) {
 }
 
 static void ensure_font_dir(Display *dpy, const char *dir) {
+  (void)dpy;
   struct stat st;
   if (stat(dir, &st) != 0) {
     g_mkdir_with_parents(dir, 0755);
   }
 
-  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
-  if (stat(fdir_path, &st) != 0) {
-    char *cmd = g_strdup_printf("mkfontdir '%s' 2>/dev/null", dir);
-    system(cmd);
-    g_free(cmd);
-  }
-  g_free(fdir_path);
+  char *cmd = g_strdup_printf("mkfontdir '%s' 2>/dev/null", dir);
+  system(cmd);
+  g_free(cmd);
 
-  int count = 0;
-  char **orig = XGetFontPath(dpy, &count);
-  bool found = false;
-  for (int i = 0; i < count; i++) {
-    if (strcmp(orig[i], dir) == 0) { found = true; break; }
-  }
-
-  if (!found) {
-    char **new_paths = (char **)malloc((count + 1) * sizeof(char *));
-    new_paths[0] = strdup(dir);
-    memcpy(new_paths + 1, orig, count * sizeof(char *));
-    XSetFontPath(dpy, new_paths, count + 1);
-    for (int i = 0; i <= count; i++) free(new_paths[i]);
-    free(new_paths);
-
-    char *cmd = g_strdup_printf("xset +fp '%s' 2>/dev/null", dir);
-    system(cmd);
-    g_free(cmd);
-  }
-
-  if (orig) XFreeFontPath(orig);
+  cmd = g_strdup_printf("xset +fp '%s'; xset fp rehash 2>/dev/null", dir);
+  system(cmd);
+  g_free(cmd);
 }
 
 static void init_font_list(Display *dpy) {
-  const char *user_dir = g_build_filename(g_get_user_data_dir(), "exoterm", "fonts", NULL);
+  char *user_dir = g_build_filename(g_get_user_data_dir(), "exoterm", "fonts", NULL);
   ensure_font_dir(dpy, user_dir);
   scan_fonts_dir(user_dir);
+  g_free(user_dir);
 
   if (s_num_fonts == 0) {
     s_font_entries = (font_entry_t *)calloc(1, sizeof(font_entry_t));
@@ -301,8 +281,6 @@ static void init_font_list(Display *dpy) {
     s_font_entries[0].xlfd = strdup("fixed");
     s_num_fonts = 1;
   }
-
-  s_font_list_initialized = true;
 }
 
 /* --- microui callbacks --- */
@@ -419,7 +397,7 @@ static int build_settings_window (mu_Context *ctx) {
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     const char *current = s_active_font == -1 ? "Choose one" : s_font_entries[s_active_font].name;
-    if (mu_begin_combo_ex(ctx, "##fonts", current, s_num_fonts, 0)) {
+    if (mu_begin_combo_ex(ctx, "##fonts", current, s_num_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
       for (int i = 0; i < s_num_fonts; i++) {
         char label[128];
