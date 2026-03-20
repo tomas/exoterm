@@ -250,10 +250,12 @@ void r_clear(mu_Color clr) {
   }
 }
 
-static void process_events(void) {
+static void r_process_events(void) {
   XEvent ev;
   while (XPending(dpy)) {
     XNextEvent(dpy, &ev);
+    printf("events\n")
+
     switch (ev.type) {
     case ButtonPress:
     case ButtonRelease:
@@ -295,15 +297,6 @@ static void process_events(void) {
 }
 
 void r_present(void) {
-  flush();
-  XPutImage(dpy, win, gc, img, 0, 0, 0, 0, win_width, win_height);
-  XFlush(dpy);
-  process_events();
-}
-
-/* Like r_present but without draining the X event queue.
-   Use this when the host application handles its own event dispatch. */
-void r_present_noevents(void) {
   flush();
   XPutImage(dpy, win, gc, img, 0, 0, 0, 0, win_width, win_height);
   XFlush(dpy);

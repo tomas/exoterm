@@ -25,6 +25,10 @@ static Picture window_picture;
 static Picture atlas_picture;
 static Pixmap atlas_pixmap;
 
+/* Double-buffer state */
+static Pixmap back_buffer_pixmap;
+static Picture back_buffer_picture;
+
 /* Input state */
 static int r_keys[256];
 static int r_mod;
@@ -94,6 +98,9 @@ int r_init(Display * display, Window window, GC context, Visual * visual, int de
   XRenderPictFormat * vis_fmt = XRenderFindVisualFormat(dpy, s_visual);
   window_picture = XRenderCreatePicture(dpy, win, vis_fmt, 0, NULL);
 
+  back_buffer_pixmap = XCreatePixmap(dpy, win, width, height, s_depth);
+  back_buffer_picture = XRenderCreatePicture(dpy, back_buffer_pixmap, vis_fmt, 0, NULL);
+
   XRenderPictFormat * a8_fmt = XRenderFindStandardFormat(dpy, PictStandardA8);
   atlas_pixmap = XCreatePixmap(dpy, win, ATLAS_WIDTH, ATLAS_HEIGHT, 8);
 
@@ -122,6 +129,13 @@ void r_update_context(Display * display, Window window, GC context) {
 }
 
 void r_resize(int width, int height) {
+  XRenderFreePicture(dpy, back_buffer_picture);
+  XFreePixmap(dpy, back_buffer_pixmap);
+
+  XRenderPictFormat * vis_fmt = XRenderFindVisualFormat(dpy, s_visual);
+  back_buffer_pixmap = XCreatePixmap(dpy, win, width, height, s_depth);
+  back_buffer_picture = XRenderCreatePicture(dpy, back_buffer_pixmap, vis_fmt, 0, NULL);
+
   win_width = width;
   win_height = height;
   r_set_clip_rect(mu_rect(0, 0, width, height));
@@ -138,7 +152,7 @@ int r_needs_redraw(void) {
 void r_draw_rect(mu_Rect rect, mu_Color color) {
   if (rect.w <= 0 || rect.h <= 0) return;
   XRenderColor xc = to_xrender_color(color);
-  XRenderFillRectangle(dpy, PictOpOver, window_picture, & xc,
+  XRenderFillRectangle(dpy, PictOpOver, back_buffer_picture, & xc,
     rect.x, rect.y, rect.w, rect.h);
 }
 
@@ -162,7 +176,7 @@ void r_draw_text(const char * text, mu_Vec2 pos, mu_Color color) {
     dst.h = src.h;
 
     XRenderComposite(dpy, PictOpOver,
-      solid, atlas_picture, window_picture,
+      solid, atlas_picture, back_buffer_picture,
       0, 0, /* src (solid) coords ignored */
       src.x, src.y, /* mask coords in atlas */
       dst.x, dst.y, src.w, src.h);
@@ -180,7 +194,7 @@ void r_draw_icon(int id, mu_Rect rect, mu_Color color) {
   Picture solid = XRenderCreateSolidFill(dpy, & xc);
 
   XRenderComposite(dpy, PictOpOver,
-    solid, atlas_picture, window_picture,
+    solid, atlas_picture, back_buffer_picture,
     0, 0, src.x, src.y,
     x, y, src.w, src.h);
 
@@ -214,7 +228,7 @@ void r_set_clip_rect(mu_Rect r) {
       0,
       0
     };
-    XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & zero, 1);
+    XRenderSetPictureClipRectangles(dpy, back_buffer_picture, 0, 0, & zero, 1);
     return;
   }
 
@@ -224,7 +238,7 @@ void r_set_clip_rect(mu_Rect r) {
     (unsigned short) w,
     (unsigned short) h
   };
-  XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & clip, 1);
+  XRenderSetPictureClipRectangles(dpy, back_buffer_picture, 0, 0, & clip, 1);
 }
 
 void r_clear(mu_Color clr) {
@@ -232,15 +246,20 @@ void r_clear(mu_Color clr) {
 
   /* clear always affects the whole window */
   XRectangle full = { 0, 0, (unsigned short) win_width, (unsigned short) win_height };
-  XRenderSetPictureClipRectangles(dpy, window_picture, 0, 0, & full, 1);
+  XRenderSetPictureClipRectangles(dpy, back_buffer_picture, 0, 0, & full, 1);
 
   XRenderColor xc = to_xrender_color(clr);
-  XRenderFillRectangle(dpy, PictOpSrc, window_picture, & xc, 0, 0, win_width, win_height);
+  XRenderFillRectangle(dpy, PictOpSrc, back_buffer_picture, & xc, 0, 0, win_width, win_height);
 }
 
 void r_present(void) {
+  /* Copy back buffer to window atomically */
+  XRenderComposite(dpy, PictOpSrc, back_buffer_picture, None, window_picture,
+    0, 0, 0, 0, 0, 0, win_width, win_height);
   XFlush(dpy);
+}
 
+void r_process_events(void) {
   /* event processing stays exactly as before */
   XEvent ev;
   while (XPending(dpy)) {
@@ -288,9 +307,7 @@ void r_present(void) {
   }
 }
 
-void r_present_noevents(void) {
-  XFlush(dpy);
-}
+
 
 /* mouse / keyboard helpers — unchanged */
 static int mouse_down = 0;

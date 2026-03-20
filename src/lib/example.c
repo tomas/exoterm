@@ -138,6 +138,7 @@ static void r_render(mu_Context *ctx) {
   }
 
   r_present();
+  r_process_events();
 }
 
 int main(int argc, char **argv) {

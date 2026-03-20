@@ -893,7 +893,7 @@ rxvt_term::draw_settings_ui ()
 
   r_clear (mu_color (0x34, 0x35, 0x38, 255));
   render_mu (mu_ctx);
-  r_present_noevents ();
+  r_present ();
 
   if (changed & CHANGED_CANCEL) {
     restore_snapshot ();
