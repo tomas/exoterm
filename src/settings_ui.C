@@ -602,20 +602,31 @@ static void backdrop_refresh (rxvt_term *t)
      since root's vt may be unmapped when on another tab. */
   rxvt_term *active = GET_R;
 
+  /* Get the position of active's parent within the root window.
+     For root term, parent is the root window at (0,0).
+     For split child, parent is a child of root window at (attr.x, attr.y). */
+  XWindowAttributes parent_attr;
+  XGetWindowAttributes (dpy, active->parent, &parent_attr);
+
   /* Primary pane (active term's vt): copy at its position within root_win. */
   XCopyArea (dpy, active->vt, pix, gc,
              0, 0, active->vt_width, active->vt_height,
-             active->window_vt_x, active->window_vt_y);
+             parent_attr.x + active->window_vt_x,
+             parent_attr.y + active->window_vt_y);
 
-  /* In split mode also capture the child pane's vt. */
-  if (active->split_partner && !active->split_is_child) {
-    rxvt_term *child = active->split_partner;
-    XWindowAttributes child_attr;
-    XGetWindowAttributes (dpy, child->parent, &child_attr);
-    XCopyArea (dpy, child->vt, pix, gc,
-               0, 0, child->vt_width, child->vt_height,
-               child_attr.x + child->window_vt_x,
-               child_attr.y + child->window_vt_y);
+  /* In split mode also capture the other pane's vt. */
+  if (active->split_partner) {
+    rxvt_term *other = active->split_is_child ? active->split_partner : active->split_partner;
+    if (other == active) other = nullptr; /* sanity check */
+
+    if (other) {
+      XWindowAttributes other_parent_attr;
+      XGetWindowAttributes (dpy, other->parent, &other_parent_attr);
+      XCopyArea (dpy, other->vt, pix, gc,
+                 0, 0, other->vt_width, other->vt_height,
+                 other_parent_attr.x + other->window_vt_x,
+                 other_parent_attr.y + other->window_vt_y);
+    }
   }
 
   XRenderPictFormat *fmt = XRenderFindVisualFormat (dpy, t->visual);
@@ -784,9 +795,10 @@ rxvt_term::hide_settings_ui ()
 
   XFlush (dpy);
 
-  /* Repaint all panes now that the backdrop is gone. */
-  for (rxvt_term *t : termlist)
-    t->scr_touch (true);
+  /* Repaint only the active pane now that the backdrop is gone.
+     Touching non-active tabs can cause issues (e.g., stale selection state
+     on split panes that weren't visible). */
+  GET_R->scr_touch (true);
 }
 
 void
