@@ -63,10 +63,7 @@ RXVTD_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)d$(EXEEXT)
 
 #-------------------------------------------------------------------------
 
-all: fonts-build allbin
-
-fonts-build:
-	$(MAKE) -C ../fonts build
+all: allbin
 
 rxvt: rxvt.o $(COMMON)
 	$(LINK) -o $@ rxvt.o $(COMMON) $(LIBS) $(XLIB) $(PERLLIB)
