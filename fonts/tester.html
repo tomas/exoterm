@@ -366,8 +366,31 @@
         </div>
 
         <div class="control-group">
-            <label for="preview-text">Preview Text</label>
-            <input type="text" id="preview-text" value="Hello, Bitmap!">
+            <label for="lang-select">Preview Language</label>
+            <select id="lang-select">
+                <option value="js">JavaScript</option>
+                <option value="py">Python</option>
+                <option value="c">C</option>
+                <option value="lua">Lua</option>
+                <option value="custom">Custom text…</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="custom-text-group" style="display:none">
+            <label for="preview-text">Custom Text</label>
+            <textarea id="preview-text" rows="4"
+                style="background:var(--bg-color);border:1px solid var(--border);color:var(--text-main);
+                       padding:8px;border-radius:4px;font-size:0.85rem;resize:vertical;
+                       font-family:monospace;outline:none;width:100%;">Hello, Bitmap!</textarea>
+        </div>
+
+        <div class="control-group">
+            <label for="indent-select">Indentation</label>
+            <select id="indent-select">
+                <option value="2">2 spaces</option>
+                <option value="4">4 spaces</option>
+                <option value="tab">Tab</option>
+            </select>
         </div>
 
         <div class="control-group">
@@ -918,7 +941,10 @@
         let currentFont = null;      // parsed font (original, never mutated)
         const canvas    = document.getElementById('preview-canvas');
         const ctx       = canvas.getContext('2d');
-        const textInput = document.getElementById('preview-text');
+        const textInput       = document.getElementById('preview-text');
+        const langSelect      = document.getElementById('lang-select');
+        const indentSelect    = document.getElementById('indent-select');
+        const customTextGroup = document.getElementById('custom-text-group');
         const scaleInput      = document.getElementById('scale');
         const boldToggle      = document.getElementById('bold-toggle');
         const boldScaleInput  = document.getElementById('bold-scale');
@@ -1112,11 +1138,17 @@
         // Themes
         // =====================================================================
         const themes = {
-            default:    { bg:'#121212', panel:'#1e1e1e', text:'#e0e0e0', muted:'#888888', accent:'#bb86fc', border:'#333333' },
-            dracula:    { bg:'#282a36', panel:'#44475a', text:'#f8f8f2', muted:'#6272a4', accent:'#ff79c6', border:'#6272a4' },
-            monokai:    { bg:'#272822', panel:'#3e3d32', text:'#f8f8f2', muted:'#75715e', accent:'#a6e22e', border:'#75715e' },
-            tokyonight: { bg:'#1a1b26', panel:'#24283b', text:'#c0caf5', muted:'#565f89', accent:'#7aa2f7', border:'#414868' },
-            nord:       { bg:'#2e3440', panel:'#3b4252', text:'#d8dee9', muted:'#4c566a', accent:'#88c0d0', border:'#434c5e' }
+            //                                                         keyword    string     comment    number     func/type
+            default:    { bg:'#121212', panel:'#1e1e1e', text:'#e0e0e0', muted:'#888888', accent:'#bb86fc', border:'#333333',
+                          kw:'#bb86fc', str:'#f28b54', cmt:'#5c6370', num:'#f28b54', fn:'#82aaff' },
+            dracula:    { bg:'#282a36', panel:'#44475a', text:'#f8f8f2', muted:'#6272a4', accent:'#ff79c6', border:'#6272a4',
+                          kw:'#ff79c6', str:'#f1fa8c', cmt:'#6272a4', num:'#bd93f9', fn:'#50fa7b' },
+            monokai:    { bg:'#272822', panel:'#3e3d32', text:'#f8f8f2', muted:'#75715e', accent:'#a6e22e', border:'#75715e',
+                          kw:'#f92672', str:'#e6db74', cmt:'#75715e', num:'#ae81ff', fn:'#a6e22e' },
+            tokyonight: { bg:'#1a1b26', panel:'#24283b', text:'#c0caf5', muted:'#565f89', accent:'#7aa2f7', border:'#414868',
+                          kw:'#bb9af7', str:'#9ece6a', cmt:'#565f89', num:'#ff9e64', fn:'#7aa2f7' },
+            nord:       { bg:'#2e3440', panel:'#3b4252', text:'#d8dee9', muted:'#4c566a', accent:'#88c0d0', border:'#434c5e',
+                          kw:'#81a1c1', str:'#a3be8c', cmt:'#4c566a', num:'#b48ead', fn:'#88c0d0' }
         };
 
         function applyTheme(name) {
@@ -1348,59 +1380,293 @@ ENDCHAR
         }
 
         // =====================================================================
+        // Code snippets + tokenizer
+        // =====================================================================
+
+        function getIndent() {
+            const v = indentSelect.value;
+            return v === 'tab' ? '\t' : ' '.repeat(parseInt(v));
+        }
+
+        function getCodeLines() {
+            const lang = langSelect.value;
+            if (lang === 'custom') return textInput.value.split('\n');
+            const i = getIndent();
+            const i2 = i + i;
+            if (lang === 'js') return [
+                '// computes how many hot dogs you need',
+                'function hotDogCount(people, hungry) {',
+                i + 'const BASE_DOGS = 2;',
+                i + 'const HUNGRY_BONUS = 3;',
+                i + 'let count = people * BASE_DOGS;',
+                i + 'if (hungry === true) {',
+                i2 + 'count += people * HUNGRY_BONUS;',
+                i + '}',
+                i + 'const isParty = people > 10;',
+                i + 'if (isParty) {',
+                i2 + '// always order 42 extra at parties',
+                i2 + 'count += 42;',
+                i + '}',
+                i + 'return count;',
+                '}',
+                '',
+                'const guests = 12;',
+                'const total = hotDogCount(guests, true);',
+                'console.log("Hot dogs needed:", total);',
+            ];
+            if (lang === 'py') return [
+                '# computes how many hot dogs you need',
+                'def hot_dog_count(people, hungry):',
+                i + 'BASE_DOGS = 2',
+                i + 'HUNGRY_BONUS = 3',
+                i + 'count = people * BASE_DOGS',
+                i + 'if hungry == True:',
+                i2 + 'count += people * HUNGRY_BONUS',
+                i + 'is_party = people > 10',
+                i + 'if is_party:',
+                i2 + '# always order 42 extra at parties',
+                i2 + 'count += 42',
+                i + 'return count',
+                '',
+                'guests = 12',
+                'total = hot_dog_count(guests, True)',
+                'print("Hot dogs needed:", total)',
+            ];
+            if (lang === 'c') return [
+                '#include <stdio.h>',
+                '#include <stdbool.h>',
+                '',
+                '/* computes how many hot dogs you need */',
+                'int hot_dog_count(int people, bool hungry) {',
+                i + 'const int BASE_DOGS = 2;',
+                i + 'const int HUNGRY_BONUS = 3;',
+                i + 'int count = people * BASE_DOGS;',
+                i + 'if (hungry == true) {',
+                i2 + 'count += people * HUNGRY_BONUS;',
+                i + '}',
+                i + 'bool is_party = people > 10;',
+                i + 'if (is_party) {',
+                i2 + '/* always order 42 extra at parties */',
+                i2 + 'count += 42;',
+                i + '}',
+                i + 'return count;',
+                '}',
+                '',
+                'int main() {',
+                i + 'int guests = 12;',
+                i + 'int total = hot_dog_count(guests, true);',
+                i + 'printf("Hot dogs needed: %d\\n", total);',
+                i + 'return 0;',
+                '}',
+            ];
+            if (lang === 'lua') return [
+                '-- computes how many hot dogs you need',
+                'local function hot_dog_count(people, hungry)',
+                i + 'local BASE_DOGS = 2',
+                i + 'local HUNGRY_BONUS = 3',
+                i + 'local count = people * BASE_DOGS',
+                i + 'if hungry == true then',
+                i2 + 'count = count + people * HUNGRY_BONUS',
+                i + 'end',
+                i + 'local is_party = people > 10',
+                i + 'if is_party then',
+                i2 + '-- always order 42 extra at parties',
+                i2 + 'count = count + 42',
+                i + 'end',
+                i + 'return count',
+                'end',
+                '',
+                'local guests = 12',
+                'local total = hot_dog_count(guests, true)',
+                'print("Hot dogs needed: " .. total)',
+            ];
+            return ['Hello, Bitmap!'];
+        }
+
+        // Token types: plain | kw | str | cmt | num | fn
+        function tokenizeLine(line, lang) {
+            if (lang === 'custom') return [{ text: line, type: 'plain' }];
+
+            // Comment patterns (consume rest of line)
+            const cmtPrefixes = {
+                js: '//', py: '#', c: '//', lua: '--'
+            };
+            const cmtPrefix = cmtPrefixes[lang] || '//';
+
+            // Keywords per language
+            const keywords = {
+                js:  new Set(['function','return','const','let','var','if','else','for','while','new','true','false','null','undefined']),
+                py:  new Set(['def','return','if','else','elif','for','while','import','from','as','True','False','None','in','not','and','or','print']),
+                c:   new Set(['int','char','return','void','if','else','for','while','include','define','struct','float','double','long']),
+                lua: new Set(['local','function','return','if','else','elseif','then','end','for','while','do','repeat','until','true','false','nil','and','or','not','print']),
+            };
+            const kws = keywords[lang] || new Set();
+
+            const tokens = [];
+            let i = 0;
+
+            while (i < line.length) {
+                // Block comment /* ... */ (C-style, treated as rest-of-token)
+                if (line.startsWith('/*', i)) {
+                    const end = line.indexOf('*/', i + 2);
+                    const tokEnd = end === -1 ? line.length : end + 2;
+                    tokens.push({ text: line.slice(i, tokEnd), type: 'cmt' });
+                    i = tokEnd;
+                    continue;
+                }
+                // Line comment
+                if (line.startsWith(cmtPrefix, i)) {
+                    tokens.push({ text: line.slice(i), type: 'cmt' });
+                    break;
+                }
+                // Preprocessor line (C #include etc) — treat whole line as keyword-ish
+                if (i === 0 && line[0] === '#') {
+                    tokens.push({ text: line, type: 'kw' });
+                    break;
+                }
+                // String (single or double quote, no multiline)
+                if (line[i] === '"'|| line[i] === "'") {
+                    const q = line[i];
+                    let j = i + 1;
+                    while (j < line.length && line[j] !== q) {
+                        if (line[j] === '\\') j++; // skip escape
+                        j++;
+                    }
+                    tokens.push({ text: line.slice(i, j + 1), type: 'str' });
+                    i = j + 1;
+                    continue;
+                }
+                // Number
+                if (/[0-9]/.test(line[i]) && (i === 0 || /[^a-zA-Z_]/.test(line[i-1]))) {
+                    let j = i;
+                    while (j < line.length && /[0-9._xXa-fA-F]/.test(line[j])) j++;
+                    tokens.push({ text: line.slice(i, j), type: 'num' });
+                    i = j;
+                    continue;
+                }
+                // Word (keyword, function call, or plain identifier)
+                if (/[a-zA-Z_]/.test(line[i])) {
+                    let j = i;
+                    while (j < line.length && /[a-zA-Z0-9_]/.test(line[j])) j++;
+                    const word = line.slice(i, j);
+                    // Function call: word followed by '('
+                    const afterJ = line[j];
+                    let type = 'plain';
+                    if (kws.has(word)) type = 'kw';
+                    else if (afterJ === '(') type = 'fn';
+                    tokens.push({ text: word, type });
+                    i = j;
+                    continue;
+                }
+                // Accumulate plain punctuation/whitespace as one token run
+                let j = i;
+                while (j < line.length) {
+                    if (line.startsWith(cmtPrefix, j)) break;
+                    if (/[a-zA-Z0-9_"'#]/.test(line[j])) break;
+                    j++;
+                }
+                if (j > i) { tokens.push({ text: line.slice(i, j), type: 'plain' }); i = j; }
+                else i++; // safety
+            }
+            return tokens;
+        }
+
+        // =====================================================================
         // Rendering
         // =====================================================================
         function renderText() {
             if (!currentFont) return;
 
-            // Pick font to draw: embolden on the fly if checkbox is checked
             const boldScale = parseInt(boldScaleInput.value, 10) || 1;
-            const font = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
-
-            const text  = textInput.value;
+            const font  = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
             const scale = parseInt(scaleInput.value, 10);
+            const lang  = langSelect.value;
 
-            let totalWidth = 0;
-            const maxHeight = font.bounds.h;
+            // Build lines + tokenize
+            const lines  = getCodeLines();
+            const lineH  = font.bounds.h;
+            const lineGap = Math.max(1, Math.round(lineH * 0.25)); // leading between lines
 
-            for (let i = 0; i < text.length; i++) {
-                const cc    = text.charCodeAt(i);
-                const glyph = font.glyphs[cc];
-                if (glyph) {
-                    totalWidth += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
-                } else if (cc === 32) {
-                    totalWidth += Math.floor(font.bounds.w / 2);
-                }
-            }
-
-            canvas.width  = Math.max(totalWidth * scale, 1);
-            canvas.height = Math.max(maxHeight * scale * 1.5, 1);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const computedStyle = getComputedStyle(document.documentElement);
-            ctx.fillStyle = computedStyle.getPropertyValue('--accent').trim();
-
-            let cursorX   = 0;
-            const baselineY = font.ascent;
-
-            for (let i = 0; i < text.length; i++) {
-                const cc = text.charCodeAt(i);
-                if (cc === 32) { cursorX += Math.floor(font.bounds.w / 2); continue; }
-                const glyph = font.glyphs[cc];
-                if (!glyph) continue;
-
-                const startX = cursorX + glyph.bbx.x;
-                const startY = baselineY - glyph.bbx.y - glyph.bbx.h;
-
-                for (let r = 0; r < glyph.bitmap.length; r++) {
-                    const rowStr = glyph.bitmap[r];
-                    for (let c = 0; c < glyph.bbx.w; c++) {
-                        if (rowStr[c] === '1') {
-                            ctx.fillRect((startX + c) * scale, (startY + r) * scale, scale, scale);
+            // Measure canvas width (longest line in glyphs)
+            function linePixelWidth(lineTokens) {
+                let w = 0;
+                for (const tok of lineTokens) {
+                    for (const ch of tok.text) {
+                        const cc = ch.charCodeAt(0);
+                        if (cc === 9) { // tab — expand to 4 glyph widths
+                            w += (font.bounds.w || 8) * 4;
+                            continue;
                         }
+                        const glyph = font.glyphs[cc];
+                        if (glyph) w += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
+                        else if (cc === 32) w += font.bounds.w || 6;
                     }
                 }
-                cursorX += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
+                return w;
+            }
+
+            const tokenizedLines = lines.map(l => tokenizeLine(l, lang));
+            const maxLineW = Math.max(...tokenizedLines.map(linePixelWidth), 1);
+
+            // Padding: 2 line-heights on each side (in glyph-pixels, scaled up)
+            const padX = lineH * 2;
+            const padY = lineH;
+
+            canvas.width  = (maxLineW + padX * 2) * scale;
+            canvas.height = (lines.length * (lineH + lineGap) + padY * 2) * scale;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Resolve token colors from current theme
+            const themeName = themeSelect.value;
+            const t = themes[themeName] || themes.default;
+            const colorMap = {
+                plain: t.text,
+                kw:    t.kw,
+                str:   t.str,
+                cmt:   t.cmt,
+                num:   t.num,
+                fn:    t.fn,
+            };
+
+            // Draw each line
+            for (let li = 0; li < tokenizedLines.length; li++) {
+                const tokens    = tokenizedLines[li];
+                const baselineY = padY + li * (lineH + lineGap) + font.ascent;
+                let cursorX     = padX;
+
+                for (const tok of tokens) {
+                    ctx.fillStyle = colorMap[tok.type] || t.text;
+                    for (const ch of tok.text) {
+                        const cc = ch.charCodeAt(0);
+                        if (cc === 9) { // tab
+                            cursorX += (font.bounds.w || 8) * 4;
+                            continue;
+                        }
+                        if (cc === 32) {
+                            cursorX += font.bounds.w || 6;
+                            continue;
+                        }
+                        const glyph = font.glyphs[cc];
+                        if (!glyph) continue;
+
+                        const startX = cursorX + glyph.bbx.x;
+                        const startY = baselineY - glyph.bbx.y - glyph.bbx.h;
+
+                        for (let r = 0; r < glyph.bitmap.length; r++) {
+                            const rowStr = glyph.bitmap[r];
+                            for (let c = 0; c < glyph.bbx.w; c++) {
+                                if (rowStr[c] === '1') {
+                                    ctx.fillRect(
+                                        (startX + c) * scale,
+                                        (startY + r) * scale,
+                                        scale, scale
+                                    );
+                                }
+                            }
+                        }
+                        cursorX += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
+                    }
+                }
             }
         }
 
@@ -1411,6 +1677,11 @@ ENDCHAR
         scaleInput.addEventListener('input', renderText);
         boldToggle.addEventListener('change', renderText);
         boldScaleInput.addEventListener('input', renderText);
+        indentSelect.addEventListener('change', renderText);
+        langSelect.addEventListener('change', () => {
+            customTextGroup.style.display = langSelect.value === 'custom' ? '' : 'none';
+            renderText();
+        });
 
         // Font list is initialised after applyTheme (see bottom)
 
