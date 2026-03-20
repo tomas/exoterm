@@ -370,6 +370,14 @@ AC_DEFINE_UNQUOTED(RXVTNAME,"$RXVTNAME", [Binary base name])
 
 AC_SUBST(RXVTNAME)
 
+AC_ARG_WITH(font-dir,
+  [  --with-font-dir=DIR     directory for bundled fonts (default: ~/.local/share/exoterm/fonts)],
+  [EXOTERM_FONT_DIR="$withval"],
+  [EXOTERM_FONT_DIR="$HOME/.local/share/exoterm/fonts"])
+AC_DEFINE_UNQUOTED(EXOTERM_FONT_DIR, ["$EXOTERM_FONT_DIR"],
+  [Path to bundled font files])
+AC_SUBST(EXOTERM_FONT_DIR)
+
 AC_ARG_ENABLE(swapscreen,
   [  --disable-swapscreen    disable swap screen support],
   [if test x$enableval = xno; then
