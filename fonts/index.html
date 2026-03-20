@@ -41,6 +41,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
             gap: 20px;
             z-index: 10;
             overflow: hidden;
@@ -292,6 +293,7 @@
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
             transition: background-color 0.3s;
+            overflow: hidden;
         }
 
         canvas {
@@ -300,6 +302,7 @@
             background-color: var(--panel-bg);
             box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             transition: background-color 0.3s, border-color 0.3s;
+            border-radius: 12px;
         }
 
         /* Drag and Drop Overlay */
@@ -335,9 +338,9 @@
 <body>
 
     <div id="sidebar">
-        <h1>Bitmap Previewer</h1>
+        <!-- <h1>Bitmap Previewer</h1> -->
 
-        <div class="control-group">
+        <div style="display: none;" class="control-group">
             <label for="theme-select">Color Scheme</label>
             <select id="theme-select">
                 <option value="default">Default Dark</option>
@@ -349,8 +352,6 @@
         </div>
 
         <div class="font-browser">
-            <label>Bundled Fonts</label>
-
             <div class="filter-row">
                 <label>Width (px)</label>
                 <div class="pill-group" id="w-pills"></div>
@@ -365,51 +366,64 @@
             <div id="font-list"></div>
         </div>
 
-        <div class="control-group">
-            <label for="lang-select">Preview Language</label>
-            <select id="lang-select">
-                <option value="js">JavaScript</option>
-                <option value="py">Python</option>
-                <option value="c">C</option>
-                <option value="lua">Lua</option>
-                <option value="custom">Custom text…</option>
-            </select>
-        </div>
-
-        <div class="control-group" id="custom-text-group" style="display:none">
-            <label for="preview-text">Custom Text</label>
-            <textarea id="preview-text" rows="4"
-                style="background:var(--bg-color);border:1px solid var(--border);color:var(--text-main);
-                       padding:8px;border-radius:4px;font-size:0.85rem;resize:vertical;
-                       font-family:monospace;outline:none;width:100%;">Hello, Bitmap!</textarea>
-        </div>
-
-        <div class="control-group">
-            <label for="indent-select">Indentation</label>
-            <select id="indent-select">
-                <option value="2">2 spaces</option>
-                <option value="4">4 spaces</option>
-                <option value="tab">Tab</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label for="scale">Pixel Scale</label>
-            <input type="number" id="scale" value="3" min="1" max="10">
-        </div>
-
-        <div class="control-group">
-            <div class="checkbox-row">
-                <input type="checkbox" id="bold-toggle">
-                <label for="bold-toggle">Embolden</label>
+            <div class="control-group">
+                <label for="scale">Pixel Scale</label>
+                <input type="range" id="scale" value="1" min="1" max="3">
             </div>
-            <div class="bold-sub">
-                <label for="bold-scale">Bold pixels:</label>
-                <input type="number" id="bold-scale" value="1" min="1" max="8">
+
+        <div style="display: none">
+
+            <div class="control-group">
+                <label for="lang-select">Preview Language</label>
+                <select id="lang-select">
+                    <option value="js">JavaScript</option>
+                    <option value="py">Python</option>
+                    <option value="c">C</option>
+                    <option value="lua">Lua</option>
+                    <option value="custom">Custom text…</option>
+                </select>
             </div>
+
+            <div class="control-group" id="custom-text-group" style="display:none">
+                <label for="preview-text">Custom Text</label>
+                <textarea id="preview-text" rows="4"
+                    style="background:var(--bg-color);border:1px solid var(--border);color:var(--text-main);
+                           padding:8px;border-radius:4px;font-size:0.85rem;resize:vertical;
+                           font-family:monospace;outline:none;width:100%;">Hello, Bitmap!</textarea>
+            </div>
+
+            <div class="control-group">
+                <label for="indent-select">Indentation</label>
+                <select id="indent-select">
+                    <option value="2">2 spaces</option>
+                    <option value="4">4 spaces</option>
+                    <option value="tab">Tab</option>
+                </select>
+            </div>
+
+
+
+            <div class="control-group">
+                <div class="checkbox-row">
+                    <input type="checkbox" id="bold-toggle">
+                    <label for="bold-toggle">Embolden</label>
+                </div>
+                <div class="bold-sub">
+                    <label for="bold-scale">Bold pixels:</label>
+                    <input type="number" id="bold-scale" value="1" min="1" max="8">
+                </div>
+            </div>
+
         </div>
 
-        <div class="status" id="status-msg">Ready. Drop a .bdf or .pcf file anywhere.</div>
+        <button id="download-btn" disabled
+            style="background:var(--accent);color:var(--bg-color);border:none;border-radius:4px;
+                   padding:9px 10px;font-size:0.85rem;font-family:inherit;cursor:pointer;
+                   opacity:0.4;transition:opacity 0.2s;">
+            ⬇ Download BDF
+        </button>
+
+        <div style="display: none;" class="status" id="status-msg">Ready. Drop a .bdf or .pcf file anywhere.</div>
     </div>
 
     <div id="main">
@@ -938,8 +952,10 @@
         // =====================================================================
         // App State
         // =====================================================================
-        let currentFont = null;      // parsed font (original, never mutated)
-        const canvas    = document.getElementById('preview-canvas');
+        let currentFont     = null;  // parsed font (original, never mutated)
+        let currentFontName = null;  // filename hint for download
+        const downloadBtn   = document.getElementById('download-btn');
+        const canvas        = document.getElementById('preview-canvas');
         const ctx       = canvas.getContext('2d');
         const textInput       = document.getElementById('preview-text');
         const langSelect      = document.getElementById('lang-select');
@@ -962,9 +978,246 @@
         // URLs point to raw BDF files (jsDelivr CDN over Tecate/bitmap-fonts)
         // =====================================================================
         const CDN = 'https://cdn.jsdelivr.net/gh/Tecate/bitmap-fonts@master/bitmap/';
+        // const CDN = '/bitmap-fonts/bitmap/'
+
+// ./spleen/spleen-8x16.bdf
+// ./spleen/spleen-12x24.bdf
+// ./spleen/spleen-32x64.bdf
+// ./spleen/spleen-16x32.bdf
+// ./spleen/spleen-5x8.bdf
+// ./cherry/cherry-13-r.bdf
+// ./cherry/cherry-11-b.bdf
+// ./cherry/cherry-13-b.bdf
+// ./cherry/cherry-11-r.bdf
+// ./cherry/cherry-10-b.bdf
+// ./cherry/cherry-10-r.bdf
+// ./knxt/knxt.bdf
+// ./artwiz/bdf/kates.bdf
+// ./artwiz/bdf/snap.bdf
+// ./artwiz/bdf/cure.bdf
+// ./artwiz/bdf/drift.bdf
+// ./artwiz/bdf/mints-strong.bdf
+// ./artwiz/bdf/fkp.bdf
+// ./artwiz/bdf/smoothansi.bdf
+// ./artwiz/bdf/glisp-bold.bdf
+// ./artwiz/bdf/lime.bdf
+// ./artwiz/bdf/nu.bdf
+// ./artwiz/bdf/gelly.bdf
+// ./artwiz/bdf/mints-mild.bdf
+// ./artwiz/bdf/anorexia.bdf
+// ./artwiz/bdf/edges.bdf
+// ./artwiz/bdf/glisp.bdf
+// ./artwiz/bdf/aqui.bdf
+// ./terminus-font-4.39/ter-u32n.bdf
+// ./terminus-font-4.39/ter-u28n.bdf
+// ./terminus-font-4.39/ter-u24b.bdf
+// ./terminus-font-4.39/ter-u22n.bdf
+// ./terminus-font-4.39/ter-u18n.bdf
+// ./terminus-font-4.39/ter-u14b.bdf
+// ./terminus-font-4.39/ter-u14n.bdf
+// ./terminus-font-4.39/ter-u16b.bdf
+// ./terminus-font-4.39/ter-u24n.bdf
+// ./terminus-font-4.39/ter-u16n.bdf
+// ./terminus-font-4.39/ter-u32b.bdf
+// ./terminus-font-4.39/ter-u14v.bdf
+// ./terminus-font-4.39/ter-u18b.bdf
+// ./terminus-font-4.39/ter-u12n.bdf
+// ./terminus-font-4.39/ter-u28b.bdf
+// ./terminus-font-4.39/ter-u16v.bdf
+// ./terminus-font-4.39/ter-u20b.bdf
+// ./terminus-font-4.39/ter-u20n.bdf
+// ./terminus-font-4.39/ter-u22b.bdf
+// ./terminus-font-4.39/ter-u12b.bdf
+// ./xbmicons/xbmicons.bdf
+// ./creep/creep.bdf
+// ./gomme/Gomme10x20n.bdf
+// ./mplus/mplus_f10r.bdf
+// ./mplus/mplus_s10r.bdf
+// ./mplus/mplus_h10r.bdf
+// ./mplus/mplus_f10b.bdf
+// ./mplus/mplus_s10b.bdf
+// ./mplus/mplus_cursors.bdf
+// ./mplus/mplus_f12r.bdf
+// ./mplus/mplus_h12b.bdf
+// ./mplus/mplus_q06r.bdf
+// ./mplus/mplus_f12b.bdf
+// ./mplus/mplus_h10b.bdf
+// ./mplus/mplus_h12r.bdf
+// ./dylex/10x20BO.bdf
+// ./dylex/7x13.bdf
+// ./dylex/14x14.bdf
+// ./dylex/10x20.bdf
+// ./dylex/14x14B.bdf
+// ./dylex/7x13O.bdf
+// ./dylex/14x14O.bdf
+// ./dylex/7x13B.bdf
+// ./dylex/10x20O.bdf
+// ./dylex/6x10BO.bdf
+// ./dylex/7x13BO.bdf
+// ./dylex/6x10O.bdf
+// ./dylex/10x20B.bdf
+// ./dylex/14x14BO.bdf
+// ./dylex/6x10B.bdf
+// ./dylex/6x10.bdf
+// ./sq/sq.bdf
+// ./sq/sqb.bdf
+// ./kakwa/kakwafont-12-b.bdf
+// ./kakwa/kakwafont-12-n.bdf
+// ./kourier/kourierss.bdf
+// ./kourier/kourier.bdf
+// ./bitocra/bitocra-13-full.bdf
+// ./bitocra/bitocra-13.bdf
+// ./bitocra/5thElement.bdf
+// ./bitocra/bitocra-full.bdf
+// ./bitocra/bitbuntu-full.bdf
+// ./bitocra/bitocra.bdf
+// ./bitocra/bitocra7.bdf
+// ./bitocra/4thD.bdf
+// ./bitocra/bitbuntu.bdf
+// ./uw-ttyp0-1.2/t0-18i.bdf
+// ./uw-ttyp0-1.2/t0-18b.bdf
+// ./uw-ttyp0-1.2/t0-16b.bdf
+// ./uw-ttyp0-1.2/t0-16.bdf
+// ./uw-ttyp0-1.2/t0-17.bdf
+// ./uw-ttyp0-1.2/t0-15b.bdf
+// ./uw-ttyp0-1.2/t0-11b.bdf
+// ./uw-ttyp0-1.2/t0-12b.bdf
+// ./uw-ttyp0-1.2/t0-15.bdf
+// ./uw-ttyp0-1.2/t0-22.bdf
+// ./uw-ttyp0-1.2/t0-14.bdf
+// ./uw-ttyp0-1.2/t0-15i.bdf
+// ./uw-ttyp0-1.2/t0-11.bdf
+// ./uw-ttyp0-1.2/t0-17b.bdf
+// ./uw-ttyp0-1.2/t0-22b.bdf
+// ./uw-ttyp0-1.2/t0-16i.bdf
+// ./uw-ttyp0-1.2/t0-13.bdf
+// ./uw-ttyp0-1.2/t0-14b.bdf
+// ./uw-ttyp0-1.2/t0-18.bdf
+// ./uw-ttyp0-1.2/t0-12.bdf
+// ./uw-ttyp0-1.2/t0-13b.bdf
+// ./uw-ttyp0-1.2/t0-17i.bdf
+// ./gohufont/bdf/gohufont-uni-14b.bdf
+// ./gohufont/bdf/gohufont-11b.bdf
+// ./gohufont/bdf/gohufont-uni-11.bdf
+// ./gohufont/bdf/gohufont-uni-14.bdf
+// ./gohufont/bdf/gohufont-11.bdf
+// ./gohufont/bdf/gohufont-uni-11b.bdf
+// ./gohufont/bdf/gohufont-14b.bdf
+// ./gohufont/bdf/gohufont-14.bdf
+// ./haxor/HaxorMedium-13.bdf
+// ./haxor/PsevdoAzbukaMedium-12.bdf
+// ./haxor/HaxorNarrow-16.bdf
+// ./haxor/HaxorMedium-11.bdf
+// ./haxor/HaxorMedium-10.bdf
+// ./haxor/HaxorNarrow-17.bdf
+// ./haxor/HaxorMedium-12.bdf
+// ./haxor/HaxorNarrow-15.bdf
+// ./clearlyu/cu-pua12.bdf
+// ./clearlyu/cu-arabic12.bdf
+// ./clearlyu/cu-alt12.bdf
+// ./clearlyu/cu12.bdf
+// ./clearlyu/cu-lig12.bdf
+// ./lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10b-iso10646.bdf
+// ./lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12r-iso10646.bdf
+// ./lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12b-iso10646.bdf
+// ./lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso8859.bdf
+// ./lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso10646.bdf
+// ./lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf
+// ./progsole/progsole-10.bdf
+// ./tamzen-font/bdf/Tamzen8x16r.bdf
+// ./tamzen-font/bdf/Tamzen7x13r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline5x9b.bdf
+// ./tamzen-font/bdf/Tamzen10x20r.bdf
+// ./tamzen-font/bdf/Tamzen6x12r.bdf
+// ./tamzen-font/bdf/Powerline10x20.bdf
+// ./tamzen-font/bdf/Powerline7x14.bdf
+// ./tamzen-font/bdf/TamzenForPowerline8x16b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline8x15b.bdf
+// ./tamzen-font/bdf/Powerline7x13.bdf
+// ./tamzen-font/bdf/TamzenForPowerline10x20b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline5x9r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline7x13r.bdf
+// ./tamzen-font/bdf/Powerline8x16.bdf
+// ./tamzen-font/bdf/Tamzen8x15b.bdf
+// ./tamzen-font/bdf/Powerline5x9.bdf
+// ./tamzen-font/bdf/Tamzen7x14r.bdf
+// ./tamzen-font/bdf/Tamzen8x15r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline7x13b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline7x14b.bdf
+// ./tamzen-font/bdf/Tamzen8x16b.bdf
+// ./tamzen-font/bdf/Powerline8x15.bdf
+// ./tamzen-font/bdf/Tamzen7x13b.bdf
+// ./tamzen-font/bdf/Tamzen5x9r.bdf
+// ./tamzen-font/bdf/Powerline6x12.bdf
+// ./tamzen-font/bdf/Tamzen6x12b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline10x20r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline8x16r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline6x12b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline7x14r.bdf
+// ./tamzen-font/bdf/TamzenForPowerline8x15r.bdf
+// ./tamzen-font/bdf/Tamzen7x14b.bdf
+// ./tamzen-font/bdf/TamzenForPowerline6x12r.bdf
+// ./tamzen-font/bdf/Tamzen10x20b.bdf
+// ./tamzen-font/bdf/Tamzen5x9b.bdf
+// ./zevv-peep/zevv-peep-iso8859-15-10x20.bdf
+// ./zevv-peep/zevv-peep-iso8859-1-07x14.bdf
+// ./zevv-peep/zevv-peep-iso8859-15-07x14.bdf
+// ./zevv-peep/zevv-peep-iso8859-1-10x20.bdf
+// ./zevv-peep/zevv-peep-iso8859-15-08x16.bdf
+// ./zevv-peep/zevv-peep-iso8859-1-08x16.bdf
+// ./siji/bdf/siji.bdf
+// ./ctrld-font/ctrld-fixed-13b-i.bdf
+// ./ctrld-font/ctrld-fixed-13r.bdf
+// ./ctrld-font/ctrld-fixed-10r.bdf
+// ./ctrld-font/ctrld-fixed-16b.bdf
+// ./ctrld-font/ctrld-fixed-16b-i.bdf
+// ./ctrld-font/ctrld-fixed-16r-i.bdf
+// ./ctrld-font/ctrld-fixed-10b.bdf
+// ./ctrld-font/ctrld-fixed-13r-i.bdf
+// ./ctrld-font/ctrld-fixed-16r.bdf
+// ./ctrld-font/ctrld-fixed-13b.bdf
+// ./leggie/leggie.bdf
+// ./orp-font/bdf/orp-italic.bdf
+// ./orp-font/bdf/orp-book.bdf
+// ./orp-font/bdf/orp-bold.bdf
+// ./orp-font/bdf/profont.bdf
+// ./orp-font/bdf/orp-medium.bdf
+// ./trisk/TriskwelineBold-12.bdf
+// ./trisk/TriskwelineNormal-12.bdf
+// ./phallus/lemon.bdf
+// ./phallus/lemon-j.bdf
+// ./phallus/uushi.bdf
+// ./scientifica/scientifica-11.bdf
+// ./scientifica/scientificaBold-11.bdf
+// ./scientifica/scientificaItalic-11.bdf
+// ./dina/Dina_r400-6.bdf
+// ./dina/Dina_r700-8.bdf
+// ./dina/Dina_r700-9.bdf
+// ./dina/Dina_r400-9.bdf
+// ./dina/Dina_r400-8.bdf
+// ./dina/Dina_r700-10.bdf
+// ./dina/Dina_i400-9.bdf
+// ./dina/Dina_r400-10.bdf
+// ./dina/Dina_i400-10.bdf
+// ./dina/Dina_i700-8.bdf
+// ./dina/Dina_i400-8.bdf
+// ./dina/Dina_i700-9.bdf
+// ./dina/Dina_i700-10.bdf
+// ./boxxy/boxxy-bold.bdf
+// ./boxxy/boxxy.bdf
+// ./montecarlo/bdf/MonteCarloBold.bdf
+// ./montecarlo/bdf/MonteCarloMedium.bdf
+// ./envypn-font/envypn7x13e.bdf
+// ./envypn-font/envypn7x13.bdf
+// ./envypn-font/envypn7x15.bdf
+// ./envypn-font/envypn7x15e.bdf
+// ./tewi-font/Tewi-bold-11.bdf
+// ./tewi-font/Tewi2a-bold-11.bdf
+// ./tewi-font/Tewi2a-normal-11.bdf
+// ./tewi-font/Tewi-normal-11.bdf
+
         const FONT_DB = [
-            // ── Tecate/bitmap-fonts ──────────────────────────────────────────
-            { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/artwiz-aleczapka.bdf' },
+            // { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/aleczapka.bdf' }, // Note: aleczapka.bdf, not artwiz-aleczapka.bdf
             { name: 'Artwiz Cure',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/cure.bdf' },
             { name: 'Artwiz Drift',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/drift.bdf' },
             { name: 'Artwiz Fkp',            author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/fkp.bdf' },
@@ -985,62 +1238,289 @@
             { name: 'Dina 8',               author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r400-8.bdf' },
             { name: 'Dina 9',               author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r400-9.bdf' },
             { name: 'Dina 10',              author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r400-10.bdf' },
-            { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn.bdf' },
+            { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn7x13.bdf' }, // Changed to actual file
             { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' },
             { name: 'Gohufont 11',          author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11.bdf' },
             { name: 'Gohufont 11 Bold',     author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11b.bdf' },
             { name: 'Gohufont 14',          author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14.bdf' },
             { name: 'Gohufont 14 Bold',     author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14b.bdf' },
-            { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/gomme.bdf' },
+            { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/Gomme10x20n.bdf' }, // Updated path
             { name: 'Knxt',                 author: 'bytensky',          w:  6, h: 11, url: CDN+'knxt/knxt.bdf' },
             { name: 'Leggie Small',         author: 'wiktor-b',          w:  5, h: 10, url: CDN+'leggie/leggie.bdf' },
             { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' },
-            { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'lemon/lemon.bdf' },
-            { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/MonteCarlo.bdf' },
+            { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon.bdf' }, // Fixed path
+            { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloMedium.bdf' }, // Updated path
             { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' },
             { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' },
             { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' },
             { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' },
-            { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/Orp-fonts/Normal/orp-6x11r.bdf' },
-            { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/Orp-fonts/Bold/orp-6x11b.bdf' },
+            { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-medium.bdf' },
+            { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-bold.bdf' },
             { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' },
             { name: 'Progsole',             author: 'Glenn Schemenauer', w:  7, h: 10, url: CDN+'progsole/progsole-10.bdf' },
             { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' },
-            { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11.bdf' },
-            { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11-Bold.bdf' },
-            { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11-Italic.bdf' },
+            { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientifica-11.bdf' }, // Fixed path
+            { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaBold-11.bdf' }, // Fixed path
+            { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaItalic-11.bdf' }, // Fixed path
             { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' },
-            { name: 'Spleen 5x8',          author: 'Frederic Cambus',   w:  5, h:  8, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-5x8.bdf' },
-            { name: 'Spleen 6x12',         author: 'Frederic Cambus',   w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-6x12.bdf' },
-            { name: 'Spleen 8x16',         author: 'Frederic Cambus',   w:  8, h: 16, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-8x16.bdf' },
-            { name: 'Spleen 12x24',        author: 'Frederic Cambus',   w: 12, h: 24, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-12x24.bdf' },
-            { name: 'Spleen 16x32',        author: 'Frederic Cambus',   w: 16, h: 32, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-16x32.bdf' },
-            { name: 'Spleen 32x64',        author: 'Frederic Cambus',   w: 32, h: 64, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-32x64.bdf' },
-            { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamsyn-font/bdf/Tamsyn5x9r.bdf' },
-            { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamsyn-font/bdf/Tamsyn5x9b.bdf' },
-            { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamsyn-font/bdf/Tamsyn6x12r.bdf' },
-            { name: 'Tamsyn 6x12 Bold',    author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamsyn-font/bdf/Tamsyn6x12b.bdf' },
-            { name: 'Tamsyn 7x13',         author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamsyn-font/bdf/Tamsyn7x13r.bdf' },
-            { name: 'Tamsyn 7x13 Bold',    author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamsyn-font/bdf/Tamsyn7x13b.bdf' },
-            { name: 'Tamsyn 8x15',         author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamsyn-font/bdf/Tamsyn8x15r.bdf' },
-            { name: 'Tamsyn 8x15 Bold',    author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamsyn-font/bdf/Tamsyn8x15b.bdf' },
-            { name: 'Tamsyn 8x16',         author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamsyn-font/bdf/Tamsyn8x16r.bdf' },
-            { name: 'Tamsyn 8x16 Bold',    author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamsyn-font/bdf/Tamsyn8x16b.bdf' },
-            { name: 'Tamsyn 10x20',        author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamsyn-font/bdf/Tamsyn10x20r.bdf' },
-            { name: 'Tamsyn 10x20 Bold',   author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamsyn-font/bdf/Tamsyn10x20b.bdf' },
+            { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9r.bdf' }, // Note: directory is tamzen-font, not tamsyn-font
+            { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9b.bdf' },
+            { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12r.bdf' },
+            { name: 'Tamsyn 6x12 Bold',    author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12b.bdf' },
+            { name: 'Tamsyn 7x13',         author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13r.bdf' },
+            { name: 'Tamsyn 7x13 Bold',    author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13b.bdf' },
+            { name: 'Tamsyn 8x15',         author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15r.bdf' },
+            { name: 'Tamsyn 8x15 Bold',    author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15b.bdf' },
+            { name: 'Tamsyn 8x16',         author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16r.bdf' },
+            { name: 'Tamsyn 8x16 Bold',    author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16b.bdf' },
+            { name: 'Tamsyn 10x20',        author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20r.bdf' },
+            { name: 'Tamsyn 10x20 Bold',   author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20b.bdf' },
             { name: 'Tewi Normal',         author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-normal-11.bdf' },
             { name: 'Tewi Bold',           author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-bold-11.bdf' },
+
+            // Spleen fonts
+            { name: 'Spleen 5x8',            author: 'fcambus',            w:  5, h:  8, url: CDN+'spleen/spleen-5x8.bdf' },
+            { name: 'Spleen 8x16',           author: 'fcambus',            w:  8, h: 16, url: CDN+'spleen/spleen-8x16.bdf' },
+            { name: 'Spleen 12x24',          author: 'fcambus',            w: 12, h: 24, url: CDN+'spleen/spleen-12x24.bdf' },
+            // { name: 'Spleen 16x32',          author: 'fcambus',            w: 16, h: 32, url: CDN+'spleen/spleen-16x32.bdf' },
+            // { name: 'Spleen 32x64',          author: 'fcambus',            w: 32, h: 64, url: CDN+'spleen/spleen-32x64.bdf' },
+
+            // Cherry additional variants
+            { name: 'Cherry 10 Bold',        author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-b.bdf' },
+            { name: 'Cherry 11 Bold',        author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-b.bdf' },
+            { name: 'Cherry 13 Bold',        author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-b.bdf' },
+
+            // Artwiz additional fonts
+            { name: 'Artwiz Anorexia',       author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/anorexia.bdf' },
+            { name: 'Artwiz Aqui',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/aqui.bdf' },
+            { name: 'Artwiz Edges',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/edges.bdf' },
+            { name: 'Artwiz Gelly',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/gelly.bdf' },
+            { name: 'Artwiz Glisp Bold',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp-bold.bdf' },
+            { name: 'Artwiz Kates',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/kates.bdf' },
+            { name: 'Artwiz Mints Strong',   author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-strong.bdf' },
+            { name: 'Artwiz Nu',             author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/nu.bdf' },
+            { name: 'Artwiz Smoothansi',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/smoothansi.bdf' },
+
+            // Terminus fonts
+            { name: 'Terminus 12n',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12n.bdf' },
+            { name: 'Terminus 12b',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12b.bdf' },
+            { name: 'Terminus 14n',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14n.bdf' },
+            { name: 'Terminus 14b',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14b.bdf' },
+            { name: 'Terminus 14v',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14v.bdf' },
+            { name: 'Terminus 16n',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16n.bdf' },
+            { name: 'Terminus 16b',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16b.bdf' },
+            { name: 'Terminus 16v',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16v.bdf' },
+            { name: 'Terminus 18n',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18n.bdf' },
+            { name: 'Terminus 18b',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18b.bdf' },
+            { name: 'Terminus 20n',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20n.bdf' },
+            { name: 'Terminus 20b',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20b.bdf' },
+            { name: 'Terminus 22n',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22n.bdf' },
+            { name: 'Terminus 22b',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22b.bdf' },
+            { name: 'Terminus 24n',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24n.bdf' },
+            { name: 'Terminus 24b',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24b.bdf' },
+            { name: 'Terminus 28n',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28n.bdf' },
+            { name: 'Terminus 28b',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28b.bdf' },
+            { name: 'Terminus 32n',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32n.bdf' },
+            { name: 'Terminus 32b',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32b.bdf' },
+
+            // XBM Icons
+            { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' },
+
+            // Mplus fonts
+            { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' },
+            { name: 'Mplus Q06r',            author: 'coz',               w:  3, h:  6, url: CDN+'mplus/mplus_q06r.bdf' },
+            { name: 'Mplus F10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10r.bdf' },
+            { name: 'Mplus F10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10b.bdf' },
+            { name: 'Mplus F12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12r.bdf' },
+            { name: 'Mplus F12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12b.bdf' },
+            { name: 'Mplus H10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10r.bdf' },
+            { name: 'Mplus H10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10b.bdf' },
+            { name: 'Mplus H12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12r.bdf' },
+            { name: 'Mplus H12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12b.bdf' },
+            { name: 'Mplus S10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10r.bdf' },
+            { name: 'Mplus S10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10b.bdf' },
+
+            // Dylex fonts
+            { name: 'Dylex 6x10',            author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10.bdf' },
+            { name: 'Dylex 6x10B',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10B.bdf' },
+            { name: 'Dylex 6x10O',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10O.bdf' },
+            { name: 'Dylex 6x10BO',          author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10BO.bdf' },
+            { name: 'Dylex 7x13',            author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13.bdf' },
+            { name: 'Dylex 7x13B',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13B.bdf' },
+            { name: 'Dylex 7x13O',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13O.bdf' },
+            { name: 'Dylex 7x13BO',          author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13BO.bdf' },
+            { name: 'Dylex 10x20',           author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20.bdf' },
+            { name: 'Dylex 10x20B',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20B.bdf' },
+            { name: 'Dylex 10x20O',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20O.bdf' },
+            { name: 'Dylex 10x20BO',         author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20BO.bdf' },
+            { name: 'Dylex 14x14',           author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14.bdf' },
+            { name: 'Dylex 14x14B',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14B.bdf' },
+            { name: 'Dylex 14x14O',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14O.bdf' },
+            { name: 'Dylex 14x14BO',         author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14BO.bdf' },
+
+            // SQ fonts
+            { name: 'SQ',                    author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sq.bdf' },
+            { name: 'SQ Bold',               author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sqb.bdf' },
+
+            // Kakwa fonts
+            { name: 'Kakwa 12 Normal',       author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-n.bdf' },
+            { name: 'Kakwa 12 Bold',         author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-b.bdf' },
+
+            // Kourier fonts
+            { name: 'Kourier',               author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourier.bdf' },
+            { name: 'Kourier SS',            author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourierss.bdf' },
+
+            // Bitocra additional
+            { name: 'Bitocra 13 Full',       author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13-full.bdf' },
+            { name: 'Bitocra Full',          author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra-full.bdf' },
+            { name: 'Bitbuntu',              author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu.bdf' },
+            { name: 'Bitbuntu Full',         author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu-full.bdf' },
+            { name: '4th Dimension D',       author: 'ninjaaron',         w:  6, h: 13, url: CDN+'bitocra/4thD.bdf' },
+            { name: '5th Element',           author: 'ninjaaron',         w:  8, h: 15, url: CDN+'bitocra/5thElement.bdf' },
+
+            // UW ttyp0 fonts
+            { name: 'UW ttyp0 11',           author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11.bdf' },
+            { name: 'UW ttyp0 11b',          author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11b.bdf' },
+            { name: 'UW ttyp0 12',           author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12.bdf' },
+            { name: 'UW ttyp0 12b',          author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12b.bdf' },
+            { name: 'UW ttyp0 13',           author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13.bdf' },
+            { name: 'UW ttyp0 13b',          author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13b.bdf' },
+            { name: 'UW ttyp0 14',           author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14.bdf' },
+            { name: 'UW ttyp0 14b',          author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14b.bdf' },
+            { name: 'UW ttyp0 15',           author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15.bdf' },
+            { name: 'UW ttyp0 15b',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15b.bdf' },
+            { name: 'UW ttyp0 15i',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15i.bdf' },
+            { name: 'UW ttyp0 16',           author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16.bdf' },
+            { name: 'UW ttyp0 16b',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16b.bdf' },
+            { name: 'UW ttyp0 16i',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16i.bdf' },
+            { name: 'UW ttyp0 17',           author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17.bdf' },
+            { name: 'UW ttyp0 17b',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17b.bdf' },
+            { name: 'UW ttyp0 17i',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17i.bdf' },
+            { name: 'UW ttyp0 18',           author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18.bdf' },
+            { name: 'UW ttyp0 18b',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18b.bdf' },
+            { name: 'UW ttyp0 18i',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18i.bdf' },
+            { name: 'UW ttyp0 22',           author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22.bdf' },
+            { name: 'UW ttyp0 22b',          author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22b.bdf' },
+
+            // Gohufont unicode variants
+            { name: 'Gohufont 11 Unicode',   author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11.bdf' },
+            { name: 'Gohufont 11 Bold Unicode', author: 'Hugo Chargois',  w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11b.bdf' },
+            { name: 'Gohufont 14 Unicode',   author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14.bdf' },
+            { name: 'Gohufont 14 Bold Unicode', author: 'Hugo Chargois',  w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14b.bdf' },
+
+            // Haxor fonts
+            { name: 'Haxor Medium 10',       author: 'Haxor',             w:  5, h: 10, url: CDN+'haxor/HaxorMedium-10.bdf' },
+            { name: 'Haxor Medium 11',       author: 'Haxor',             w:  5, h: 11, url: CDN+'haxor/HaxorMedium-11.bdf' },
+            { name: 'Haxor Medium 12',       author: 'Haxor',             w:  6, h: 12, url: CDN+'haxor/HaxorMedium-12.bdf' },
+            { name: 'Haxor Medium 13',       author: 'Haxor',             w:  6, h: 13, url: CDN+'haxor/HaxorMedium-13.bdf' },
+            { name: 'Haxor Narrow 15',       author: 'Haxor',             w:  7, h: 15, url: CDN+'haxor/HaxorNarrow-15.bdf' },
+            { name: 'Haxor Narrow 16',       author: 'Haxor',             w:  8, h: 16, url: CDN+'haxor/HaxorNarrow-16.bdf' },
+            { name: 'Haxor Narrow 17',       author: 'Haxor',             w:  8, h: 17, url: CDN+'haxor/HaxorNarrow-17.bdf' },
+            { name: 'Psevdo Azbuka Medium 12', author: 'Haxor',          w:  6, h: 12, url: CDN+'haxor/PsevdoAzbukaMedium-12.bdf' },
+
+            // ClearlyU fonts
+            { name: 'ClearlyU',              author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu12.bdf' },
+            { name: 'ClearlyU Alt',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-alt12.bdf' },
+            { name: 'ClearlyU Ligatures',    author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-lig12.bdf' },
+            { name: 'ClearlyU PUA',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-pua12.bdf' },
+            { name: 'ClearlyU Arabic',       author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-arabic12.bdf' },
+
+            // Lokaltog fonts
+            { name: 'Lokaltog Fixed 10r ISO8859', author: 'Lokaltog',    w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso8859.bdf' },
+            { name: 'Lokaltog Fixed 10r ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso10646.bdf' },
+            { name: 'Lokaltog Fixed 10b ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10b-iso10646.bdf' },
+            { name: 'Lokaltog Fixed 12r ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12r-iso10646.bdf' },
+            { name: 'Lokaltog Fixed 12b ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12b-iso10646.bdf' },
+            { name: 'Lokaltog Symbols 11',   author: 'Lokaltog',          w:  5, h: 11, url: CDN+'lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf' },
+
+            // Tamzen Powerline variants
+            { name: 'Tamzen Powerline 5x9',  author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Powerline5x9.bdf' },
+            { name: 'Tamzen Powerline 6x12', author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Powerline6x12.bdf' },
+            { name: 'Tamzen Powerline 7x13', author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Powerline7x13.bdf' },
+            { name: 'Tamzen Powerline 7x14', author: 'Scott Fial',        w:  7, h: 14, url: CDN+'tamzen-font/bdf/Powerline7x14.bdf' },
+            { name: 'Tamzen Powerline 8x15', author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Powerline8x15.bdf' },
+            { name: 'Tamzen Powerline 8x16', author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Powerline8x16.bdf' },
+            { name: 'Tamzen Powerline 10x20', author: 'Scott Fial',       w: 10, h: 20, url: CDN+'tamzen-font/bdf/Powerline10x20.bdf' },
+
+            // Zevv Peep fonts
+            { name: 'Zevv Peep 7x14 ISO8859-1', author: 'zevv',          w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-1-07x14.bdf' },
+            { name: 'Zevv Peep 7x14 ISO8859-15', author: 'zevv',         w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-15-07x14.bdf' },
+            { name: 'Zevv Peep 8x16 ISO8859-1', author: 'zevv',          w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-1-08x16.bdf' },
+            { name: 'Zevv Peep 8x16 ISO8859-15', author: 'zevv',         w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-15-08x16.bdf' },
+            { name: 'Zevv Peep 10x20 ISO8859-1', author: 'zevv',         w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-1-10x20.bdf' },
+            { name: 'Zevv Peep 10x20 ISO8859-15', author: 'zevv',        w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-15-10x20.bdf' },
+
+            // Siji
+            { name: 'Siji',                  author: 'Unknown',           w:  6, h: 12, url: CDN+'siji/bdf/siji.bdf' },
+
+            // Ctrld font additional variants
+            { name: 'Ctrld Fixed 10r',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10r.bdf' },
+            { name: 'Ctrld Fixed 10b',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10b.bdf' },
+            { name: 'Ctrld Fixed 13r',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r.bdf' },
+            { name: 'Ctrld Fixed 13b',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b.bdf' },
+            { name: 'Ctrld Fixed 13r Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r-i.bdf' },
+            { name: 'Ctrld Fixed 13b Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b-i.bdf' },
+            { name: 'Ctrld Fixed 16r Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r-i.bdf' },
+            { name: 'Ctrld Fixed 16b Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16b-i.bdf' },
+
+            // Orp additional
+            { name: 'Orp Book',              author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-book.bdf' },
+            { name: 'Orp Italic',            author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-italic.bdf' },
+            { name: 'Orp ProFont',           author: 'Micah Elliott',     w:  7, h: 11, url: CDN+'orp-font/bdf/profont.bdf' },
+
+            // Trisk
+            { name: 'Triskweline Normal 12', author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineNormal-12.bdf' },
+            { name: 'Triskweline Bold 12',   author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineBold-12.bdf' },
+
+            // Phallus additional
+            { name: 'Lemon J',               author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon-j.bdf' },
+            { name: 'Uushi',                 author: 'phallus',           w:  6, h: 12, url: CDN+'phallus/uushi.bdf' },
+
+            // Dina additional variants
+            { name: 'Dina 8 Italic',         author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i400-8.bdf' },
+            { name: 'Dina 8 Bold',           author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r700-8.bdf' },
+            { name: 'Dina 8 Bold Italic',    author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i700-8.bdf' },
+            { name: 'Dina 9 Italic',         author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i400-9.bdf' },
+            { name: 'Dina 9 Bold',           author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r700-9.bdf' },
+            { name: 'Dina 9 Bold Italic',    author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i700-9.bdf' },
+            { name: 'Dina 10 Italic',        author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i400-10.bdf' },
+            { name: 'Dina 10 Bold',          author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r700-10.bdf' },
+            { name: 'Dina 10 Bold Italic',   author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i700-10.bdf' },
+
+            // Boxxy bold
+            { name: 'Boxxy Bold',            author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy-bold.bdf' },
+
+            // MonteCarlo bold
+            { name: 'MonteCarlo Bold',       author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloBold.bdf' },
+
+            // Envypn additional
+            { name: 'Envypn 7x13e',          author: 'Ypnose',            w:  7, h: 13, url: CDN+'envypn-font/envypn7x13e.bdf' },
+            { name: 'Envypn 7x15',           author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15.bdf' },
+            { name: 'Envypn 7x15e',          author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15e.bdf' },
+
+            // Tewi additional
+            { name: 'Tewi2a Normal 11',      author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-normal-11.bdf' },
+            { name: 'Tewi2a Bold 11',        author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-bold-11.bdf' }
+            // { name: 'Spleen 5x8',          author: 'Frederic Cambus',   w:  5, h:  8, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-5x8.bdf' },
+            // { name: 'Spleen 6x12',         author: 'Frederic Cambus',   w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-6x12.bdf' },
+            // { name: 'Spleen 8x16',         author: 'Frederic Cambus',   w:  8, h: 16, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-8x16.bdf' },
+            // { name: 'Spleen 12x24',        author: 'Frederic Cambus',   w: 12, h: 24, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-12x24.bdf' },
+            // { name: 'Spleen 16x32',        author: 'Frederic Cambus',   w: 16, h: 32, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-16x32.bdf' },
+            // { name: 'Spleen 32x64',        author: 'Frederic Cambus',   w: 32, h: 64, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-32x64.bdf' },
+
             // ── Others from around the web ───────────────────────────────────
-            { name: 'Cozette',             author: 'Slavfox',           w:  6, h: 13, url: 'https://cdn.jsdelivr.net/gh/slavfox/Cozette@v.1.25.2/bdf/cozette.bdf' },
-            { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' },
-            { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' },
-            { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' },
-            { name: 'Tamzen 6x12',         author: 'sunaku',            w:  6, h: 12, url: CDN+'tamzen/bdf/Tamzen6x12r.bdf' },
-            { name: 'Tamzen 7x13',         author: 'sunaku',            w:  7, h: 13, url: CDN+'tamzen/bdf/Tamzen7x13r.bdf' },
-            { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' },
-            { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' },
-            { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' },
-        ];
+            // { name: 'Cozette',             author: 'Slavfox',           w:  6, h: 13, url: 'https://cdn.jsdelivr.net/gh/slavfox/Cozette@v.1.25.2/bdf/cozette.bdf' },
+            // { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' },
+            // { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' },
+            // { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' },
+            // { name: 'Tamzen 6x12',         author: 'sunaku',            w:  6, h: 12, url: CDN+'tamzen/bdf/Tamzen6x12r.bdf' },
+            // { name: 'Tamzen 7x13',         author: 'sunaku',            w:  7, h: 13, url: CDN+'tamzen/bdf/Tamzen7x13r.bdf' },
+            // { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' },
+            // { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' },
+            // { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' },
+        ].sort(function(a, b) {
+            return a.name > b.name ? 1 : -1;
+        });
 
         // Derive unique sorted values from data
         const uniqueW = [...new Set(FONT_DB.map(f => f.w))].sort((a, b) => a - b);
@@ -1112,6 +1592,12 @@
             }
         }
 
+        function setFontLoaded(name) {
+            currentFontName = name;
+            downloadBtn.disabled = false;
+            downloadBtn.style.opacity = '1';
+        }
+
         function loadFontFromDB(index) {
             const f = FONT_DB[index];
             activeFontIndex = index;
@@ -1124,6 +1610,7 @@
                 })
                 .then(text => {
                     currentFont = parseBDF(text);
+                    setFontLoaded(f.name.toLowerCase().replace(/\s+/g, '-'));
                     statusMsg.textContent = 'Loaded: ' + f.name + ' (' + f.w + '×' + f.h + ')';
                     renderText();
                 })
@@ -1138,9 +1625,9 @@
         // Themes
         // =====================================================================
         const themes = {
-            //                                                         keyword    string     comment    number     func/type
+            //            keyword    string     comment    number     func/type
             default:    { bg:'#121212', panel:'#1e1e1e', text:'#e0e0e0', muted:'#888888', accent:'#bb86fc', border:'#333333',
-                          kw:'#bb86fc', str:'#f28b54', cmt:'#5c6370', num:'#f28b54', fn:'#82aaff' },
+                          kw:'#bb86fc', str:'#f28b54', cmt:'#5c6370', num:'#ffbb00', fn:'#82aaff' },
             dracula:    { bg:'#282a36', panel:'#44475a', text:'#f8f8f2', muted:'#6272a4', accent:'#ff79c6', border:'#6272a4',
                           kw:'#ff79c6', str:'#f1fa8c', cmt:'#6272a4', num:'#bd93f9', fn:'#50fa7b' },
             monokai:    { bg:'#272822', panel:'#3e3d32', text:'#f8f8f2', muted:'#75715e', accent:'#a6e22e', border:'#75715e',
@@ -1164,167 +1651,6 @@
         }
 
         themeSelect.addEventListener('change', e => applyTheme(e.target.value));
-
-        // =====================================================================
-        // Demo BDF
-        // =====================================================================
-        const demoBdf = `
-STARTFONT 2.1
-FONT -demo-minifont
-SIZE 10 75 75
-FONTBOUNDINGBOX 5 7 0 -1
-STARTCHAR H
-ENCODING 72
-DWIDTH 6 0
-BBX 5 7 0 0
-BITMAP
-11
-11
-11
-1f
-11
-11
-11
-ENDCHAR
-STARTCHAR e
-ENCODING 101
-DWIDTH 6 0
-BBX 5 5 0 0
-BITMAP
-0e
-11
-1f
-10
-0e
-ENDCHAR
-STARTCHAR l
-ENCODING 108
-DWIDTH 3 0
-BBX 2 7 0 0
-BITMAP
-03
-03
-03
-03
-03
-03
-03
-ENDCHAR
-STARTCHAR o
-ENCODING 111
-DWIDTH 6 0
-BBX 5 5 0 0
-BITMAP
-0e
-11
-11
-11
-0e
-ENDCHAR
-STARTCHAR comma
-ENCODING 44
-DWIDTH 4 0
-BBX 2 3 0 -1
-BITMAP
-00
-03
-01
-ENDCHAR
-STARTCHAR space
-ENCODING 32
-DWIDTH 5 0
-BBX 1 1 0 0
-BITMAP
-00
-ENDCHAR
-STARTCHAR B
-ENCODING 66
-DWIDTH 6 0
-BBX 5 7 0 0
-BITMAP
-1e
-11
-11
-1e
-11
-11
-1e
-ENDCHAR
-STARTCHAR i
-ENCODING 105
-DWIDTH 3 0
-BBX 1 7 1 0
-BITMAP
-01
-01
-00
-01
-01
-01
-01
-ENDCHAR
-STARTCHAR t
-ENCODING 116
-DWIDTH 5 0
-BBX 4 7 0 0
-BITMAP
-04
-04
-0e
-04
-04
-04
-03
-ENDCHAR
-STARTCHAR m
-ENCODING 109
-DWIDTH 8 0
-BBX 7 5 0 0
-BITMAP
-1a
-25
-25
-25
-25
-ENDCHAR
-STARTCHAR a
-ENCODING 97
-DWIDTH 6 0
-BBX 5 5 0 0
-BITMAP
-0e
-01
-0f
-11
-0f
-ENDCHAR
-STARTCHAR p
-ENCODING 112
-DWIDTH 6 0
-BBX 5 7 0 -2
-BITMAP
-1e
-11
-11
-1e
-10
-10
-10
-ENDCHAR
-STARTCHAR excl
-ENCODING 33
-DWIDTH 4 0
-BBX 1 7 1 0
-BITMAP
-01
-01
-01
-01
-00
-00
-01
-ENDCHAR
-        `.trim();
 
         // =====================================================================
         // BDF Parser
@@ -1377,6 +1703,82 @@ ENDCHAR
                 font.descent = -font.bounds.y;
             }
             return font;
+        }
+
+        // =====================================================================
+        // BDF Serializer
+        // =====================================================================
+
+        function fontToBDF(font) {
+            const lines = [];
+            const b = font.bounds;
+            const ascent  = font.ascent  || (b.h + b.y);
+            const descent = font.descent || (-b.y);
+
+            lines.push('STARTFONT 2.1');
+            lines.push('FONT ' + (font.name || '-custom-bitmap'));
+            lines.push('SIZE ' + b.h + ' 75 75');
+            lines.push('FONTBOUNDINGBOX ' + b.w + ' ' + b.h + ' ' + b.x + ' ' + b.y);
+            lines.push('STARTPROPERTIES 2');
+            lines.push('FONT_ASCENT ' + ascent);
+            lines.push('FONT_DESCENT ' + descent);
+            lines.push('ENDPROPERTIES');
+            lines.push('');
+
+            const glyphs = Object.values(font.glyphs);
+            lines.push('CHARS ' + glyphs.length);
+            lines.push('');
+
+            // Sort by encoding value for a clean file
+            glyphs.sort((a, b) => a.encoding - b.encoding);
+
+            for (const g of glyphs) {
+                const enc  = g.encoding;
+                const name = (enc >= 0x21 && enc <= 0x7e)
+                    ? String.fromCharCode(enc)
+                    : enc.toString(16).toUpperCase().padStart(4, '0');
+                lines.push('STARTCHAR ' + name);
+                lines.push('ENCODING ' + enc);
+                lines.push('SWIDTH ' + (g.swidth || 0) + ' 0');
+                lines.push('DWIDTH ' + (g.dwidth !== undefined ? g.dwidth : g.bbx.w) + ' 0');
+                lines.push('BBX ' + g.bbx.w + ' ' + g.bbx.h + ' ' + g.bbx.x + ' ' + g.bbx.y);
+                lines.push('BITMAP');
+
+                // Each bitmap row is stored as a binary string; convert to hex
+                for (const rowBin of g.bitmap) {
+                    // Pad binary string to multiple of 8 bits
+                    const padded = rowBin.padEnd(Math.ceil(rowBin.length / 8) * 8, '0');
+                    let hex = '';
+                    for (let i = 0; i < padded.length; i += 8) {
+                        hex += parseInt(padded.slice(i, i + 8), 2)
+                                   .toString(16).toUpperCase().padStart(2, '0');
+                    }
+                    lines.push(hex);
+                }
+                lines.push('ENDCHAR');
+                lines.push('');
+            }
+            lines.push('ENDFONT');
+            return lines.join('\n');
+        }
+
+        function downloadFont() {
+            if (!currentFont) return;
+            const boldScale = parseInt(boldScaleInput.value, 10) || 1;
+            const font = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
+
+            const bdfText = fontToBDF(font);
+            const blob    = new Blob([bdfText], { type: 'text/plain' });
+            const url     = URL.createObjectURL(blob);
+            const a       = document.createElement('a');
+
+            // Build filename: base name + optional -bold suffix + .bdf
+            let name = (currentFontName || 'font').replace(/\.(bdf|pcf|pcf\.gz)$/i, '');
+            if (boldToggle.checked) name += '-bold' + boldScale + 'px';
+            a.href     = url;
+            a.download = name + '.bdf';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         // =====================================================================
@@ -1673,6 +2075,7 @@ ENDCHAR
         // =====================================================================
         // Event Listeners
         // =====================================================================
+        downloadBtn.addEventListener('click', downloadFont);
         textInput.addEventListener('input', renderText);
         scaleInput.addEventListener('input', renderText);
         boldToggle.addEventListener('change', renderText);
@@ -1709,6 +2112,7 @@ ENDCHAR
                 reader.onload = (ev) => {
                     try {
                         currentFont = parseBDF(ev.target.result);
+                        setFontLoaded(file.name);
                         statusMsg.innerText = `Loaded: ${file.name}`;
                         activeFontIndex = -1; renderFontList();
                         renderText();
@@ -1723,6 +2127,7 @@ ENDCHAR
                     try {
                         const bdfText = pcf2bdf(ev.target.result);
                         currentFont   = parseBDF(bdfText);
+                        setFontLoaded(file.name);
                         statusMsg.innerText = `Loaded PCF: ${file.name}`;
                         activeFontIndex = -1; renderFontList();
                         renderText();
