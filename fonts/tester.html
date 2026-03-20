@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitmap Font Previewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         :root {
             /* Default Theme (Material Dark) */
@@ -33,7 +35,7 @@
 
         /* Sidebar Controls */
         #sidebar {
-            width: 300px;
+            width: 340px;
             background-color: var(--panel-bg);
             border-right: 1px solid var(--border);
             padding: 20px;
@@ -41,6 +43,7 @@
             flex-direction: column;
             gap: 20px;
             z-index: 10;
+            overflow: hidden;
             transition: background-color 0.3s, border-color 0.3s;
         }
 
@@ -79,7 +82,193 @@
             border-color: var(--accent);
         }
 
+        /* Checkbox row */
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-row label {
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin: 0;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            background-color: var(--bg-color);
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        input[type="checkbox"]:checked {
+            background-color: var(--accent);
+            border-color: var(--accent);
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 1px;
+            width: 5px;
+            height: 9px;
+            border: 2px solid var(--bg-color);
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg);
+        }
+
+        /* Bold scale sub-row */
+        .bold-sub {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bold-sub label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            text-transform: none;
+        }
+
+        .bold-sub input[type="number"] {
+            width: 64px;
+            padding: 6px 8px;
+            font-size: 0.9rem;
+        }
+
+        /* Font browser */
+        .font-browser {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-height: 0;
+            flex: 1 1 0;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .pill-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .pill {
+            padding: 2px 7px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            line-height: 1.6;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+            font-family: inherit;
+        }
+
+        .pill:hover {
+            border-color: var(--accent);
+            color: var(--text-main);
+        }
+
+        .pill.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg-color);
+        }
+
+        .pill.disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        .pill.disabled:hover {
+            border-color: var(--border);
+            color: var(--text-muted);
+        }
+
+        #font-list {
+            flex: 1 1 0;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg-color);
+            min-height: 0;
+        }
+
+        .font-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 10px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+            gap: 8px;
+        }
+
+        .font-item:last-child { border-bottom: none; }
+
+        .font-item:hover { background: var(--panel-bg); }
+
+        .font-item.active {
+            background: var(--accent);
+            color: var(--bg-color);
+        }
+
+        .font-item.active .font-dims { color: var(--bg-color); opacity: 0.75; }
+
+        .font-name {
+            font-size: 0.82rem;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .font-item.active .font-name { color: var(--bg-color); }
+
+        .font-dims {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #font-count {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
         /* Main Preview Area */
+
         #main {
             flex-grow: 1;
             display: flex;
@@ -159,12 +348,21 @@
             </select>
         </div>
 
-        <div class="control-group">
-            <label for="font-select">Bundled Fonts</label>
-            <select id="font-select">
-                <option value="none">-- Drop a file or select --</option>
-                <option value="builtin">Built-in Mini Font (Demo)</option>
-            </select>
+        <div class="font-browser">
+            <label>Bundled Fonts</label>
+
+            <div class="filter-row">
+                <label>Width (px)</label>
+                <div class="pill-group" id="w-pills"></div>
+            </div>
+
+            <div class="filter-row">
+                <label>Height (px)</label>
+                <div class="pill-group" id="h-pills"></div>
+            </div>
+
+            <div id="font-count"></div>
+            <div id="font-list"></div>
         </div>
 
         <div class="control-group">
@@ -177,7 +375,18 @@
             <input type="number" id="scale" value="3" min="1" max="10">
         </div>
 
-        <div class="status" id="status-msg">Ready. Drop a .bdf file anywhere.</div>
+        <div class="control-group">
+            <div class="checkbox-row">
+                <input type="checkbox" id="bold-toggle">
+                <label for="bold-toggle">Embolden</label>
+            </div>
+            <div class="bold-sub">
+                <label for="bold-scale">Bold pixels:</label>
+                <input type="number" id="bold-scale" value="1" min="1" max="8">
+            </div>
+        </div>
+
+        <div class="status" id="status-msg">Ready. Drop a .bdf or .pcf file anywhere.</div>
     </div>
 
     <div id="main">
@@ -188,44 +397,745 @@
     </div>
 
     <script>
-        // --- State Management ---
-        let currentFont = null;
-        const canvas = document.getElementById('preview-canvas');
-        const ctx = canvas.getContext('2d');
-        const textInput = document.getElementById('preview-text');
-        const scaleInput = document.getElementById('scale');
-        const statusMsg = document.getElementById('status-msg');
-        const fontSelect = document.getElementById('font-select');
-        const themeSelect = document.getElementById('theme-select');
+        // =====================================================================
+        // PCF to BDF Converter
+        // =====================================================================
+        const PCF_PROPERTIES        = (1 << 0);
+        const PCF_ACCELERATORS      = (1 << 1);
+        const PCF_METRICS           = (1 << 2);
+        const PCF_BITMAPS           = (1 << 3);
+        const PCF_INK_METRICS       = (1 << 4);
+        const PCF_BDF_ENCODINGS     = (1 << 5);
+        const PCF_SWIDTHS           = (1 << 6);
+        const PCF_GLYPH_NAMES       = (1 << 7);
+        const PCF_BDF_ACCELERATORS  = (1 << 8);
 
-        // --- Themes ---
+        const PCF_DEFAULT_FORMAT      = 0;
+        const PCF_INKBOUNDS           = 2;
+        const PCF_ACCEL_W_INKBOUNDS   = 1;
+        const PCF_COMPRESSED_METRICS  = 1;
+
+        const GLYPHPADOPTIONS = 4;
+        const NO_SUCH_CHAR    = 0xffff;
+
+        function make_charcode(row, col) { return row * 256 + col; }
+
+        class Format32 {
+            constructor(v) {
+                // The C source uses bitfields: id:24, dummy:2, scan:2, bit:1, byte:1, glyph:2
+                // All fields must be masked to their declared widths.
+                this.id    = (v >>> 8) & 0xffffff; // 24-bit field
+                this.dummy = 0;
+                this.scan  = (v >>> 4) & 3;         // 2-bit field
+                this.bit   = (v >>> 3) & 1;         // 1-bit field
+                this.byte  = (v >>> 2) & 1;         // 1-bit field
+                this.glyph = (v >>> 0) & 3;         // 2-bit field
+            }
+            is_little_endian() { return !this.byte; }
+        }
+
+        class Metric {
+            constructor() {
+                this.leftSideBearing  = 0;
+                this.rightSideBearing = 0;
+                this.characterWidth   = 0;
+                this.ascent           = 0;
+                this.descent          = 0;
+                this.attributes       = 0;
+                this.bitmaps          = null;
+                this.swidth           = 0;
+                this.glyphName        = null;
+            }
+            widthBits()        { return this.rightSideBearing - this.leftSideBearing; }
+            height()           { return this.ascent + this.descent; }
+            widthBytes(format) { return Metric.bytesPerRow(this.widthBits(), 1 << format.glyph); }
+            static bytesPerRow(bits, nbytes) {
+                if (nbytes === 1) return (bits + 7) >> 3;
+                if (nbytes === 2) return ((bits + 15) >> 3) & ~1;
+                if (nbytes === 4) return ((bits + 31) >> 3) & ~3;
+                if (nbytes === 8) return ((bits + 63) >> 3) & ~7;
+                return 0;
+            }
+        }
+
+        class PCFReader {
+            constructor(buffer) {
+                this.buffer = new Uint8Array(buffer);
+                this.offset = 0;
+                this.tables = [];
+                this.props  = null;
+                this.string = null;
+                this.accelerators  = null;
+                this.metrics       = null;
+                this.bitmapOffsets = null;
+                this.bitmaps       = null;
+                this.encodings     = null;
+                this.glyphNames    = null;
+            }
+            read_byte8s(size) { const d = this.buffer.slice(this.offset, this.offset + size); this.offset += size; return d; }
+            read8()           { return this.buffer[this.offset++]; }
+            read_uint8()      { return this.read8(); }
+            make_int16(a,b)   { return ((a&0xff)<<8)|(b&0xff); }
+            read_int16_big()    { const a=this.read8(),b=this.read8(); return this.make_int16(a,b); }
+            read_int16_little() { const a=this.read8(),b=this.read8(); return this.make_int16(b,a); }
+            read_int16(fmt)   { return fmt.is_little_endian() ? this.read_int16_little() : this.read_int16_big(); }
+            make_int32(a,b,c,d){ return ((a&0xff)<<24)|((b&0xff)<<16)|((c&0xff)<<8)|(d&0xff); }
+            read_int32_big()    { const a=this.read8(),b=this.read8(),c=this.read8(),d=this.read8(); return this.make_int32(a,b,c,d); }
+            read_int32_little() { const a=this.read8(),b=this.read8(),c=this.read8(),d=this.read8(); return this.make_int32(d,c,b,a); }
+            read_int32(fmt)   { return fmt.is_little_endian() ? this.read_int32_little() : this.read_int32_big(); }
+            read_uint32(fmt)  { return this.read_int32(fmt) >>> 0; }
+            read_format32_little() { return new Format32(this.read_int32_little()); }
+            read_metric(fmt) {
+                const m = new Metric();
+                m.leftSideBearing  = this.read_int16(fmt);
+                m.rightSideBearing = this.read_int16(fmt);
+                m.characterWidth   = this.read_int16(fmt);
+                m.ascent           = this.read_int16(fmt);
+                m.descent          = this.read_int16(fmt);
+                m.attributes       = this.read_int16(fmt);
+                return m;
+            }
+            read_compressed_metric() {
+                const m = new Metric();
+                m.leftSideBearing  = this.read_uint8() - 0x80;
+                m.rightSideBearing = this.read_uint8() - 0x80;
+                m.characterWidth   = this.read_uint8() - 0x80;
+                m.ascent           = this.read_uint8() - 0x80;
+                m.descent          = this.read_uint8() - 0x80;
+                return m;
+            }
+            seek(type) {
+                for (const t of this.tables) {
+                    if (t.type === type) {
+                        const s = t.offset - this.offset;
+                        if (s < 0) throw new Error("seek error");
+                        this.offset += s;
+                        return true;
+                    }
+                }
+                return false;
+            }
+            is_exist_section(type) { return this.tables.some(t => t.type === type); }
+            get_property_string(name) {
+                for (const p of this.props) {
+                    if (p.name === name) {
+                        if (p.isStringProp) return p.value;
+                        throw new Error("not a string");
+                    }
+                }
+                return null;
+            }
+            get_property_value(name) {
+                for (const p of this.props) {
+                    if (p.name === name) {
+                        if (!p.isStringProp) return p.value;
+                        throw new Error("not a value");
+                    }
+                }
+                return -1;
+            }
+            is_exist_property_value(name) {
+                for (const p of this.props) {
+                    if (p.name === name) return !p.isStringProp;
+                }
+                return false;
+            }
+            read_accelerators() {
+                const fmt = this.read_format32_little();
+                if (!(fmt.id === PCF_DEFAULT_FORMAT || fmt.id === PCF_ACCEL_W_INKBOUNDS))
+                    throw new Error("invalid accelerators format id: " + fmt.id);
+                const noOverlap       = !!this.read8();
+                const constantMetrics = !!this.read8();
+                const terminalFont    = !!this.read8();
+                const constantWidth   = !!this.read8();
+                const inkInside       = !!this.read8();
+                const inkMetrics      = !!this.read8();
+                const drawDirection   = !!this.read8();
+                this.read8(); // dummy
+                const fontAscent  = this.read_int32(fmt);
+                const fontDescent = this.read_int32(fmt);
+                const maxOverlap  = this.read_int32(fmt);
+                const minBounds   = this.read_metric(fmt);
+                const maxBounds   = this.read_metric(fmt);
+                const acc = { noOverlap, constantMetrics, terminalFont, constantWidth,
+                              inkInside, inkMetrics, drawDirection,
+                              fontAscent, fontDescent, maxOverlap, minBounds, maxBounds };
+                if (fmt.id === PCF_ACCEL_W_INKBOUNDS) {
+                    acc.ink_minBounds = this.read_metric(fmt);
+                    acc.ink_maxBounds = this.read_metric(fmt);
+                } else {
+                    acc.ink_minBounds = acc.minBounds;
+                    acc.ink_maxBounds = acc.maxBounds;
+                }
+                return acc;
+            }
+            bit_order_invert(data) {
+                const inv = [0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15];
+                for (let i = 0; i < data.length; i++) {
+                    const b = data[i];
+                    data[i] = (inv[b&15]<<4)|inv[(b>>4)&15];
+                }
+            }
+            two_byte_swap(data) {
+                for (let i = 0; i < data.length-1; i+=2) { const t=data[i]; data[i]=data[i+1]; data[i+1]=t; }
+            }
+            four_byte_swap(data) {
+                for (let i = 0; i < data.length-3; i+=4) {
+                    const t1=data[i],t2=data[i+1];
+                    data[i]=data[i+3]; data[i+1]=data[i+2]; data[i+2]=t2; data[i+3]=t1;
+                }
+            }
+            parse() {
+                const version = this.read_int32_big();
+                const expected = this.make_int32(1,'f'.charCodeAt(0),'c'.charCodeAt(0),'p'.charCodeAt(0));
+                if (version !== expected) throw new Error("not a PCF file");
+
+                const nTables = this.read_int32_little();
+                if (nTables < 1) throw new Error("invalid table count");
+                this.tables = [];
+                for (let i = 0; i < nTables; i++) {
+                    this.tables.push({
+                        type:   this.read_int32_little(),
+                        format: this.read_format32_little(),
+                        size:   this.read_int32_little(),
+                        offset: this.read_int32_little()
+                    });
+                }
+
+                // Properties
+                if (!this.seek(PCF_PROPERTIES)) throw new Error("PCF_PROPERTIES not found");
+                let fmt = this.read_format32_little();
+                if (fmt.id !== PCF_DEFAULT_FORMAT) throw new Error("invalid properties format");
+                const nProps = this.read_int32(fmt);
+                if (nProps < 1) throw new Error("invalid nProps");
+                this.props = [];
+                for (let i = 0; i < nProps; i++) {
+                    this.props.push({ name: this.read_int32(fmt), isStringProp: !!this.read8(), value: this.read_int32(fmt) });
+                }
+                // C: skip(3 - (((4+1+4)*nProps+3)%4))  — no outer %4
+                const padding = 3 - (((4 + 1 + 4) * nProps + 3) % 4);
+                for (let i = 0; i < padding; i++) this.read8();
+                const stringSize = this.read_int32(fmt);
+                const stringData = this.read_byte8s(stringSize);
+                this.string = new TextDecoder('utf-8').decode(stringData);
+                for (const p of this.props) {
+                    p.name = this.string.substring(p.name);
+                    if (p.isStringProp) p.value = this.string.substring(p.value);
+                }
+
+                // Accelerators
+                if (!this.is_exist_section(PCF_BDF_ACCELERATORS) && this.seek(PCF_ACCELERATORS)) {
+                    this.accelerators = this.read_accelerators();
+                }
+
+                // Metrics
+                if (!this.seek(PCF_METRICS)) throw new Error("PCF_METRICS not found");
+                fmt = this.read_format32_little();
+                let nMetrics;
+                if (fmt.id === PCF_DEFAULT_FORMAT) {
+                    nMetrics = this.read_int32(fmt);
+                    if (nMetrics < 1) throw new Error("invalid nMetrics");
+                    this.metrics = [];
+                    for (let i = 0; i < nMetrics; i++) this.metrics.push(this.read_metric(fmt));
+                } else if (fmt.id === PCF_COMPRESSED_METRICS) {
+                    nMetrics = this.read_int16(fmt);
+                    if (nMetrics < 1) throw new Error("invalid nMetrics (compressed)");
+                    this.metrics = [];
+                    for (let i = 0; i < nMetrics; i++) this.metrics.push(this.read_compressed_metric());
+                } else {
+                    throw new Error("invalid metrics format");
+                }
+
+                const fontbbx = {
+                    leftSideBearing: this.metrics[0].leftSideBearing,
+                    rightSideBearing: this.metrics[0].rightSideBearing,
+                    ascent: this.metrics[0].ascent,
+                    descent: this.metrics[0].descent
+                };
+                for (let i = 1; i < this.metrics.length; i++) {
+                    const m = this.metrics[i];
+                    if (m.leftSideBearing  < fontbbx.leftSideBearing)  fontbbx.leftSideBearing  = m.leftSideBearing;
+                    if (fontbbx.rightSideBearing < m.rightSideBearing) fontbbx.rightSideBearing = m.rightSideBearing;
+                    if (fontbbx.ascent  < m.ascent)  fontbbx.ascent  = m.ascent;
+                    if (fontbbx.descent < m.descent) fontbbx.descent = m.descent;
+                }
+
+                // Bitmaps
+                if (!this.seek(PCF_BITMAPS)) throw new Error("PCF_BITMAPS not found");
+                const bitmapFmt = this.read_format32_little();
+                fmt = bitmapFmt;
+                if (fmt.id !== PCF_DEFAULT_FORMAT) throw new Error("invalid bitmaps format");
+                const nBitmaps = this.read_int32(fmt);
+                if (nBitmaps < this.metrics.length) throw new Error("bitmap count < metric count");
+                this.bitmapOffsets = [];
+                for (let i = 0; i < nBitmaps; i++) this.bitmapOffsets.push(this.read_uint32(fmt));
+                const bitmapSizes = [];
+                for (let i = 0; i < GLYPHPADOPTIONS; i++) bitmapSizes.push(this.read_uint32(fmt));
+                const bitmapSize = bitmapSizes[fmt.glyph];
+                this.bitmaps = this.read_byte8s(bitmapSize);
+
+                const BDF_format = { bit:1, byte:1 };
+                if (fmt.bit !== BDF_format.bit) this.bit_order_invert(this.bitmaps);
+                if ((fmt.bit===fmt.byte) !== (BDF_format.bit===BDF_format.byte)) {
+                    const scanSize = 1 << (BDF_format.bit===BDF_format.byte ? fmt.scan : 0);
+                    if (scanSize === 2) this.two_byte_swap(this.bitmaps);
+                    else if (scanSize === 4) this.four_byte_swap(this.bitmaps);
+                }
+
+                for (let i = 0; i < this.metrics.length; i++) {
+                    const start = this.bitmapOffsets[i];
+                    const end   = (i+1 < this.bitmapOffsets.length) ? this.bitmapOffsets[i+1] : this.bitmaps.length;
+                    if (start >= this.bitmaps.length) throw new Error("bitmap offset out of range");
+                    this.metrics[i].bitmaps = this.bitmaps.slice(start, Math.min(end, this.bitmaps.length));
+                }
+
+                // Encodings
+                if (!this.seek(PCF_BDF_ENCODINGS)) throw new Error("PCF_BDF_ENCODINGS not found");
+                fmt = this.read_format32_little();
+                if (fmt.id !== PCF_DEFAULT_FORMAT) throw new Error("invalid encoding format");
+                const firstCol  = this.read_int16(fmt);
+                const lastCol   = this.read_int16(fmt);
+                const firstRow  = this.read_int16(fmt);
+                const lastRow   = this.read_int16(fmt);
+                const defaultCh = this.read_int16(fmt);
+                if (firstCol > lastCol || firstRow > lastRow) throw new Error("invalid encoding ranges");
+                const nEncodings = (lastCol-firstCol+1)*(lastRow-firstRow+1);
+                this.encodings = [];
+                let nValidEncodings = 0;
+                for (let i = 0; i < nEncodings; i++) {
+                    const enc = this.read_int16(fmt);
+                    this.encodings.push(enc);
+                    if (enc !== NO_SUCH_CHAR) nValidEncodings++; // C only checks NO_SUCH_CHAR
+                }
+
+                // Swidths (optional)
+                if (this.seek(PCF_SWIDTHS)) {
+                    fmt = this.read_format32_little();
+                    if (fmt.id === PCF_DEFAULT_FORMAT) {
+                        const nSwidths = this.read_int32(fmt);
+                        for (let i = 0; i < nSwidths && i < this.metrics.length; i++)
+                            this.metrics[i].swidth = this.read_int32(fmt);
+                    }
+                } else {
+                    // C fallback: compute swidth from RESOLUTION_X and POINT_SIZE
+                    let rx = this.get_property_value("RESOLUTION_X");
+                    if (rx <= 0) rx = Math.floor(this.get_property_value("RESOLUTION") / 100.0 * 72.27);
+                    const p = this.get_property_value("POINT_SIZE") / 10.0;
+                    for (let i = 0; i < this.metrics.length; i++) {
+                        this.metrics[i].swidth = Math.round(
+                            this.metrics[i].characterWidth / (rx / 72.27) / (p / 1000)
+                        );
+                    }
+                }
+
+                // Glyph names (optional)
+                if (this.seek(PCF_GLYPH_NAMES)) {
+                    fmt = this.read_format32_little();
+                    if (fmt.id === PCF_DEFAULT_FORMAT) {
+                        const nGN = this.read_int32(fmt);
+                        const nameOffsets = [];
+                        for (let i = 0; i < nGN; i++) nameOffsets.push(this.read_int32(fmt));
+                        const gnSize = this.read_int32(fmt);
+                        const gnData = this.read_byte8s(gnSize);
+                        const gnStr  = new TextDecoder('utf-8').decode(gnData);
+                        for (let i = 0; i < nGN && i < this.metrics.length; i++) {
+                            if (nameOffsets[i] < gnStr.length)
+                                this.metrics[i].glyphName = gnStr.substring(nameOffsets[i]);
+                        }
+                    }
+                }
+
+                // BDF-style accelerators (optional, preferred over plain accelerators)
+                if (this.seek(PCF_BDF_ACCELERATORS)) {
+                    this.accelerators = this.read_accelerators();
+                }
+
+                return {
+                    metrics: this.metrics, props: this.props,
+                    accelerators: this.accelerators, encodings: this.encodings,
+                    firstCol, lastCol, firstRow, lastRow, defaultCh,
+                    nValidEncodings, fontbbx, bitmapFmt,
+                    get_property_string:    this.get_property_string.bind(this),
+                    get_property_value:     this.get_property_value.bind(this),
+                    is_exist_property_value: this.is_exist_property_value.bind(this)
+                };
+            }
+        }
+
+        function generateBDF(data) {
+            const lines = [];
+            lines.push("STARTFONT 2.1");
+            const fontName = data.get_property_string("FONT");
+            lines.push(`FONT ${fontName || "unknown"}`);
+            let rx = data.get_property_value("RESOLUTION_X");
+            let ry = data.get_property_value("RESOLUTION_Y");
+            if (rx <= 0 || ry <= 0) {
+                const resolution = data.get_property_value("RESOLUTION");
+                rx = ry = resolution > 0 ? Math.floor(resolution / 100.0 * 72.27) : 75;
+            }
+            const pointSize = data.get_property_value("POINT_SIZE");
+            lines.push(`SIZE ${Math.floor(pointSize/10)} ${rx} ${ry}`);
+            const fontWidth  = data.fontbbx.rightSideBearing - data.fontbbx.leftSideBearing;
+            const fontHeight = data.fontbbx.ascent + data.fontbbx.descent;
+            lines.push(`FONTBOUNDINGBOX ${fontWidth} ${fontHeight} ${data.fontbbx.leftSideBearing} ${-data.fontbbx.descent}\n`);
+
+            // C initialises nPropsd = -1 because FONT is always skipped from props
+            // (so the count is already 1 less than props.length).
+            let nPropsd = -1;
+            if (!data.is_exist_property_value("DEFAULT_CHAR") && data.defaultCh !== NO_SUCH_CHAR) nPropsd++;
+            if (!data.is_exist_property_value("FONT_DESCENT")) nPropsd++;
+            if (!data.is_exist_property_value("FONT_ASCENT"))  nPropsd++;
+            // RESOLUTION is skipped in output when both _X and _Y exist
+            if (data.is_exist_property_value("RESOLUTION_X") &&
+                data.is_exist_property_value("RESOLUTION_Y") &&
+                data.is_exist_property_value("RESOLUTION")) nPropsd--;
+
+            lines.push(`STARTPROPERTIES ${data.props.length + nPropsd}`);
+            for (const prop of data.props) {
+                if (prop.name === "FONT") continue;
+                // Skip RESOLUTION if both RESOLUTION_X and RESOLUTION_Y are present
+                if (prop.name === "RESOLUTION" &&
+                    data.is_exist_property_value("RESOLUTION_X") &&
+                    data.is_exist_property_value("RESOLUTION_Y")) continue;
+                if (prop.isStringProp) {
+                    lines.push(`${prop.name} "${prop.value.replace(/"/g,'""')}"`);
+                } else {
+                    lines.push(`${prop.name} ${prop.value}`);
+                }
+            }
+            if (!data.is_exist_property_value("DEFAULT_CHAR") && data.defaultCh !== NO_SUCH_CHAR)
+                lines.push(`DEFAULT_CHAR ${data.defaultCh}`);
+            if (!data.is_exist_property_value("FONT_DESCENT") && data.accelerators)
+                lines.push(`FONT_DESCENT ${data.accelerators.fontDescent}`);
+            if (!data.is_exist_property_value("FONT_ASCENT") && data.accelerators)
+                lines.push(`FONT_ASCENT ${data.accelerators.fontAscent}`);
+            lines.push("ENDPROPERTIES\n");
+            lines.push(`CHARS ${data.nValidEncodings}\n`);
+
+            const nCols = data.lastCol - data.firstCol + 1;
+            for (let i = 0; i < data.encodings.length; i++) {
+                const glyphIndex = data.encodings[i];
+                if (glyphIndex === NO_SUCH_CHAR || glyphIndex >= data.metrics.length) continue;
+                const col      = (i % nCols) + data.firstCol;
+                const row      = Math.floor(i / nCols) + data.firstRow;
+                const charcode = make_charcode(row, col);
+                const m = data.metrics[glyphIndex];
+                if (m.glyphName && m.glyphName.trim()) {
+                    lines.push(`STARTCHAR ${m.glyphName}`);
+                } else if (0x21 <= charcode && charcode <= 0x7e) {
+                    lines.push(`STARTCHAR ${String.fromCharCode(charcode)}`);
+                } else {
+                    lines.push(`STARTCHAR ${charcode.toString(16).toUpperCase().padStart(4,'0')}`);
+                }
+                lines.push(`ENCODING ${charcode}`);
+                lines.push(`SWIDTH ${m.swidth||0} 0`);
+                lines.push(`DWIDTH ${m.characterWidth} 0`);
+                lines.push(`BBX ${m.widthBits()} ${m.height()} ${m.leftSideBearing} ${-m.descent}`);
+                if (m.attributes !== 0)
+                    lines.push(`ATTRIBUTES ${m.attributes.toString(16).toUpperCase().padStart(4,'0')}`);
+                lines.push("BITMAP");
+                // C uses m.widthBytes(format) where format = the bitmaps-section format
+                const widthBytes = m.widthBytes(data.bitmapFmt);
+                const w = Math.max(1, (m.widthBits()+7)>>3);
+                let b = 0;
+                for (let r = 0; r < m.height(); r++) {
+                    let line = "";
+                    for (let c = 0; c < widthBytes; c++) {
+                        // C: always advances b, but only prints when c < w
+                        if (c < w) { line += m.bitmaps[b].toString(16).toUpperCase().padStart(2,'0'); }
+                        b++; // unconditional, matching C's b++
+                    }
+                    lines.push(line);
+                }
+                lines.push("ENDCHAR\n");
+            }
+            lines.push("ENDFONT");
+            return lines.join("\n");
+        }
+
+        function isGzipped(buf) { return buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b; }
+
+        function pcf2bdf(buffer) {
+            const u8 = new Uint8Array(buffer);
+            if (isGzipped(u8)) {
+                buffer = pako.ungzip(u8).buffer;
+            }
+            const reader = new PCFReader(buffer);
+            const data   = reader.parse();
+            return generateBDF(data);
+        }
+
+        // =====================================================================
+        // Embolden
+        // =====================================================================
+
+        /**
+         * Embolden a single bitmap row (binary string as stored by parseBDF).
+         * For each set pixel, also sets the pixel immediately to its right,
+         * if not already set. Equivalent to: row |= (row >> 1) on the bit pattern.
+         * Applied `scale` times for a wider stroke.
+         */
+        function emboldenRow(binRow, scale) {
+            // Each pass must read from a snapshot of the previous state,
+            // not the in-progress write — otherwise a single set bit cascades
+            // rightward all the way across the row.
+            let current = binRow;
+            for (let s = 0; s < scale; s++) {
+                const src = current.split('');  // snapshot to read from
+                const dst = current.split('');  // copy to write into
+                for (let i = 0; i < src.length - 1; i++) {
+                    if (src[i] === '1' && src[i + 1] === '0') {
+                        dst[i + 1] = '1';
+                    }
+                }
+                current = dst.join('');
+            }
+            return current;
+        }
+
+        /**
+         * Return a new font object with all glyph bitmaps emboldened by `scale` pixels.
+         * Each glyph is widened by `scale` to make room for the extra pixels.
+         */
+        function emboldenFont(font, scale) {
+            const newGlyphs = {};
+            for (const [enc, glyph] of Object.entries(font.glyphs)) {
+                const newBitmap = glyph.bitmap.map(row => emboldenRow(row, scale));
+                newGlyphs[enc] = {
+                    ...glyph,
+                    dwidth: (glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w) + scale,
+                    // bbx.w is NOT widened: the smeared bits already live inside the
+                    // existing row string. Only dwidth grows so glyphs don't overlap.
+                    bitmap: newBitmap
+                };
+            }
+            return { ...font, glyphs: newGlyphs };
+        }
+
+        // =====================================================================
+        // App State
+        // =====================================================================
+        let currentFont = null;      // parsed font (original, never mutated)
+        const canvas    = document.getElementById('preview-canvas');
+        const ctx       = canvas.getContext('2d');
+        const textInput = document.getElementById('preview-text');
+        const scaleInput      = document.getElementById('scale');
+        const boldToggle      = document.getElementById('bold-toggle');
+        const boldScaleInput  = document.getElementById('bold-scale');
+        const statusMsg       = document.getElementById('status-msg');
+        const themeSelect     = document.getElementById('theme-select');
+        const fontList        = document.getElementById('font-list');
+        const fontCount       = document.getElementById('font-count');
+        const wPills          = document.getElementById('w-pills');
+        const hPills          = document.getElementById('h-pills');
+
+        // =====================================================================
+        // Font Database
+        // Each entry: { name, author, w, h, url }
+        // w = glyph cell width in pixels, h = glyph cell height in pixels
+        // URLs point to raw BDF files (jsDelivr CDN over Tecate/bitmap-fonts)
+        // =====================================================================
+        const CDN = 'https://cdn.jsdelivr.net/gh/Tecate/bitmap-fonts@master/bitmap/';
+        const FONT_DB = [
+            // ── Tecate/bitmap-fonts ──────────────────────────────────────────
+            { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/artwiz-aleczapka.bdf' },
+            { name: 'Artwiz Cure',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/cure.bdf' },
+            { name: 'Artwiz Drift',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/drift.bdf' },
+            { name: 'Artwiz Fkp',            author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/fkp.bdf' },
+            { name: 'Artwiz Glisp',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp.bdf' },
+            { name: 'Artwiz Lime',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/lime.bdf' },
+            { name: 'Artwiz Mints',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-mild.bdf' },
+            { name: 'Artwiz Snap',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/snap.bdf' },
+            { name: 'Bitocra 7',             author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra7.bdf' },
+            { name: 'Bitocra 13',            author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13.bdf' },
+            { name: 'Boxxy',                 author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy.bdf' },
+            { name: 'Cherry 10',             author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-r.bdf' },
+            { name: 'Cherry 11',             author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-r.bdf' },
+            { name: 'Cherry 13',             author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-r.bdf' },
+            { name: 'CG Mono',               author: 'Christian Gruen',   w:  9, h: 15, url: CDN+'cg-mono/CG-mono-Roman15.bdf' },
+            { name: 'Creep',                 author: 'romeovs',           w:  5, h: 11, url: CDN+'creep/creep.bdf' },
+            { name: 'Ctrld Fixed',           author: 'bjin',              w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r.bdf' },
+            { name: 'Dina 6',               author: 'Jørgen Ibsen',      w:  6, h: 10, url: CDN+'dina/Dina_r400-6.bdf' },
+            { name: 'Dina 8',               author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r400-8.bdf' },
+            { name: 'Dina 9',               author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r400-9.bdf' },
+            { name: 'Dina 10',              author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r400-10.bdf' },
+            { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn.bdf' },
+            { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' },
+            { name: 'Gohufont 11',          author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11.bdf' },
+            { name: 'Gohufont 11 Bold',     author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11b.bdf' },
+            { name: 'Gohufont 14',          author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14.bdf' },
+            { name: 'Gohufont 14 Bold',     author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14b.bdf' },
+            { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/gomme.bdf' },
+            { name: 'Knxt',                 author: 'bytensky',          w:  6, h: 11, url: CDN+'knxt/knxt.bdf' },
+            { name: 'Leggie Small',         author: 'wiktor-b',          w:  5, h: 10, url: CDN+'leggie/leggie.bdf' },
+            { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' },
+            { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'lemon/lemon.bdf' },
+            { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/MonteCarlo.bdf' },
+            { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' },
+            { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' },
+            { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' },
+            { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' },
+            { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/Orp-fonts/Normal/orp-6x11r.bdf' },
+            { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/Orp-fonts/Bold/orp-6x11b.bdf' },
+            { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' },
+            { name: 'Progsole',             author: 'Glenn Schemenauer', w:  7, h: 10, url: CDN+'progsole/progsole-10.bdf' },
+            { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' },
+            { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11.bdf' },
+            { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11-Bold.bdf' },
+            { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/bdf/scientifica-11-Italic.bdf' },
+            { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' },
+            { name: 'Spleen 5x8',          author: 'Frederic Cambus',   w:  5, h:  8, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-5x8.bdf' },
+            { name: 'Spleen 6x12',         author: 'Frederic Cambus',   w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-6x12.bdf' },
+            { name: 'Spleen 8x16',         author: 'Frederic Cambus',   w:  8, h: 16, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-8x16.bdf' },
+            { name: 'Spleen 12x24',        author: 'Frederic Cambus',   w: 12, h: 24, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-12x24.bdf' },
+            { name: 'Spleen 16x32',        author: 'Frederic Cambus',   w: 16, h: 32, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-16x32.bdf' },
+            { name: 'Spleen 32x64',        author: 'Frederic Cambus',   w: 32, h: 64, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-32x64.bdf' },
+            { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamsyn-font/bdf/Tamsyn5x9r.bdf' },
+            { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamsyn-font/bdf/Tamsyn5x9b.bdf' },
+            { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamsyn-font/bdf/Tamsyn6x12r.bdf' },
+            { name: 'Tamsyn 6x12 Bold',    author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamsyn-font/bdf/Tamsyn6x12b.bdf' },
+            { name: 'Tamsyn 7x13',         author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamsyn-font/bdf/Tamsyn7x13r.bdf' },
+            { name: 'Tamsyn 7x13 Bold',    author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamsyn-font/bdf/Tamsyn7x13b.bdf' },
+            { name: 'Tamsyn 8x15',         author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamsyn-font/bdf/Tamsyn8x15r.bdf' },
+            { name: 'Tamsyn 8x15 Bold',    author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamsyn-font/bdf/Tamsyn8x15b.bdf' },
+            { name: 'Tamsyn 8x16',         author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamsyn-font/bdf/Tamsyn8x16r.bdf' },
+            { name: 'Tamsyn 8x16 Bold',    author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamsyn-font/bdf/Tamsyn8x16b.bdf' },
+            { name: 'Tamsyn 10x20',        author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamsyn-font/bdf/Tamsyn10x20r.bdf' },
+            { name: 'Tamsyn 10x20 Bold',   author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamsyn-font/bdf/Tamsyn10x20b.bdf' },
+            { name: 'Tewi Normal',         author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-normal-11.bdf' },
+            { name: 'Tewi Bold',           author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-bold-11.bdf' },
+            // ── Others from around the web ───────────────────────────────────
+            { name: 'Cozette',             author: 'Slavfox',           w:  6, h: 13, url: 'https://cdn.jsdelivr.net/gh/slavfox/Cozette@v.1.25.2/bdf/cozette.bdf' },
+            { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' },
+            { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' },
+            { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' },
+            { name: 'Tamzen 6x12',         author: 'sunaku',            w:  6, h: 12, url: CDN+'tamzen/bdf/Tamzen6x12r.bdf' },
+            { name: 'Tamzen 7x13',         author: 'sunaku',            w:  7, h: 13, url: CDN+'tamzen/bdf/Tamzen7x13r.bdf' },
+            { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' },
+            { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' },
+            { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' },
+        ];
+
+        // Derive unique sorted values from data
+        const uniqueW = [...new Set(FONT_DB.map(f => f.w))].sort((a, b) => a - b);
+        const uniqueH = [...new Set(FONT_DB.map(f => f.h))].sort((a, b) => a - b);
+
+        let activeW = null; // null = any
+        let activeH = null;
+        let activeFontIndex = -1; // index into FONT_DB, -1 = none / dropped file
+
+        function buildPills(container, values, getActive, setActive, enabledSet) {
+            container.innerHTML = '';
+            // "Any" pill — always enabled
+            const anyPill = document.createElement('button');
+            anyPill.className = 'pill' + (getActive() === null ? ' active' : '');
+            anyPill.textContent = 'any';
+            anyPill.addEventListener('click', () => { setActive(null); refreshPills(); renderFontList(); });
+            container.appendChild(anyPill);
+
+            for (const v of values) {
+                const pill = document.createElement('button');
+                const isActive   = getActive() === v;
+                const isDisabled = enabledSet !== null && !enabledSet.has(v);
+                pill.className = 'pill' + (isActive ? ' active' : '') + (isDisabled ? ' disabled' : '');
+                pill.textContent = v;
+                pill.disabled = isDisabled;
+                if (!isDisabled) {
+                    pill.addEventListener('click', () => {
+                        setActive(getActive() === v ? null : v);
+                        refreshPills();
+                        renderFontList();
+                    });
+                }
+                container.appendChild(pill);
+            }
+        }
+
+        function refreshPills() {
+            // Which heights exist for the current activeW, and vice-versa
+            const validH = activeW === null ? null
+                : new Set(FONT_DB.filter(f => f.w === activeW).map(f => f.h));
+            const validW = activeH === null ? null
+                : new Set(FONT_DB.filter(f => f.h === activeH).map(f => f.w));
+
+            buildPills(wPills, uniqueW, () => activeW, v => { activeW = v; }, validW);
+            buildPills(hPills, uniqueH, () => activeH, v => { activeH = v; }, validH);
+        }
+
+        function getFilteredFonts() {
+            return FONT_DB.map((f, i) => ({ ...f, index: i })).filter(f => {
+                if (activeW !== null && f.w !== activeW) return false;
+                if (activeH !== null && f.h !== activeH) return false;
+                return true;
+            });
+        }
+
+        function renderFontList() {
+            const filtered = getFilteredFonts();
+            fontCount.textContent = filtered.length + ' / ' + FONT_DB.length + ' fonts';
+            fontList.innerHTML = '';
+
+            for (const f of filtered) {
+                const item = document.createElement('div');
+                item.className = 'font-item' + (f.index === activeFontIndex ? ' active' : '');
+                item.innerHTML =
+                    '<span class="font-name">' + f.name + '</span>' +
+                    '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
+                item.addEventListener('click', () => loadFontFromDB(f.index));
+                fontList.appendChild(item);
+            }
+        }
+
+        function loadFontFromDB(index) {
+            const f = FONT_DB[index];
+            activeFontIndex = index;
+            renderFontList();
+            statusMsg.textContent = 'Loading ' + f.name + '…';
+            fetch(f.url)
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.text();
+                })
+                .then(text => {
+                    currentFont = parseBDF(text);
+                    statusMsg.textContent = 'Loaded: ' + f.name + ' (' + f.w + '×' + f.h + ')';
+                    renderText();
+                })
+                .catch(err => {
+                    statusMsg.textContent = 'Failed to load ' + f.name + ': ' + err.message;
+                    activeFontIndex = -1;
+                    renderFontList();
+                });
+        }
+
+        // =====================================================================
+        // Themes
+        // =====================================================================
         const themes = {
-            default: { bg: '#121212', panel: '#1e1e1e', text: '#e0e0e0', muted: '#888888', accent: '#bb86fc', border: '#333333' },
-            dracula: { bg: '#282a36', panel: '#44475a', text: '#f8f8f2', muted: '#6272a4', accent: '#ff79c6', border: '#6272a4' },
-            monokai: { bg: '#272822', panel: '#3e3d32', text: '#f8f8f2', muted: '#75715e', accent: '#a6e22e', border: '#75715e' },
-            tokyonight: { bg: '#1a1b26', panel: '#24283b', text: '#c0caf5', muted: '#565f89', accent: '#7aa2f7', border: '#414868' },
-            nord: { bg: '#2e3440', panel: '#3b4252', text: '#d8dee9', muted: '#4c566a', accent: '#88c0d0', border: '#434c5e' }
+            default:    { bg:'#121212', panel:'#1e1e1e', text:'#e0e0e0', muted:'#888888', accent:'#bb86fc', border:'#333333' },
+            dracula:    { bg:'#282a36', panel:'#44475a', text:'#f8f8f2', muted:'#6272a4', accent:'#ff79c6', border:'#6272a4' },
+            monokai:    { bg:'#272822', panel:'#3e3d32', text:'#f8f8f2', muted:'#75715e', accent:'#a6e22e', border:'#75715e' },
+            tokyonight: { bg:'#1a1b26', panel:'#24283b', text:'#c0caf5', muted:'#565f89', accent:'#7aa2f7', border:'#414868' },
+            nord:       { bg:'#2e3440', panel:'#3b4252', text:'#d8dee9', muted:'#4c566a', accent:'#88c0d0', border:'#434c5e' }
         };
 
-        function applyTheme(themeName) {
-            const theme = themes[themeName];
+        function applyTheme(name) {
+            const t    = themes[name];
             const root = document.documentElement;
-            root.style.setProperty('--bg-color', theme.bg);
-            root.style.setProperty('--panel-bg', theme.panel);
-            root.style.setProperty('--text-main', theme.text);
-            root.style.setProperty('--text-muted', theme.muted);
-            root.style.setProperty('--accent', theme.accent);
-            root.style.setProperty('--border', theme.border);
-
-            // Re-render text to apply the new accent color to the canvas pixels
+            root.style.setProperty('--bg-color',   t.bg);
+            root.style.setProperty('--panel-bg',   t.panel);
+            root.style.setProperty('--text-main',  t.text);
+            root.style.setProperty('--text-muted', t.muted);
+            root.style.setProperty('--accent',     t.accent);
+            root.style.setProperty('--border',     t.border);
             renderText();
         }
 
-        themeSelect.addEventListener('change', (e) => {
-            applyTheme(e.target.value);
-        });
+        themeSelect.addEventListener('change', e => applyTheme(e.target.value));
 
-        // --- Demo Data (A tiny 5x7 BDF font for testing) ---
+        // =====================================================================
+        // Demo BDF
+        // =====================================================================
         const demoBdf = `
 STARTFONT 2.1
 FONT -demo-minifont
@@ -257,15 +1167,15 @@ BITMAP
 ENDCHAR
 STARTCHAR l
 ENCODING 108
-DWIDTH 4 0
-BBX 2 7 1 0
+DWIDTH 3 0
+BBX 2 7 0 0
 BITMAP
 03
-01
-01
-01
-01
-01
+03
+03
+03
+03
+03
 03
 ENDCHAR
 STARTCHAR o
@@ -282,10 +1192,18 @@ ENDCHAR
 STARTCHAR comma
 ENCODING 44
 DWIDTH 4 0
-BBX 2 2 1 -1
+BBX 2 3 0 -1
 BITMAP
+00
+03
 01
-02
+ENDCHAR
+STARTCHAR space
+ENCODING 32
+DWIDTH 5 0
+BBX 1 1 0 0
+BITMAP
+00
 ENDCHAR
 STARTCHAR B
 ENCODING 66
@@ -302,12 +1220,12 @@ BITMAP
 ENDCHAR
 STARTCHAR i
 ENCODING 105
-DWIDTH 4 0
+DWIDTH 3 0
 BBX 1 7 1 0
 BITMAP
 01
-00
 01
+00
 01
 01
 01
@@ -376,31 +1294,33 @@ BITMAP
 ENDCHAR
         `.trim();
 
-        // --- Parsers ---
+        // =====================================================================
+        // BDF Parser
+        // =====================================================================
         function parseBDF(bdfText) {
             const lines = bdfText.split('\n');
-            const font = { glyphs: {}, bounds: { w: 0, h: 0, x: 0, y: 0 }, ascent: 0, descent: 0 };
+            const font  = { glyphs:{}, bounds:{w:0,h:0,x:0,y:0}, ascent:0, descent:0 };
             let currentChar = null;
-            let inBitmap = false;
+            let inBitmap    = false;
 
             for (let line of lines) {
                 line = line.trim();
                 if (line.startsWith('FONTBOUNDINGBOX')) {
-                    const parts = line.split(/\s+/);
-                    font.bounds = { w: parseInt(parts[1]), h: parseInt(parts[2]), x: parseInt(parts[3]), y: parseInt(parts[4]) };
+                    const p = line.split(/\s+/);
+                    font.bounds = { w:parseInt(p[1]), h:parseInt(p[2]), x:parseInt(p[3]), y:parseInt(p[4]) };
                 } else if (line.startsWith('FONT_ASCENT')) {
-                    font.ascent = parseInt(line.split(/\s+/)[1]);
+                    font.ascent  = parseInt(line.split(/\s+/)[1]);
                 } else if (line.startsWith('FONT_DESCENT')) {
                     font.descent = parseInt(line.split(/\s+/)[1]);
                 } else if (line.startsWith('STARTCHAR')) {
-                    currentChar = { bitmap: [] };
+                    currentChar = { bitmap:[] };
                 } else if (line.startsWith('ENCODING') && currentChar) {
                     currentChar.encoding = parseInt(line.split(/\s+/)[1]);
                 } else if (line.startsWith('DWIDTH') && currentChar) {
                     currentChar.dwidth = parseInt(line.split(/\s+/)[1]);
                 } else if (line.startsWith('BBX') && currentChar) {
-                    const parts = line.split(/\s+/);
-                    currentChar.bbx = { w: parseInt(parts[1]), h: parseInt(parts[2]), x: parseInt(parts[3]), y: parseInt(parts[4]) };
+                    const p = line.split(/\s+/);
+                    currentChar.bbx = { w:parseInt(p[1]), h:parseInt(p[2]), x:parseInt(p[3]), y:parseInt(p[4]) };
                 } else if (line === 'BITMAP') {
                     inBitmap = true;
                 } else if (line === 'ENDCHAR') {
@@ -408,71 +1328,65 @@ ENDCHAR
                         font.glyphs[currentChar.encoding] = currentChar;
                     }
                     currentChar = null;
-                    inBitmap = false;
+                    inBitmap    = false;
                 } else if (inBitmap && currentChar) {
-                    const byteLen = Math.ceil(currentChar.bbx.w / 8) * 2;
-                    const paddedHex = line.padEnd(byteLen, '0').substring(0, byteLen);
-                    let binString = '';
-                    for (let i = 0; i < paddedHex.length; i++) {
-                        binString += parseInt(paddedHex[i], 16).toString(2).padStart(4, '0');
+                    const byteLen  = Math.ceil(currentChar.bbx.w / 8) * 2;
+                    const padded   = line.padEnd(byteLen, '0').substring(0, byteLen);
+                    let binString  = '';
+                    for (let i = 0; i < padded.length; i++) {
+                        binString += parseInt(padded[i], 16).toString(2).padStart(4, '0');
                     }
                     currentChar.bitmap.push(binString);
                 }
             }
 
             if (!font.ascent && !font.descent) {
-                font.ascent = font.bounds.h + font.bounds.y;
+                font.ascent  = font.bounds.h + font.bounds.y;
                 font.descent = -font.bounds.y;
             }
             return font;
         }
 
-        function parsePCF(arrayBuffer) {
-            alert("PCF format detected. Full binary PCF parsing requires an external library. Please drop a .bdf file instead.");
-            return null;
-        }
-
-        // --- Rendering ---
+        // =====================================================================
+        // Rendering
+        // =====================================================================
         function renderText() {
             if (!currentFont) return;
 
-            const text = textInput.value;
+            // Pick font to draw: embolden on the fly if checkbox is checked
+            const boldScale = parseInt(boldScaleInput.value, 10) || 1;
+            const font = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
+
+            const text  = textInput.value;
             const scale = parseInt(scaleInput.value, 10);
 
             let totalWidth = 0;
-            let maxHeight = currentFont.bounds.h;
+            const maxHeight = font.bounds.h;
 
             for (let i = 0; i < text.length; i++) {
-                const charCode = text.charCodeAt(i);
-                const glyph = currentFont.glyphs[charCode];
+                const cc    = text.charCodeAt(i);
+                const glyph = font.glyphs[cc];
                 if (glyph) {
-                    totalWidth += glyph.dwidth || glyph.bbx.w;
-                } else if (charCode === 32) {
-                    totalWidth += currentFont.bounds.w / 2;
+                    totalWidth += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
+                } else if (cc === 32) {
+                    totalWidth += Math.floor(font.bounds.w / 2);
                 }
             }
 
-            canvas.width = Math.max(totalWidth * scale, 1);
+            canvas.width  = Math.max(totalWidth * scale, 1);
             canvas.height = Math.max(maxHeight * scale * 1.5, 1);
-
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Read the accent color dynamically from the CSS variables
             const computedStyle = getComputedStyle(document.documentElement);
             ctx.fillStyle = computedStyle.getPropertyValue('--accent').trim();
 
-            let cursorX = 0;
-            const baselineY = currentFont.ascent;
+            let cursorX   = 0;
+            const baselineY = font.ascent;
 
             for (let i = 0; i < text.length; i++) {
-                const charCode = text.charCodeAt(i);
-
-                if (charCode === 32) {
-                    cursorX += Math.floor(currentFont.bounds.w / 2);
-                    continue;
-                }
-
-                const glyph = currentFont.glyphs[charCode];
+                const cc = text.charCodeAt(i);
+                if (cc === 32) { cursorX += Math.floor(font.bounds.w / 2); continue; }
+                const glyph = font.glyphs[cc];
                 if (!glyph) continue;
 
                 const startX = cursorX + glyph.bbx.x;
@@ -486,74 +1400,78 @@ ENDCHAR
                         }
                     }
                 }
-
                 cursorX += glyph.dwidth !== undefined ? glyph.dwidth : glyph.bbx.w;
             }
         }
 
-        // --- Event Listeners ---
+        // =====================================================================
+        // Event Listeners
+        // =====================================================================
         textInput.addEventListener('input', renderText);
         scaleInput.addEventListener('input', renderText);
+        boldToggle.addEventListener('change', renderText);
+        boldScaleInput.addEventListener('input', renderText);
 
-        fontSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'builtin') {
-                currentFont = parseBDF(demoBdf);
-                statusMsg.innerText = 'Loaded Demo Font';
-                renderText();
-            } else {
-                currentFont = null;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                statusMsg.innerText = 'Awaiting font file...';
-            }
-        });
+        // Font list is initialised after applyTheme (see bottom)
 
-        // --- Drag and Drop Logic ---
+        // =====================================================================
+        // Drag and Drop
+        // =====================================================================
         document.body.addEventListener('dragover', (e) => {
             e.preventDefault();
             document.body.classList.add('dragover');
         });
-
         document.body.addEventListener('dragleave', (e) => {
             e.preventDefault();
             document.body.classList.remove('dragover');
         });
-
         document.body.addEventListener('drop', (e) => {
             e.preventDefault();
             document.body.classList.remove('dragover');
-
             if (e.dataTransfer.files.length === 0) return;
 
-            const file = e.dataTransfer.files[0];
+            const file   = e.dataTransfer.files[0];
             const reader = new FileReader();
+            const name   = file.name.toLowerCase();
 
-            if (file.name.toLowerCase().endsWith('.bdf')) {
-                reader.onload = (event) => {
+            if (name.endsWith('.bdf')) {
+                reader.onload = (ev) => {
                     try {
-                        currentFont = parseBDF(event.target.result);
+                        currentFont = parseBDF(ev.target.result);
                         statusMsg.innerText = `Loaded: ${file.name}`;
-                        fontSelect.value = "none";
+                        activeFontIndex = -1; renderFontList();
                         renderText();
                     } catch (err) {
                         statusMsg.innerText = `Error parsing BDF: ${err.message}`;
                     }
                 };
                 reader.readAsText(file);
-            }
-            else if (file.name.toLowerCase().endsWith('.pcf')) {
-                reader.onload = (event) => {
-                    currentFont = parsePCF(event.target.result);
-                    if (currentFont) renderText();
+
+            } else if (name.endsWith('.pcf') || name.endsWith('.pcf.gz')) {
+                reader.onload = (ev) => {
+                    try {
+                        const bdfText = pcf2bdf(ev.target.result);
+                        currentFont   = parseBDF(bdfText);
+                        statusMsg.innerText = `Loaded PCF: ${file.name}`;
+                        activeFontIndex = -1; renderFontList();
+                        renderText();
+                    } catch (err) {
+                        statusMsg.innerText = `Error parsing PCF: ${err.message}`;
+                    }
                 };
                 reader.readAsArrayBuffer(file);
-            }
-            else {
-                statusMsg.innerText = 'Unsupported file type. Please use .bdf';
+
+            } else {
+                statusMsg.innerText = 'Unsupported file. Drop a .bdf or .pcf file.';
             }
         });
 
-        // Initialize default theme (optional, ensures baseline sync)
+        // =====================================================================
+        // Init
+        // =====================================================================
         applyTheme('default');
+        refreshPills();
+        renderFontList();
     </script>
 </body>
 </html>
