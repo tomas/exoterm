@@ -1880,6 +1880,7 @@
             })();
 
             if (bestInRange.score < BITMAP_SCORE_THRESHOLD) {
+                // alert("This doesn't look like a bitmap font.");
                 throw new Error(
                     'Not a bitmap font — best grid-fit score within 1–32px is ' +
                     (bestInRange.score * 100).toFixed(1) + '% (need ≥85%). ' +
@@ -3005,6 +3006,7 @@
                         renderText();
                     } catch (err) {
                         statusMsg.innerText = `Error parsing TTF: ${err.message}`;
+                        alert('Invalid or non bitmap font');
                         console.error(err);
                     }
                 };
