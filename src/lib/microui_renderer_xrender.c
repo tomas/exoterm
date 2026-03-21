@@ -96,6 +96,15 @@ int r_init(Display * display, Window window, GC context, Visual * visual, int de
   }
 
   XRenderPictFormat * vis_fmt = XRenderFindVisualFormat(dpy, s_visual);
+  if (!vis_fmt) {
+    /* Fallback for visuals not registered in XRender's format table (common
+       with 32-bit ARGB visuals used by compositors for native transparency). */
+    vis_fmt = XRenderFindStandardFormat(dpy, s_depth == 32
+                                            ? PictStandardARGB32
+                                            : PictStandardRGB24);
+  }
+  if (!vis_fmt) return -1;
+
   window_picture = XRenderCreatePicture(dpy, win, vis_fmt, 0, NULL);
 
   back_buffer_pixmap = XCreatePixmap(dpy, win, width, height, s_depth);
@@ -129,10 +138,15 @@ void r_update_context(Display * display, Window window, GC context) {
 }
 
 void r_resize(int width, int height) {
+  if (!dpy || !back_buffer_picture) return;
   XRenderFreePicture(dpy, back_buffer_picture);
   XFreePixmap(dpy, back_buffer_pixmap);
 
   XRenderPictFormat * vis_fmt = XRenderFindVisualFormat(dpy, s_visual);
+  if (!vis_fmt)
+    vis_fmt = XRenderFindStandardFormat(dpy, s_depth == 32
+                                            ? PictStandardARGB32
+                                            : PictStandardRGB24);
   back_buffer_pixmap = XCreatePixmap(dpy, win, width, height, s_depth);
   back_buffer_picture = XRenderCreatePicture(dpy, back_buffer_pixmap, vis_fmt, 0, NULL);
 
