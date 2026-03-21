@@ -1005,11 +1005,15 @@ rxvt_term::show_settings_ui ()
     int res = r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
     if (res != 0) {
       printf("could not init renderer\n");
+      settings_ui_ev.stop (display);
+      XDestroyWindow (dpy, settings_ui.win);
+      settings_ui.win = None;
       return;
     }
 
   } else {
     /* Reusing existing windows: update size/position. */
+    r_update_context (dpy, settings_ui.win, settings_ui.gc);
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
     if (settings_ui.backdrop_buf != None)
       XFreePixmap (dpy, settings_ui.backdrop_buf);
