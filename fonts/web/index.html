@@ -72,11 +72,16 @@
             background-color: var(--bg-color);
             border: 1px solid var(--border);
             color: var(--text-main);
-            padding: 10px;
+            padding: 8px 12px;
             border-radius: 4px;
             font-size: 1rem;
+            font-size: 13px;
             outline: none;
             transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+        }
+
+        select, input[type="text"]::placeholder {
+            color: rgba(255,255,255,0.3);
         }
 
         select:focus, input[type="text"]:focus, input[type="number"]:focus {
@@ -298,6 +303,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-left: -15%;
             overflow: auto;
             background-color: var(--bg-color);
             /* Dynamic checkerboard based on theme variables */
@@ -332,7 +338,6 @@
             border: 1px solid var(--border);
             border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 16px;
         }
 
         .mode-btn {
@@ -365,9 +370,10 @@
         #preview-text {
             min-height: 200px;
             scrollbar-width: none;
-            background:var(--bg-panel);
+/*            background:var(--bg-panel);*/
             border:1px solid var(--border);
             color:var(--text-main);
+            background: rgba(0,0,0,0.5);
            padding:8px;
            border-radius:4px;
            font-size: 11px;
@@ -419,18 +425,7 @@
 <body>
 
     <div id="sidebar">
-        <!-- <h1>Bitmap Previewer</h1> -->
-
-        <div style="display: none;" class="control-group">
-            <label for="theme-select">Color Scheme</label>
-            <select id="theme-select">
-                <option value="default">Default Dark</option>
-                <option value="dracula">Dracula</option>
-                <option value="monokai">Monokai</option>
-                <option value="tokyonight">Tokyo Night</option>
-                <option value="nord">Nord</option>
-            </select>
-        </div>
+        <h1>Bitmap fonts</h1>
 
         <div class="font-browser">
             <div class="filter-row">
@@ -487,7 +482,7 @@
                 <input type="checkbox" id="bold-toggle">
                 <label for="bold-toggle">Embolden</label>
             </div>
-            <div class="checkbox-row">
+            <div class="checkbox-row" style="display:none">
                 <input disabled type="checkbox" id="save-scaled-toggle">
                 <label for="save-scaled-toggle">Save scaled</label>
             </div>
@@ -537,6 +532,17 @@
                 <div class="control-group" id="custom-text-group" style="display:none">
                     <label for="preview-text">Preview Text</label>
                     <textarea id="preview-text" rows="4" >Hello, Bitmap!</textarea>
+                </div>
+
+                <div class="control-group" id="color-scheme-toggle">
+                    <label for="theme-select">Color Scheme</label>
+                    <select id="theme-select">
+                        <option value="default">Default</option>
+                        <option value="dracula">Dracula</option>
+                        <option value="monokai">Monokai</option>
+                        <option value="tokyonight">Tokyo Night</option>
+                        <option value="nord">Nord</option>
+                    </select>
                 </div>
 
             </div>
@@ -1106,7 +1112,7 @@
         // URLs point to raw BDF files (jsDelivr CDN over Tecate/bitmap-fonts)
         // =====================================================================
         // const CDN = 'https://cdn.jsdelivr.net/gh/Tecate/bitmap-fonts@master/bitmap/';
-        const CDN = '/bitmap-fonts/bitmap/'
+        const CDN = '/archive/bitmap-fonts/bitmap/'
 
         const FONT_DB = [
             // { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/aleczapka.bdf' }, // Note: aleczapka.bdf, not artwiz-aleczapka.bdf
@@ -1390,18 +1396,7 @@
             { name: 'Envypn 7x15',           author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15.bdf' },
             { name: 'Envypn 7x15e',          author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15e.bdf' },
 
-            // Tewi additional
-            // { name: 'Tewi2a Normal 11',      author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-normal-11.bdf' },
-            // { name: 'Tewi2a Bold 11',        author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-bold-11.bdf' }
-            // { name: 'Spleen 5x8',          author: 'Frederic Cambus',   w:  5, h:  8, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-5x8.bdf' },
-            // { name: 'Spleen 6x12',         author: 'Frederic Cambus',   w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-6x12.bdf' },
-            // { name: 'Spleen 8x16',         author: 'Frederic Cambus',   w:  8, h: 16, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-8x16.bdf' },
-            // { name: 'Spleen 12x24',        author: 'Frederic Cambus',   w: 12, h: 24, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-12x24.bdf' },
-            // { name: 'Spleen 16x32',        author: 'Frederic Cambus',   w: 16, h: 32, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-16x32.bdf' },
-            // { name: 'Spleen 32x64',        author: 'Frederic Cambus',   w: 32, h: 64, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-32x64.bdf' },
-
             // ── Others from around the web ───────────────────────────────────
-            // { name: 'Cozette',             author: 'Slavfox',           w:  6, h: 13, url: 'https://cdn.jsdelivr.net/gh/slavfox/Cozette@v.1.25.2/bdf/cozette.bdf' },
             // { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' },
             // { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' },
             // { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' },
@@ -1410,8 +1405,218 @@
             // { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' },
             // { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' },
             // { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' },
+
+            // { name: 'Bitmap Garamond 14px medium (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamond.bdf' },
+            { name: 'Bitmap Garamond 14px medium (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamon2.bdf' },
+            // { name: 'Bitmap Garamond 14px bold (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabold.bdf' },
+            { name: 'Bitmap Garamond 14px bold (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabol2.bdf' },
+            // { name: 'Bitmap Garamond 14px italic (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaital.bdf' },
+            { name: 'Bitmap Garamond 14px italic (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaita2.bdf' },
+
+            { name: 'lemon', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/lemon.bdf' },
+            { name: 'limey', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/limey.bdf' },
+            { name: 'berryBold', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berryBold.bdf' },
+            { name: 'berry', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berry.bdf' },
+            { name: 'uushi', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/uushi.bdf' },
+            { name: 'antidote', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/antidote.bdf' },
+
+            { name: 'Cozette', author: 'Slavfox', w:  6, h: 13, url: '/archive/cozette.bdf' },
+            { name: 'Zpix', author: 'SolidZORO', w: 10, h: 14, url: '/archive/zpix.bdf' },
+            { name: '5x13', author: 'Christian Neukirchen', w: 5, h: 13, url: '/archive/5x13.bdf' },
+
+            { name: 'WineTahomaBit-16.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-16.bdf' },
+            { name: 'WineTahomaBit-11.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-11.bdf' },
+            { name: 'WineTahomaBit-12.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-12.bdf' },
+            { name: 'WineTahomaBit-15.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-15.bdf' },
+            { name: 'WineTahomaBit-13.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-13.bdf' },
+
+            { name: 'POKEMON-11.bdf', author: '', url: 'archive/POKEMON-11.bdf' },
+            { name: 'ter-powerline-x18n.bdf', author: '', url: 'archive/ter-powerline-x18n.bdf' },
+            { name: 'mara-font-x16n.bdf', author: '', url: 'archive/mara-font-x16n.bdf' },
+            { name: 'gohu.bdf', author: '', url: 'archive/gohu.bdf' },
+
+            { name: 'ProgCleanConsole-11.bdf', author: '', url: 'archive/Proggy/ProgCleanConsole-11.bdf' },
+            { name: 'ProggyClean-11.bdf', author: '', url: 'archive/Proggy/ProggyClean-11.bdf' },
+
+            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-16.bdf' },
+            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-15.bdf' },
+
+            { name: 'PICO-8RaizeOEM-19.bdf', author: '', url: 'archive/PICO-8RaizeOEM-19.bdf' },
+            { name: 'PICO-8Raize-19.bdf', author: '', url: 'archive/PICO-8Raize-19.bdf' },
+            { name: 'XARAFONT-4.bdf', author: '', url: 'archive/XARAFONT-4.bdf' },
+            { name: 'terv12n.bdf', author: '', url: 'archive/terv12n.bdf' },
+            { name: 'ter-powerline-x20n.bdf', author: '', url: 'archive/ter-powerline-x20n.bdf' },
+
+            // { name: 'spleen-8x16.bdf', author: '', url: 'archive/bdf-fonts/spleen-8x16.bdf' },
+            // { name: 'spleen-12x24.bdf', author: '', url: 'archive/bdf-fonts/spleen-12x24.bdf' },
+            // { name: 'spleen-32x64.bdf', author: '', url: 'archive/bdf-fonts/spleen-32x64.bdf' },
+            // { name: 'spleen-16x32.bdf', author: '', url: 'archive/bdf-fonts/spleen-16x32.bdf' },
+            // { name: 'spleen-5x8.bdf', author: '', url: 'archive/bdf-fonts/spleen-5x8.bdf' },
+
+            { name: '4x6.bdf', author: '', url: 'archive/bdf-fonts/4x6.bdf' },
+            { name: '9x15B.bdf', author: '', url: 'archive/bdf-fonts/9x15B.bdf' },
+            { name: '7x13.bdf', author: '', url: 'archive/bdf-fonts/7x13.bdf' },
+            { name: '8x13B.bdf', author: '', url: 'archive/bdf-fonts/8x13B.bdf' },
+            { name: '9x15.bdf', author: '', url: 'archive/bdf-fonts/9x15.bdf' },
+            { name: '6x13.bdf', author: '', url: 'archive/bdf-fonts/6x13.bdf' },
+
+            { name: 'clR6x12.bdf', author: '', url: 'archive/bdf-fonts/clR6x12.bdf' },
+            { name: 'creep.bdf', author: '', url: 'archive/bdf-fonts/creep.bdf' },
+            { name: '10x20.bdf', author: '', url: 'archive/bdf-fonts/10x20.bdf' },
+
+            // { name: 'HaxorMedium-13.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-13.bdf' },
+            // { name: 'HaxorMedium-11.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-11.bdf' },
+            // { name: 'HaxorMedium-10.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-10.bdf' },
+            // { name: 'HaxorNarrow-17.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-17.bdf' },
+            // { name: 'HaxorMedium-12.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-12.bdf' },
+            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-15.bdf' },
+            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-16.bdf' },
+
+            // { name: 'scientificaBold-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaBold-11.bdf' },
+            // { name: 'scientificaItalic-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaItalic-11.bdf' },
+            // { name: 'scientifica-11.bdf', author: '', url: 'archive/bdf-fonts/scientifica-11.bdf' },
+
+            { name: 'tom-thumb.bdf', author: '', url: 'archive/bdf-fonts/tom-thumb.bdf' },
+            // { name: 'PsevdoAzbukaMedium-12.bdf', author: '', url: 'archive/bdf-fonts/PsevdoAzbukaMedium-12.bdf' },
+
+            { name: '8x13.bdf', author: '', url: 'archive/bdf-fonts/8x13.bdf' },
+            { name: '8x13O.bdf', author: '', url: 'archive/bdf-fonts/8x13O.bdf' },
+            { name: 'knxt.bdf', author: '', url: 'archive/bdf-fonts/knxt.bdf' },
+            { name: 'logisoso46.bdf', author: '', url: 'archive/bdf-fonts/logisoso46.bdf' },
+            { name: '7x13O.bdf', author: '', url: 'archive/bdf-fonts/7x13O.bdf' },
+            { name: '6x9.bdf', author: '', url: 'archive/bdf-fonts/6x9.bdf' },
+            { name: '7x14B.bdf', author: '', url: 'archive/bdf-fonts/7x14B.bdf' },
+            { name: '6x12.bdf', author: '', url: 'archive/bdf-fonts/6x12.bdf' },
+            { name: 'helvR12 copy.bdf', author: '', url: 'archive/bdf-fonts/helvR12 copy.bdf' },
+
+            { name: '7x13B.bdf', author: '', url: 'archive/bdf-fonts/7x13B.bdf' },
+            { name: '7x14.bdf', author: '', url: 'archive/bdf-fonts/7x14.bdf' },
+            { name: '6x13B.bdf', author: '', url: 'archive/bdf-fonts/6x13B.bdf' },
+
+            { name: 'peep-10x20.bdf', author: '', url: 'archive/bdf-fonts/peep-10x20.bdf' },
+            { name: '9x18B.bdf', author: '', url: 'archive/bdf-fonts/9x18B.bdf' },
+            { name: '9x18.bdf', author: '', url: 'archive/bdf-fonts/9x18.bdf' },
+            { name: '5x8.bdf', author: '', url: 'archive/bdf-fonts/5x8.bdf' },
+            { name: '6x13O.bdf', author: '', url: 'archive/bdf-fonts/6x13O.bdf' },
+            { name: '5x7.bdf', author: '', url: 'archive/bdf-fonts/5x7.bdf' },
+            { name: 'helvR12.bdf', author: '', url: 'archive/bdf-fonts/helvR12.bdf' },
+            { name: '6x10.bdf', author: '', url: 'archive/bdf-fonts/6x10.bdf' },
+
+            { name: 'Helvetica O 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO10-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica R 12.pcf.bdf', author: '', url: 'archive/helvetica/helvR12.pcf.bdf' },
+            { name: 'Helvetica B O08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 14.pcf.bdf', author: '', url: 'archive/helvetica/helvO14.pcf.bdf' },
+            { name: 'Helvetica B 08.pcf.bdf', author: '', url: 'archive/helvetica/helvB08.pcf.bdf' },
+            { name: 'Helvetica B O12.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12.pcf.bdf' },
+            { name: 'Helvetica B 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB18-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB08-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB12-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B O14.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14.pcf.bdf' },
+            { name: 'Helvetica R 14.pcf.bdf', author: '', url: 'archive/helvetica/helvR14.pcf.bdf' },
+            { name: 'Helvetica B O24.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24.pcf.bdf' },
+            { name: 'Helvetica O 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO18-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B O18.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18.pcf.bdf' },
+            { name: 'Helvetica B O08.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08.pcf.bdf' },
+            { name: 'Helvetica B 18.pcf.bdf', author: '', url: 'archive/helvetica/helvB18.pcf.bdf' },
+            { name: 'Helvetica R 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR24-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO24-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO08-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica R 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR08-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 10.pcf.bdf', author: '', url: 'archive/helvetica/helvB10.pcf.bdf' },
+            { name: 'Helvetica R 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR12-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B O10.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10.pcf.bdf' },
+            { name: 'Helvetica B O12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 24.pcf.bdf', author: '', url: 'archive/helvetica/helvB24.pcf.bdf' },
+            { name: 'Helvetica R 24.pcf.bdf', author: '', url: 'archive/helvetica/helvR24.pcf.bdf' },
+            { name: 'Helvetica O 08.pcf.bdf', author: '', url: 'archive/helvetica/helvO08.pcf.bdf' },
+            { name: 'Helvetica B O14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica R 08.pcf.bdf', author: '', url: 'archive/helvetica/helvR08.pcf.bdf' },
+            { name: 'Helvetica R 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR10-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB24-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 24.pcf.bdf', author: '', url: 'archive/helvetica/helvO24.pcf.bdf' },
+            { name: 'Helvetica O 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO14-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 18.pcf.bdf', author: '', url: 'archive/helvetica/helvO18.pcf.bdf' },
+            { name: 'Helvetica B 12.pcf.bdf', author: '', url: 'archive/helvetica/helvB12.pcf.bdf' },
+            { name: 'Helvetica B O24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 10.pcf.bdf', author: '', url: 'archive/helvetica/helvO10.pcf.bdf' },
+            { name: 'Helvetica R 18.pcf.bdf', author: '', url: 'archive/helvetica/helvR18.pcf.bdf' },
+            { name: 'Helvetica B 14.pcf.bdf', author: '', url: 'archive/helvetica/helvB14.pcf.bdf' },
+            { name: 'Helvetica R 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR18-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 12.pcf.bdf', author: '', url: 'archive/helvetica/helvO12.pcf.bdf' },
+            { name: 'Helvetica B O10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica R 10.pcf.bdf', author: '', url: 'archive/helvetica/helvR10.pcf.bdf' },
+            { name: 'Helvetica O 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO12-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica R 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR14-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B O18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB10-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica B 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB14-ISO8859-1.pcf.bdf' },
+
+            { name: 'Bm437 - OlivettiThin8x16-16.bdf', author: '', url: 'archive/oldschool/Bm437OlivettiThin8x16-16.bdf' },
+            { name: 'Bm437 - RobotronA7100-16.bdf', author: '', url: 'archive/oldschool/Bm437RobotronA7100-16.bdf' },
+            { name: 'Bm437 - ToshibaSat8x14-13.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat8x14-13.bdf' },
+            { name: 'Bm437 - IBMModel3xAlt3-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt3-16.bdf' },
+            { name: 'Bm437 - IBMModel3xAlt2-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt2-16.bdf' },
+            { name: 'Bm437 - Wyse700b-2y-32.bdf', author: '', url: 'archive/oldschool/Bm437Wyse700b-2y-32.bdf' },
+            { name: 'Bm437 - NECAPC38x16-16.bdf', author: '', url: 'archive/oldschool/Bm437NECAPC38x16-16.bdf' },
+            { name: 'Bm437 - ToshibaSat9x16-16.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat9x16-16.bdf' },
+
+            { name: 'vgafonts/ROTUND.bdf', author: '', url: 'archive/vgafonts/ROTUND.bdf' },
+            { name: 'vgafonts/BLKBOARD.bdf', author: '', url: 'archive/vgafonts/BLKBOARD.bdf' },
+            { name: 'vgafonts/TANDY2K1.bdf', author: '', url: 'archive/vgafonts/TANDY2K1.bdf' },
+            { name: 'vgafonts/SPRANTO1.bdf', author: '', url: 'archive/vgafonts/SPRANTO1.bdf' },
+            { name: 'vgafonts/MACNTOSH.bdf', author: '', url: 'archive/vgafonts/MACNTOSH.bdf' },
+            { name: 'vgafonts/TOSHT300.bdf', author: '', url: 'archive/vgafonts/TOSHT300.bdf' },
+            { name: 'vgafonts/READABL7.bdf', author: '', url: 'archive/vgafonts/READABL7.bdf' },
+            { name: 'vgafonts/READABL8.bdf', author: '', url: 'archive/vgafonts/READABL8.bdf' },
+            { name: 'vgafonts/ARTX.bdf', author: '', url: 'archive/vgafonts/ARTX.bdf' },
+            { name: 'vgafonts/FM-T-437.bdf', author: '', url: 'archive/vgafonts/FM-T-437.bdf' },
+            { name: 'vgafonts/HUGE.bdf', author: '', url: 'archive/vgafonts/HUGE.bdf' },
+            { name: 'vgafonts/BULKY.bdf', author: '', url: 'archive/vgafonts/BULKY.bdf' },
+            { name: 'vgafonts/DKY001.bdf', author: '', url: 'archive/vgafonts/DKY001.bdf' },
+            { name: 'vgafonts/DOSJ-437.bdf', author: '', url: 'archive/vgafonts/DOSJ-437.bdf' },
+            { name: 'vgafonts/MEDIEVAL.bdf', author: '', url: 'archive/vgafonts/MEDIEVAL.bdf' },
+            { name: 'vgafonts/GSPLAY.bdf', author: '', url: 'archive/vgafonts/GSPLAY.bdf' },
+            { name: 'vgafonts/APC-III.bdf', author: '', url: 'archive/vgafonts/APC-III.bdf' },
+            { name: 'vgafonts/TANDY2K2.bdf', author: '', url: 'archive/vgafonts/TANDY2K2.bdf' },
+            { name: 'vgafonts/A7100-US.bdf', author: '', url: 'archive/vgafonts/A7100-US.bdf' },
+            { name: 'vgafonts/ART.bdf', author: '', url: 'archive/vgafonts/ART.bdf' },
+            { name: 'vgafonts/WIGGLY.bdf', author: '', url: 'archive/vgafonts/WIGGLY.bdf' },
+            { name: 'vgafonts/FATSCII.bdf', author: '', url: 'archive/vgafonts/FATSCII.bdf' },
+            { name: 'vgafonts/HEB-BOLD.bdf', author: '', url: 'archive/vgafonts/HEB-BOLD.bdf' },
+            { name: 'vgafonts/FM-TOWNS.bdf', author: '', url: 'archive/vgafonts/FM-TOWNS.bdf' },
+
+            { name: 'Sanyo-8200-Msg-Normal-13.bdf', url: 'archive/converted/Sanyo-8200-Msg-Normal-13.bdf' },
+            { name: 'Monocraft-18.bdf', url: 'archive/converted/Monocraft-18.bdf' },
+            { name: 'Galmuri11-Condensed-12.bdf', url: 'archive/converted/Galmuri11-Condensed-12.bdf' },
+            { name: 'PixelUltima-16.bdf', url: 'archive/converted/PixelUltima-16.bdf' },
+            { name: 'NeuePixelSans-24.bdf', url: 'archive/converted/NeuePixelSans-24.bdf' },
+            { name: 'PixelUltima-Bold-16.bdf', url: 'archive/converted/PixelUltima-Bold-16.bdf' },
+            { name: 'GrixelAcme9RegularXtnd-8.bdf', url: 'archive/converted/GrixelAcme9RegularXtnd-8.bdf' },
+            { name: 'GrixelAcme9RegularBold-8.bdf', url: 'archive/converted/GrixelAcme9RegularBold-8.bdf' },
+            { name: 'Quarlow-16.bdf', url: 'archive/converted/Quarlow-16.bdf' },
+            { name: 'BobsGame-Big-10.bdf', url: 'archive/converted/BobsGame-Big-10.bdf' },
+            { name: 'TwelveBySeven-16.bdf', url: 'archive/converted/TwelveBySeven-16.bdf' },
+            { name: 'GBAFE2-16.bdf', url: 'archive/converted/GBAFE2-16.bdf' },
+            { name: 'Earth-Illusion-15.bdf', url: 'archive/converted/Earth-Illusion-15.bdf' },
+            { name: 'Pixel-Paradise-16.bdf', url: 'archive/converted/Pixel-Paradise-16.bdf' },
+            { name: 'Mecha-Bold-16.bdf', url: 'archive/converted/Mecha-Bold-16.bdf' },
+            { name: 'Galmuri14-Regular-18.bdf', url: 'archive/converted/Galmuri14-Regular-18.bdf' },
+            { name: 'hgpsPentaCom-16.bdf', url: 'archive/converted/hgpsPentaCom-16.bdf' },
+            { name: 'Mecha-16.bdf', url: 'archive/converted/Mecha-16.bdf' },
+            { name: 'BetterDeterminationSansThin-12.bdf', url: 'archive/converted/BetterDeterminationSansThin-12.bdf' },
+            { name: 'Galmuri11-Bold-12.bdf', url: 'archive/converted/Galmuri11-Bold-12.bdf' },
+
+
         ].sort(function(a, b) {
             return a.name > b.name ? 1 : -1;
+        }).map(function(f) {
+            if (!f.w && !f.h) {
+                var match = f.name.match(/(\d{1,2})x(\d{1,2})/);
+                if (match) {
+                    f.w = parseInt(match[1]); f.h = parseInt(match[2]);
+                }
+            }
+            return f;
         });
 
         // Derive unique sorted values from data
@@ -1483,9 +1688,12 @@
             for (const f of filtered) {
                 const item = document.createElement('div');
                 item.className = 'font-item' + (f.index === activeFontIndex ? ' active' : '');
-                item.innerHTML =
-                    '<span class="font-name">' + f.name + '</span>' +
-                    '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
+                var html = '<span class="font-name">' + f.name + '</span>';
+
+                if (f.w)
+                    html += '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
+
+                item.innerHTML = html;
                 item.addEventListener('click', () => { loadFontFromDB(f.index); fontList.focus(); });
                 fontList.appendChild(item);
             }
@@ -1570,7 +1778,7 @@
                           kw:'#f92672', str:'#e6db74', cmt:'#75715e', num:'#ae81ff', fn:'#a6e22e' },
             tokyonight: { bg:'#1a1b26', panel:'#24283b', text:'#c0caf5', muted:'#565f89', accent:'#7aa2f7', border:'#414868',
                           kw:'#bb9af7', str:'#9ece6a', cmt:'#565f89', num:'#ff9e64', fn:'#7aa2f7' },
-            nord:       { bg:'#2e3440', panel:'#3b4252', text:'#d8dee9', muted:'#4c566a', accent:'#88c0d0', border:'#434c5e',
+            nord:       { bg:'#2e3440', panel:'#3b4252', text:'#d8dee9', muted:'#67738c', accent:'#88c0d0', border:'#434c5e',
                           kw:'#81a1c1', str:'#a3be8c', cmt:'#4c566a', num:'#b48ead', fn:'#88c0d0' }
         };
 
@@ -1791,6 +1999,7 @@
             lines.push('');
             return lines.join('\n');
         }
+
         function convertToPCF(buffer) {
             // const uint8View = new Uint8Array(buffer);
             FS.writeFile("/input.bdf", buffer);
@@ -1829,7 +2038,7 @@
             if (!currentFont) return;
 
             const boldScale  = boldToggle.checked && parseInt(boldScaleInput.value, 10) || 1;
-            const pixelScale = saveScaledToggle.checked && parseInt(scaleInput.value, 10) || 1;
+            const pixelScale = !saveScaledToggle.disabled && saveScaledToggle.checked && parseInt(scaleInput.value, 10) || 1;
 
             generateFile(asPCF, boldScale, pixelScale, function(blob) {
                 let name = (currentFontName || 'font').replace(/\.(bdf|pcf|pcf\.gz)$/i, '');
@@ -1904,7 +2113,7 @@
             ['',                 'sep'],
             ['•‣․⁃◦·∙†‡¶§',      'symbol'],
             ['✓✔✗✘✕✖☐☑☒',        'symbol'],
-            ['▫◆◧◩◻◼★◽◾',      'symbol']
+            ['▫◆◧◩◻◼★◽◾',      'symbol'],
             ['■□▢▣▤▥▦▧▨▩',       'symbol'],
             ['○◌◍◎●◐◑◖◗⭕⚫⚪',  'symbol'],
             ['←↑→↓↔↕↵▲▶▼◀△▷▽◁',  'symbol'],
@@ -2155,7 +2364,7 @@
         // =====================================================================
         // Rendering
         // =====================================================================
-        function renderText() {
+       function renderText() {
             if (!currentFont) return;
 
             const boldScale = parseInt(boldScaleInput.value, 10) || 1;
@@ -2169,9 +2378,18 @@
             const padY    = lineH;
 
             // ── Shared glyph-width measurer ───────────────────────────────
+            // Preferred advance: the glyph's own dwidth.
+            // For space (32) use its dwidth if present, else fall back to bounds.w.
+            // Clamp the space fallback to the width of a typical letter so fonts
+            // with an oversized FONTBOUNDINGBOX don't produce giant spaces.
+            const _spaceGlyph = font.glyphs[32];
+            const _spaceW = _spaceGlyph
+                ? (_spaceGlyph.dwidth !== undefined ? _spaceGlyph.dwidth : _spaceGlyph.bbx.w)
+                : (font.bounds.w || 6);
+
             function glyphW(cc) {
-                if (cc === 32) return font.bounds.w || 6;
-                if (cc === 9)  return (font.bounds.w || 8) * 4;
+                if (cc === 32) return _spaceW;
+                if (cc === 9)  return _spaceW * 4;
                 const g = font.glyphs[cc];
                 return g ? (g.dwidth !== undefined ? g.dwidth : g.bbx.w) : 0;
             }
@@ -2212,7 +2430,7 @@
                     let cx = padX;
                     for (const ch of lines[li]) {
                         const cc = ch.charCodeAt(0);
-                        if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                        if (cc === 32) { cx += _spaceW; continue; }
                         const g = font.glyphs[cc];
                         if (!g) continue;
                         drawGlyph(g, cx, baselineY);
@@ -2246,8 +2464,8 @@
                         ctx.fillStyle = colorMap[tok.type] || t.text;
                         for (const ch of tok.text) {
                             const cc = ch.charCodeAt(0);
-                            if (cc === 9) { cx += (font.bounds.w || 8) * 4; continue; }
-                            if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                            if (cc === 9) { cx += _spaceW * 4; continue; }
+                            if (cc === 32) { cx += _spaceW; continue; }
                             const g = font.glyphs[cc];
                             if (!g) continue;
                             drawGlyph(g, cx, baselineY);
@@ -2306,7 +2524,7 @@
                     let cx = padX;
                     for (const ch of chars) {
                         const cc = ch.charCodeAt(0);
-                        if (cc === 32) { cx += font.bounds.w || 6; continue; }
+                        if (cc === 32) { cx += _spaceW; continue; }
                         const g = font.glyphs[cc];
                         if (!g) continue;
                         drawGlyph(g, cx, baselineY);
@@ -2319,6 +2537,7 @@
 
         function scaleChanged(ev) {
             saveScaledToggle.disabled = parseInt(scaleInput.value) == 1;
+            saveScaledToggle.parentNode.style.display = parseInt(scaleInput.value) == 1 ? 'none' : ''
             renderText();
         }
 
