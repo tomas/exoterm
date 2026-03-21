@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitmap Font Previewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
     <style>
         :root {
             /* Default Theme (Material Dark) */
@@ -548,7 +550,7 @@
             </div>
             <canvas id="preview-canvas"></canvas>
         </div>
-        <div id="drop-overlay">Drop .bdf or .pcf font here</div>
+        <div id="drop-overlay">Drop .bdf, .pcf, .ttf, .otf or .fon font here</div>
     </div>
 
     <script>
@@ -1797,6 +1799,387 @@
         themeSelect.addEventListener('change', e => applyTheme(e.target.value));
 
         // =====================================================================
+        // TTF/OTF Parser → internal font structure
+        // =====================================================================
+        // Uses opentype.js to parse the font, then:
+        //   1. Runs the geometry analysis (GCD of coordinate steps) to find the
+        //      smallest pixel-perfect size — the size where every outline vertex
+        //      maps to an integer pixel coordinate.
+        //   2. Rasterizes each printable glyph at that size by drawing its path
+        //      onto a small canvas and thresholding to a 1-bit bitmap row array.
+        //   3. Packages everything into the same structure parseBDF produces.
+
+        function parseTTF(arrayBuffer) {
+            const otFont  = opentype.parse(arrayBuffer);
+            const upm     = otFont.unitsPerEm;
+            const ascPx_f = otFont.ascender;   // in font units
+            const dscPx_f = otFont.descender;  // in font units (negative)
+
+            // ── Step 1: find best pixel size via coordinate geometry ──────────
+            const allCoords = new Set();
+            for (let code = 33; code < 127; code++) {
+                const gi = otFont.charToGlyphIndex(String.fromCharCode(code));
+                if (!gi) continue;
+                const g = otFont.glyphs.get(gi);
+                if (!g) continue;
+                if (g.advanceWidth) allCoords.add(g.advanceWidth);
+                if (!g.path) continue;
+                for (const cmd of g.path.commands) {
+                    if (cmd.x  !== undefined) { allCoords.add(Math.abs(cmd.x));  allCoords.add(Math.abs(cmd.y)); }
+                    if (cmd.x1 !== undefined) { allCoords.add(Math.abs(cmd.x1)); allCoords.add(Math.abs(cmd.y1)); }
+                    if (cmd.x2 !== undefined) { allCoords.add(Math.abs(cmd.x2)); allCoords.add(Math.abs(cmd.y2)); }
+                }
+            }
+
+            const sorted = [...allCoords].filter(v => v > 0).sort((a, b) => a - b);
+            let gridUnit = upm; // fallback
+            if (sorted.length > 1) {
+                let minStep = Infinity;
+                for (let i = 1; i < sorted.length; i++) {
+                    const d = sorted[i] - sorted[i - 1];
+                    if (d > 0 && d < minStep) minStep = d;
+                }
+                if (isFinite(minStep)) gridUnit = minStep;
+            }
+
+            // Score each candidate pixel size (1–64): fraction of coordinates
+            // that land within 0.06px of an integer at that scale.
+            const EPSILON = 0.06;
+            let bestSize = 1, bestScore = -1;
+            for (let px = 1; px <= 64; px++) {
+                const scale = px / upm;
+                let total = 0, crisp = 0;
+                for (const coord of sorted) {
+                    const mapped = coord * scale;
+                    total++;
+                    if (Math.abs(mapped - Math.round(mapped)) <= EPSILON) crisp++;
+                }
+                const score = total > 0 ? crisp / total : 0;
+                if (score > bestScore) { bestScore = score; bestSize = px; }
+            }
+
+            // A genuine pixel/bitmap font scores close to 1.0 at its native size.
+            // Vector fonts have many off-grid coordinates and score ~0.1–0.2 even
+            // at their "best" size. Threshold: must score ≥ 0.85 within 1–32px.
+            const BITMAP_SCORE_THRESHOLD = 0.85;
+            const BITMAP_MAX_SIZE        = 32;
+            const bestInRange = (() => {
+                let bScore = 0, bSize = 0;
+                for (let px = 1; px <= BITMAP_MAX_SIZE; px++) {
+                    const scale = px / upm;
+                    let total = 0, crisp = 0;
+                    for (const coord of sorted) {
+                        const mapped = coord * scale;
+                        total++;
+                        if (Math.abs(mapped - Math.round(mapped)) <= EPSILON) crisp++;
+                    }
+                    const score = total > 0 ? crisp / total : 0;
+                    if (score > bScore) { bScore = score; bSize = px; }
+                }
+                return { score: bScore, size: bSize };
+            })();
+
+            if (bestInRange.score < BITMAP_SCORE_THRESHOLD) {
+                throw new Error(
+                    'Not a bitmap font — best grid-fit score within 1–32px is ' +
+                    (bestInRange.score * 100).toFixed(1) + '% (need ≥85%). ' +
+                    'Only pixel/bitmap TTF fonts are supported.'
+                );
+            }
+
+            const sizePx  = bestInRange.size;
+            const scale   = sizePx / upm;
+
+            // ── Step 2: rasterize each glyph ─────────────────────────────────
+            // ascender/descender in pixels at the chosen size
+            const ascPx  = Math.round(ascPx_f  * scale);
+            const dscPx  = Math.round(-dscPx_f * scale);  // descender is negative
+            const lineH  = ascPx + dscPx;
+
+            // Off-screen canvas for rasterizing — reused per glyph
+            const offCanvas = document.createElement('canvas');
+            offCanvas.height = lineH + 2;
+            const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+
+            function rasterizeGlyph(g) {
+                const advW  = Math.round((g.advanceWidth || upm) * scale);
+                const W     = Math.max(advW + 2, 1);
+                offCanvas.width = W;
+                offCtx.clearRect(0, 0, W, offCanvas.height);
+
+                // Draw path: font Y is up, canvas Y is down
+                // baseline = ascPx (pixels from canvas top)
+                if (g.path && g.path.commands && g.path.commands.length > 0) {
+                    offCtx.fillStyle = '#fff';
+                    offCtx.beginPath();
+                    for (const cmd of g.path.commands) {
+                        switch (cmd.type) {
+                            case 'M': offCtx.moveTo(cmd.x * scale,              ascPx - cmd.y  * scale); break;
+                            case 'L': offCtx.lineTo(cmd.x * scale,              ascPx - cmd.y  * scale); break;
+                            case 'Q': offCtx.quadraticCurveTo(
+                                cmd.x1 * scale, ascPx - cmd.y1 * scale,
+                                cmd.x  * scale, ascPx - cmd.y  * scale); break;
+                            case 'C': offCtx.bezierCurveTo(
+                                cmd.x1 * scale, ascPx - cmd.y1 * scale,
+                                cmd.x2 * scale, ascPx - cmd.y2 * scale,
+                                cmd.x  * scale, ascPx - cmd.y  * scale); break;
+                            case 'Z': offCtx.closePath(); break;
+                        }
+                    }
+                    offCtx.fill('evenodd');
+                }
+
+                // Threshold and convert to binary row strings
+                const imgData = offCtx.getImageData(0, 0, W, offCanvas.height);
+                const d       = imgData.data;
+                const bitmap  = [];
+                for (let row = 0; row < lineH; row++) {
+                    let rowStr = '';
+                    for (let col = 0; col < advW; col++) {
+                        rowStr += d[(row * W + col) * 4] > 127 ? '1' : '0';
+                    }
+                    bitmap.push(rowStr);
+                }
+
+                // Trim blank rows from bottom (descent might be zero for most glyphs)
+                // but keep full height so all glyphs align on the same baseline.
+                return bitmap;
+            }
+
+            // ── Step 3: build font object matching parseBDF output ────────────
+            const glyphs   = {};
+            let   maxW     = 0;
+            let   minBbxX  = 0;
+
+            for (let code = 0; code < 65536; code++) {
+                const gi = otFont.charToGlyphIndex(String.fromCharCode(code));
+                if (!gi) continue;
+                const g = otFont.glyphs.get(gi);
+                if (!g) continue;
+
+                const advW = Math.round((g.advanceWidth || upm) * scale);
+                if (advW === 0 && code > 32) continue;
+
+                // Compute ink bounding box from path commands
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                if (g.path && g.path.commands) {
+                    for (const cmd of g.path.commands) {
+                        const xs = [cmd.x, cmd.x1, cmd.x2].filter(v => v !== undefined);
+                        const ys = [cmd.y, cmd.y1, cmd.y2].filter(v => v !== undefined);
+                        for (const x of xs) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+                        for (const y of ys) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+                    }
+                }
+                const hasInk = isFinite(minX);
+                const bbxW   = hasInk ? Math.round((maxX - minX) * scale) : 0;
+                const bbxH   = lineH;
+                const bbxX   = hasInk ? Math.round(minX * scale) : 0;
+                // BDF bbx y = offset from baseline downward (negative = below baseline)
+                const bbxY   = hasInk ? -dscPx : 0;
+
+                const bitmap = (code === 32 || !hasInk) ? [] : rasterizeGlyph(g);
+
+                glyphs[code] = {
+                    encoding: code,
+                    charName: code >= 0x21 && code <= 0x7e
+                        ? String.fromCharCode(code)
+                        : 'uni' + code.toString(16).toUpperCase().padStart(4, '0'),
+                    dwidth:  advW,
+                    dwidth2: 0,
+                    swidth:  Math.round(advW / scale),
+                    swidth2: 0,
+                    bbx:     { w: Math.max(bbxW, advW), h: bbxH, x: bbxX, y: bbxY },
+                    bitmap,
+                };
+                if (advW > maxW) maxW = advW;
+            }
+
+            // Font display name
+            const nameRec  = otFont.names.fullName;
+            const fontName = nameRec ? (nameRec.en || Object.values(nameRec)[0]) : 'unknown';
+
+            return {
+                glyphs,
+                bounds:     { w: maxW, h: lineH, x: minBbxX, y: -dscPx },
+                ascent:     ascPx,
+                descent:    dscPx,
+                fontLine:   '-ttf-' + fontName.toLowerCase().replace(/\s+/g, '-') + '--' + sizePx,
+                sizeLine:   sizePx + ' 72 72',
+                properties: [
+                    'FONT_ASCENT '  + ascPx,
+                    'FONT_DESCENT ' + dscPx,
+                ],
+                _ttfSizePx: sizePx,   // keep for status message
+            };
+        }
+
+        // =====================================================================
+        // FON / FNT Parser
+        // =====================================================================
+        // FON = Windows NE (New Executable) container holding RT_FONT resources.
+        // Each resource is an FNT (Windows bitmap font) v2 or v3 structure.
+        // We parse the NE resource table to find all RT_FONT entries, then
+        // decode each FNT into our internal font structure.
+        // References: https://jeffpar.github.io/kbarchive/kb/065/Q65123/
+        //             Wine source: dlls/gdi32/freetype.c
+
+        function parseFNT(buf, offset) {
+            // buf = DataView over the whole file, offset = start of this FNT
+            const r = (off, size) => {
+                const abs = offset + off;
+                if (size === 1) return buf.getUint8(abs);
+                if (size === 2) return buf.getUint16(abs, true);
+                if (size === 4) return buf.getUint32(abs, true);
+            };
+
+            const version    = r(0x00, 2);
+            if (version !== 0x0200 && version !== 0x0300)
+                throw new Error('Unsupported FNT version: 0x' + version.toString(16));
+
+            const fntType    = r(0x42, 2);  // 0=bitmap
+            if (fntType & 1) throw new Error('Vector FNT not supported');
+
+            const pixHeight  = r(0x58, 2);
+            const pixWidth   = r(0x56, 2);  // 0 = proportional
+            const ascent     = r(0x4A, 2);
+            const firstChar  = r(0x5F, 1);
+            const lastChar   = r(0x60, 1);
+            const defaultCh  = r(0x61, 1);
+            const widthBytes = r(0x63, 2);  // bytes per row in the glyph bitmap
+
+            // Face name is a null-terminated string at dfFace offset
+            const faceOff    = r(0x69, 4);
+            let faceName     = '';
+            if (faceOff > 0) {
+                let i = offset + faceOff;
+                const raw = new Uint8Array(buf.buffer);
+                while (i < raw.length && raw[i] !== 0) faceName += String.fromCharCode(raw[i++]);
+            }
+
+            // Bitmap data starts at dfBitsOffset
+            const bitsOff    = r(0x71, 4);
+
+            // Glyph table immediately follows the header.
+            // v2: WORD width + WORD offset  per char
+            // v3: WORD width + DWORD offset per char
+            const glyphEntrySize = version === 0x0300 ? 6 : 4;
+            const glyphTableOff  = 0x76; // for v2; same for v3
+            const numGlyphs      = lastChar - firstChar + 2; // +1 sentinel
+
+            const glyphs   = {};
+            let   maxW     = 0;
+            const descent  = pixHeight - ascent;
+
+            for (let i = 0; i < numGlyphs; i++) {
+                const entOff   = glyphTableOff + i * glyphEntrySize;
+                const charW    = r(entOff, 2);
+                const glyphOff = version === 0x0300 ? r(entOff + 2, 4) : r(entOff + 2, 2);
+
+                const code = firstChar + i;
+                if (code > lastChar) break; // sentinel
+                if (charW === 0) continue;
+
+                // The FNT bitmap is stored column-major: columns of pixHeight bits,
+                // each column padded to whole bytes, grouped widthBytes wide per row.
+                // Glyph bitmap: charW columns × pixHeight rows, stored column by column.
+                const raw = new Uint8Array(buf.buffer);
+                const absGlyphOff = offset + bitsOff + glyphOff;
+
+                // Build bitmap rows (binary strings)
+                const bitmap = [];
+                const colBytes = Math.ceil(pixHeight / 8); // bytes per column
+                for (let row = 0; row < pixHeight; row++) {
+                    let rowStr = '';
+                    for (let col = 0; col < charW; col++) {
+                        // Column-major: each column is colBytes bytes
+                        const byteIdx = absGlyphOff + col * colBytes + Math.floor(row / 8);
+                        const bitIdx  = 7 - (row % 8);
+                        const byte    = byteIdx < raw.length ? raw[byteIdx] : 0;
+                        rowStr += (byte >> bitIdx) & 1;
+                    }
+                    bitmap.push(rowStr);
+                }
+
+                glyphs[code] = {
+                    encoding: code,
+                    charName: code >= 0x21 && code <= 0x7e
+                        ? String.fromCharCode(code)
+                        : String(code),
+                    dwidth: charW, dwidth2: 0,
+                    swidth: 0,     swidth2: 0,
+                    bbx: { w: charW, h: pixHeight, x: 0, y: -descent },
+                    bitmap,
+                };
+                if (charW > maxW) maxW = charW;
+            }
+
+            return {
+                glyphs,
+                bounds:     { w: maxW || pixWidth || 8, h: pixHeight, x: 0, y: -descent },
+                ascent,
+                descent,
+                fontLine:   '-fon-' + faceName.toLowerCase().replace(/\s+/g,'-') + '--' + pixHeight,
+                sizeLine:   pixHeight + ' 96 96',
+                properties: ['FONT_ASCENT ' + ascent, 'FONT_DESCENT ' + descent],
+                _fntFaceName: faceName,
+                _fntHeight:   pixHeight,
+            };
+        }
+
+        function parseFON(arrayBuffer) {
+            const buf = new DataView(arrayBuffer);
+            const raw = new Uint8Array(arrayBuffer);
+
+            // Check MZ signature (DOS header)
+            if (buf.getUint16(0, true) !== 0x5A4D)  // 'MZ'
+                throw new Error('Not a valid FON/NE file (missing MZ header)');
+
+            // Offset to NE header is at 0x3C in the DOS stub
+            const neOff = buf.getUint32(0x3C, true);
+
+            // Check NE signature
+            const neSig = buf.getUint16(neOff, true);
+            if (neSig !== 0x454E)  // 'NE'
+                throw new Error('Not a NE executable (got 0x' + neSig.toString(16) + '). PE FON not yet supported.');
+
+            // Resource table offset (relative to NE header)
+            const resTableOff = neOff + buf.getUint16(neOff + 0x24, true);
+
+            // Alignment shift count
+            const alignShift  = buf.getUint16(resTableOff, true);
+            let   pos         = resTableOff + 2;
+
+            // Walk resource type blocks
+            const fnts = [];
+            while (true) {
+                const typeId = buf.getUint16(pos, true);
+                if (typeId === 0) break; // end of resource table
+                const count  = buf.getUint16(pos + 2, true);
+                pos += 8; // skip typeId, count, reserved
+
+                for (let i = 0; i < count; i++) {
+                    const dataOff  = buf.getUint16(pos,     true) << alignShift;
+                    const dataLen  = buf.getUint16(pos + 2, true) << alignShift;
+                    pos += 12; // each entry is 12 bytes
+
+                    // RT_FONT = 0x8008
+                    if (typeId === 0x8008 && dataOff > 0 && dataLen > 0) {
+                        try {
+                            fnts.push(parseFNT(buf, dataOff));
+                        } catch(e) { /* skip bad entries */ }
+                    }
+                }
+            }
+
+            if (fnts.length === 0)
+                throw new Error('No bitmap font resources found in FON file');
+
+            // If multiple sizes, pick the smallest
+            fnts.sort((a, b) => a._fntHeight - b._fntHeight);
+            return fnts[0];
+        }
+
+        // =====================================================================
         // BDF Parser
         // =====================================================================
 
@@ -2609,8 +2992,43 @@
                 };
                 reader.readAsArrayBuffer(file);
 
+            } else if (name.endsWith('.ttf') || name.endsWith('.otf') ||
+                       name.endsWith('.woff') || name.endsWith('.woff2')) {
+                reader.onload = (ev) => {
+                    try {
+                        statusMsg.innerText = 'Analyzing ' + file.name + '…';
+                        currentFont = parseTTF(ev.target.result);
+                        setFontLoaded(file.name);
+                        const px = currentFont._ttfSizePx;
+                        statusMsg.innerText = `Loaded TTF: ${file.name} (best size: ${px}px)`;
+                        activeFontIndex = -1; renderFontList();
+                        renderText();
+                    } catch (err) {
+                        statusMsg.innerText = `Error parsing TTF: ${err.message}`;
+                        console.error(err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+
+            } else if (name.endsWith('.fon') || name.endsWith('.fnt')) {
+                reader.onload = (ev) => {
+                    try {
+                        currentFont = parseFON(ev.target.result);
+                        setFontLoaded(file.name);
+                        const h = currentFont._fntHeight;
+                        const fn = currentFont._fntFaceName || file.name;
+                        statusMsg.innerText = `Loaded FON: ${fn} (${h}px)`;
+                        activeFontIndex = -1; renderFontList();
+                        renderText();
+                    } catch (err) {
+                        statusMsg.innerText = `Error parsing FON: ${err.message}`;
+                        console.error(err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+
             } else {
-                statusMsg.innerText = 'Unsupported file. Drop a .bdf or .pcf file.';
+                statusMsg.innerText = 'Unsupported file. Drop a .bdf, .pcf, .ttf, .otf, or .fon file.';
             }
         });
 
