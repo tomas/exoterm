@@ -42,7 +42,7 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
-            gap: 20px;
+            gap: 14px;
             z-index: 10;
             overflow: hidden;
             transition: background-color 0.3s, border-color 0.3s;
@@ -131,6 +131,11 @@
             transform: rotate(45deg);
         }
 
+        input[type="checkbox"]:disabled {
+            opacity: 0.5;
+            background-color: #222;
+        }
+
         /* Bold scale sub-row */
         .bold-sub {
             display: flex;
@@ -151,41 +156,7 @@
             font-size: 0.9rem;
         }
 
-        /* Mode toggle */
-        .mode-toggle {
-            display: flex;
-            gap: 0;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            overflow: hidden;
-        }
 
-        .mode-btn {
-            flex: 1;
-            padding: 7px 4px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            font-family: inherit;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-            text-align: center;
-        }
-
-        .mode-btn:not(:last-child) {
-            border-right: 1px solid var(--border);
-        }
-
-        .mode-btn.active {
-            background: var(--accent);
-            color: var(--bg-color);
-        }
-
-        .mode-btn:not(.active):hover {
-            background: var(--panel-bg);
-            color: var(--text-main);
-        }
         /* Font browser */
         .font-browser {
             display: flex;
@@ -255,6 +226,7 @@
             border-radius: 4px;
             background: var(--bg-color);
             min-height: 0;
+            scrollbar-width: thin;
         }
 
         .font-item {
@@ -329,22 +301,87 @@
             overflow: auto;
             background-color: var(--bg-color);
             /* Dynamic checkerboard based on theme variables */
-            background-image:
+/*            background-image:
                 linear-gradient(45deg, var(--panel-bg) 25%, transparent 25%),
                 linear-gradient(-45deg, var(--panel-bg) 25%, transparent 25%),
                 linear-gradient(45deg, transparent 75%, var(--panel-bg) 75%),
                 linear-gradient(-45deg, transparent 75%, var(--panel-bg) 75%);
             background-size: 20px 20px;
             background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+*/
             transition: background-color 0.3s;
             overflow: hidden;
         }
 
+
+        .view-options {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            min-width: 230px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        /* Mode toggle */
+        .mode-toggle {
+            display: flex;
+            background-color: rgba(0,0,0,0.6);
+            gap: 0;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 7px 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            text-align: center;
+        }
+
+        .mode-btn:not(:last-child) {
+            border-right: 1px solid var(--border);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: var(--bg-color);
+        }
+
+        .mode-btn:not(.active):hover {
+            background: var(--panel-bg);
+            color: var(--text-main);
+        }
+
+        #preview-text {
+            min-height: 200px;
+            scrollbar-width: none;
+            background:var(--bg-panel);
+            border:1px solid var(--border);
+            color:var(--text-main);
+           padding:8px;
+           border-radius:4px;
+           font-size: 11px;
+           resize:vertical;
+           font-family:monospace;
+           outline:none;
+           width:100%;
+        }
+
         canvas {
             image-rendering: pixelated;
-            border: 1px solid var(--border);
+/*            border: 1px solid var(--border);
             background-color: var(--panel-bg);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);*/
             transition: background-color 0.3s, border-color 0.3s;
             border-radius: 12px;
         }
@@ -406,6 +443,11 @@
                 <div class="pill-group" id="h-pills"></div>
             </div>
 
+            <div style="display: flex; justify-content: space-between;">
+                <label>Font</label>
+                <div id="font-count"></div>
+            </div>
+
             <input type="text" id="font-search" placeholder="Search fonts…"
                 style="background:var(--bg-color);border:1px solid var(--border);
                        color:var(--text-main);padding:7px 10px;border-radius:4px;
@@ -413,24 +455,11 @@
                        transition:border-color 0.2s;"
                 autocomplete="off" spellcheck="false">
 
-            <div id="font-count"></div>
             <div id="font-list"></div>
-        </div>
-
-        <div class="mode-toggle">
-            <button class="mode-btn active" data-mode="code">Code</button>
-            <button class="mode-btn"        data-mode="text">Text</button>
-            <button class="mode-btn"        data-mode="charset">Charset</button>
-        </div>
-
-        <div class="control-group">
-            <label for="scale">Pixel Scale</label>
-            <input type="range" id="scale" value="1" min="1" max="3">
         </div>
 
 
         <div style="display: none">
-
             <div id="code-controls" class="control-group">
                 <label for="lang-select">Preview Language</label>
                 <select id="lang-select">
@@ -442,14 +471,6 @@
                 </select>
             </div>
 
-            <div class="control-group" id="custom-text-group" style="display:none">
-                <label for="preview-text">Custom Text</label>
-                <textarea id="preview-text" rows="4"
-                    style="background:var(--bg-color);border:1px solid var(--border);color:var(--text-main);
-                           padding:8px;border-radius:4px;font-size:0.85rem;resize:vertical;
-                           font-family:monospace;outline:none;width:100%;">Hello, Bitmap!</textarea>
-            </div>
-
             <div class="control-group">
                 <label for="indent-select">Indentation</label>
                 <select id="indent-select">
@@ -459,33 +480,66 @@
                 </select>
             </div>
 
-
-
-            <div class="control-group">
-                <div class="checkbox-row">
-                    <input type="checkbox" id="bold-toggle">
-                    <label for="bold-toggle">Embolden</label>
-                </div>
-                <div class="bold-sub">
-                    <label for="bold-scale">Bold pixels:</label>
-                    <input type="number" id="bold-scale" value="1" min="1" max="8">
-                </div>
-            </div>
-
         </div>
 
-        <button id="download-btn" disabled
-            style="background:var(--accent);color:var(--bg-color);border:none;border-radius:4px;
-                   padding:9px 10px;font-size:0.85rem;font-family:inherit;cursor:pointer;
-                   opacity:0.4;transition:opacity 0.2s;">
-            ⬇ Download BDF
-        </button>
+        <div class="control-group" style="">
+            <div class="checkbox-row">
+                <input type="checkbox" id="bold-toggle">
+                <label for="bold-toggle">Embolden</label>
+            </div>
+            <div class="checkbox-row">
+                <input disabled type="checkbox" id="save-scaled-toggle">
+                <label for="save-scaled-toggle">Save scaled</label>
+            </div>
+
+            <div style="display: none;" class="bold-sub">
+                <label for="bold-scale">Bold pixels:</label>
+                <input type="number" id="bold-scale" value="1" min="1" max="8">
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <button id="download-bdf" disabled
+                style="background:var(--accent);color:var(--bg-color);border:none;border-radius:4px;
+                       padding:9px 10px;font-size:0.85rem;font-family:inherit;cursor:pointer;
+                       opacity:0.4;transition:opacity 0.2s;">
+                <svg style="position: relative; top: 2px" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7l-7 7l-7-7"/></svg>
+                <span>Download BDF</span>
+            </button>
+
+            <button id="download-pcf" disabled
+                style="background:var(--accent);color:var(--bg-color);border:none;border-radius:4px;
+                       padding:9px 10px;font-size:0.85rem;font-family:inherit;cursor:pointer;
+                       opacity:0.4;transition:opacity 0.2s;">
+                <svg style="position: relative; top: 2px" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m7-7l-7 7l-7-7"/></svg>
+                <span>Download PCF</span>
+            </button>
+        </div>
 
         <div style="display: none;" class="status" id="status-msg">Ready. Drop a .bdf or .pcf file anywhere.</div>
     </div>
 
     <div id="main">
         <div id="canvas-container">
+            <div class="view-options">
+                <div class="control-group">
+                    <label for="scale">Pixel Scale</label>
+                    <input type="range" id="scale" value="1" min="1" max="3">
+                </div>
+                <div class="control-group">
+                    <label>Preview Mode</label>
+                    <div class="mode-toggle">
+                        <button class="mode-btn active" data-mode="code">Code</button>
+                        <button class="mode-btn"        data-mode="text">Text</button>
+                        <button class="mode-btn"        data-mode="charset">Charset</button>
+                    </div>
+                </div>
+                <div class="control-group" id="custom-text-group" style="display:none">
+                    <label for="preview-text">Preview Text</label>
+                    <textarea id="preview-text" rows="4" >Hello, Bitmap!</textarea>
+                </div>
+
+            </div>
             <canvas id="preview-canvas"></canvas>
         </div>
         <div id="drop-overlay">Drop .bdf or .pcf font here</div>
@@ -1012,7 +1066,8 @@
         // =====================================================================
         let currentFont     = null;  // parsed font (original, never mutated)
         let currentFontName = null;  // filename hint for download
-        const downloadBtn   = document.getElementById('download-btn');
+        const downloadAsBDF   = document.getElementById('download-bdf');
+        const downloadAsPCF   = document.getElementById('download-pcf');
         const canvas        = document.getElementById('preview-canvas');
         const ctx       = canvas.getContext('2d');
         const textInput       = document.getElementById('preview-text');
@@ -1027,11 +1082,13 @@
             previewMode = mode;
             modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
             codeControls.style.display = mode === 'code' ? '' : 'none';
+            customTextGroup.style.display = mode === 'text' ? '' : 'none';
             renderText();
         }
         modeBtns.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
         const scaleInput      = document.getElementById('scale');
         const boldToggle      = document.getElementById('bold-toggle');
+        const saveScaledToggle = document.getElementById('save-scaled-toggle');
         const boldScaleInput  = document.getElementById('bold-scale');
         const statusMsg       = document.getElementById('status-msg');
         const themeSelect     = document.getElementById('theme-select');
@@ -1048,8 +1105,8 @@
         // w = glyph cell width in pixels, h = glyph cell height in pixels
         // URLs point to raw BDF files (jsDelivr CDN over Tecate/bitmap-fonts)
         // =====================================================================
-        const CDN = 'https://cdn.jsdelivr.net/gh/Tecate/bitmap-fonts@master/bitmap/';
-        // const CDN = '/bitmap-fonts/bitmap/'
+        // const CDN = 'https://cdn.jsdelivr.net/gh/Tecate/bitmap-fonts@master/bitmap/';
+        const CDN = '/bitmap-fonts/bitmap/'
 
         const FONT_DB = [
             // { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/aleczapka.bdf' }, // Note: aleczapka.bdf, not artwiz-aleczapka.bdf
@@ -1066,7 +1123,7 @@
             { name: 'Cherry 10',             author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-r.bdf' },
             { name: 'Cherry 11',             author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-r.bdf' },
             { name: 'Cherry 13',             author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-r.bdf' },
-            { name: 'CG Mono',               author: 'Christian Gruen',   w:  9, h: 15, url: CDN+'cg-mono/CG-mono-Roman15.bdf' },
+            // { name: 'CG Mono',               author: 'Christian Gruen',   w:  9, h: 15, url: CDN+'cg-mono/CG-mono-Roman15.bdf' },
             { name: 'Creep',                 author: 'romeovs',           w:  5, h: 11, url: CDN+'creep/creep.bdf' },
             { name: 'Ctrld Fixed',           author: 'bjin',              w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r.bdf' },
             { name: 'Dina 6',               author: 'Jørgen Ibsen',      w:  6, h: 10, url: CDN+'dina/Dina_r400-6.bdf' },
@@ -1074,7 +1131,7 @@
             { name: 'Dina 9',               author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r400-9.bdf' },
             { name: 'Dina 10',              author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r400-10.bdf' },
             { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn7x13.bdf' }, // Changed to actual file
-            { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' },
+            // { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' },
             { name: 'Gohufont 11',          author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11.bdf' },
             { name: 'Gohufont 11 Bold',     author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11b.bdf' },
             { name: 'Gohufont 14',          author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14.bdf' },
@@ -1082,22 +1139,22 @@
             { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/Gomme10x20n.bdf' }, // Updated path
             { name: 'Knxt',                 author: 'bytensky',          w:  6, h: 11, url: CDN+'knxt/knxt.bdf' },
             { name: 'Leggie Small',         author: 'wiktor-b',          w:  5, h: 10, url: CDN+'leggie/leggie.bdf' },
-            { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' },
+            // { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' },
             { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon.bdf' }, // Fixed path
             { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloMedium.bdf' }, // Updated path
-            { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' },
-            { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' },
-            { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' },
-            { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' },
+            // { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' },
+            // { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' },
+            // { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' },
+            // { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' },
             { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-medium.bdf' },
             { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-bold.bdf' },
-            { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' },
+            // { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' },
             { name: 'Progsole',             author: 'Glenn Schemenauer', w:  7, h: 10, url: CDN+'progsole/progsole-10.bdf' },
-            { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' },
+            // { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' },
             { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientifica-11.bdf' }, // Fixed path
             { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaBold-11.bdf' }, // Fixed path
             { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaItalic-11.bdf' }, // Fixed path
-            { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' },
+            // { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' },
             { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9r.bdf' }, // Note: directory is tamzen-font, not tamsyn-font
             { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9b.bdf' },
             { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12r.bdf' },
@@ -1159,7 +1216,7 @@
             { name: 'Terminus 32b',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32b.bdf' },
 
             // XBM Icons
-            { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' },
+            // { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' },
 
             // Mplus fonts
             // { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' },
@@ -1214,28 +1271,28 @@
             { name: '5th Element',           author: 'ninjaaron',         w:  8, h: 15, url: CDN+'bitocra/5thElement.bdf' },
 
             // UW ttyp0 fonts
-            { name: 'UW ttyp0 11',           author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11.bdf' },
-            { name: 'UW ttyp0 11b',          author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11b.bdf' },
-            { name: 'UW ttyp0 12',           author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12.bdf' },
-            { name: 'UW ttyp0 12b',          author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12b.bdf' },
-            { name: 'UW ttyp0 13',           author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13.bdf' },
-            { name: 'UW ttyp0 13b',          author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13b.bdf' },
-            { name: 'UW ttyp0 14',           author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14.bdf' },
-            { name: 'UW ttyp0 14b',          author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14b.bdf' },
-            { name: 'UW ttyp0 15',           author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15.bdf' },
-            { name: 'UW ttyp0 15b',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15b.bdf' },
-            { name: 'UW ttyp0 15i',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15i.bdf' },
-            { name: 'UW ttyp0 16',           author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16.bdf' },
-            { name: 'UW ttyp0 16b',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16b.bdf' },
-            { name: 'UW ttyp0 16i',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16i.bdf' },
-            { name: 'UW ttyp0 17',           author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17.bdf' },
-            { name: 'UW ttyp0 17b',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17b.bdf' },
-            { name: 'UW ttyp0 17i',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17i.bdf' },
-            { name: 'UW ttyp0 18',           author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18.bdf' },
-            { name: 'UW ttyp0 18b',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18b.bdf' },
-            { name: 'UW ttyp0 18i',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18i.bdf' },
-            { name: 'UW ttyp0 22',           author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22.bdf' },
-            { name: 'UW ttyp0 22b',          author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22b.bdf' },
+            // { name: 'UW ttyp0 11',           author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11.bdf' },
+            // { name: 'UW ttyp0 11b',          author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11b.bdf' },
+            // { name: 'UW ttyp0 12',           author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12.bdf' },
+            // { name: 'UW ttyp0 12b',          author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12b.bdf' },
+            // { name: 'UW ttyp0 13',           author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13.bdf' },
+            // { name: 'UW ttyp0 13b',          author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13b.bdf' },
+            // { name: 'UW ttyp0 14',           author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14.bdf' },
+            // { name: 'UW ttyp0 14b',          author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14b.bdf' },
+            // { name: 'UW ttyp0 15',           author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15.bdf' },
+            // { name: 'UW ttyp0 15b',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15b.bdf' },
+            // { name: 'UW ttyp0 15i',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15i.bdf' },
+            // { name: 'UW ttyp0 16',           author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16.bdf' },
+            // { name: 'UW ttyp0 16b',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16b.bdf' },
+            // { name: 'UW ttyp0 16i',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16i.bdf' },
+            // { name: 'UW ttyp0 17',           author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17.bdf' },
+            // { name: 'UW ttyp0 17b',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17b.bdf' },
+            // { name: 'UW ttyp0 17i',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17i.bdf' },
+            // { name: 'UW ttyp0 18',           author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18.bdf' },
+            // { name: 'UW ttyp0 18b',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18b.bdf' },
+            // { name: 'UW ttyp0 18i',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18i.bdf' },
+            // { name: 'UW ttyp0 22',           author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22.bdf' },
+            // { name: 'UW ttyp0 22b',          author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22b.bdf' },
 
             // Gohufont unicode variants
             { name: 'Gohufont 11 Unicode',   author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11.bdf' },
@@ -1255,10 +1312,10 @@
 
             // ClearlyU fonts
             { name: 'ClearlyU',              author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu12.bdf' },
-            { name: 'ClearlyU Alt',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-alt12.bdf' },
-            { name: 'ClearlyU Ligatures',    author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-lig12.bdf' },
-            { name: 'ClearlyU PUA',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-pua12.bdf' },
-            { name: 'ClearlyU Arabic',       author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-arabic12.bdf' },
+            // { name: 'ClearlyU Alt',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-alt12.bdf' },
+            // { name: 'ClearlyU Ligatures',    author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-lig12.bdf' },
+            // { name: 'ClearlyU PUA',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-pua12.bdf' },
+            // { name: 'ClearlyU Arabic',       author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-arabic12.bdf' },
 
             // Lokaltog fonts
             { name: 'Lokaltog Fixed 10r ISO8859', author: 'Lokaltog',    w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso8859.bdf' },
@@ -1266,16 +1323,16 @@
             { name: 'Lokaltog Fixed 10b ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10b-iso10646.bdf' },
             { name: 'Lokaltog Fixed 12r ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12r-iso10646.bdf' },
             { name: 'Lokaltog Fixed 12b ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12b-iso10646.bdf' },
-            { name: 'Lokaltog Symbols 11',   author: 'Lokaltog',          w:  5, h: 11, url: CDN+'lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf' },
+            // { name: 'Lokaltog Symbols 11',   author: 'Lokaltog',          w:  5, h: 11, url: CDN+'lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf' },
 
             // Tamzen Powerline variants
-            { name: 'Tamzen Powerline 5x9',  author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Powerline5x9.bdf' },
-            { name: 'Tamzen Powerline 6x12', author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Powerline6x12.bdf' },
-            { name: 'Tamzen Powerline 7x13', author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Powerline7x13.bdf' },
-            { name: 'Tamzen Powerline 7x14', author: 'Scott Fial',        w:  7, h: 14, url: CDN+'tamzen-font/bdf/Powerline7x14.bdf' },
-            { name: 'Tamzen Powerline 8x15', author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Powerline8x15.bdf' },
-            { name: 'Tamzen Powerline 8x16', author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Powerline8x16.bdf' },
-            { name: 'Tamzen Powerline 10x20', author: 'Scott Fial',       w: 10, h: 20, url: CDN+'tamzen-font/bdf/Powerline10x20.bdf' },
+            // { name: 'Tamzen Powerline 5x9',  author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Powerline5x9.bdf' },
+            // { name: 'Tamzen Powerline 6x12', author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Powerline6x12.bdf' },
+            // { name: 'Tamzen Powerline 7x13', author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Powerline7x13.bdf' },
+            // { name: 'Tamzen Powerline 7x14', author: 'Scott Fial',        w:  7, h: 14, url: CDN+'tamzen-font/bdf/Powerline7x14.bdf' },
+            // { name: 'Tamzen Powerline 8x15', author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Powerline8x15.bdf' },
+            // { name: 'Tamzen Powerline 8x16', author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Powerline8x16.bdf' },
+            // { name: 'Tamzen Powerline 10x20', author: 'Scott Fial',       w: 10, h: 20, url: CDN+'tamzen-font/bdf/Powerline10x20.bdf' },
 
             // Zevv Peep fonts
             { name: 'Zevv Peep 7x14 ISO8859-1', author: 'zevv',          w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-1-07x14.bdf' },
@@ -1334,8 +1391,8 @@
             { name: 'Envypn 7x15e',          author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15e.bdf' },
 
             // Tewi additional
-            { name: 'Tewi2a Normal 11',      author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-normal-11.bdf' },
-            { name: 'Tewi2a Bold 11',        author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-bold-11.bdf' }
+            // { name: 'Tewi2a Normal 11',      author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-normal-11.bdf' },
+            // { name: 'Tewi2a Bold 11',        author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi2a-bold-11.bdf' }
             // { name: 'Spleen 5x8',          author: 'Frederic Cambus',   w:  5, h:  8, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-5x8.bdf' },
             // { name: 'Spleen 6x12',         author: 'Frederic Cambus',   w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-6x12.bdf' },
             // { name: 'Spleen 8x16',         author: 'Frederic Cambus',   w:  8, h: 16, url: 'https://cdn.jsdelivr.net/gh/fcambus/spleen@master/spleen-8x16.bdf' },
@@ -1433,6 +1490,7 @@
                 fontList.appendChild(item);
             }
             scrollActiveIntoView();
+            return filtered.length;
         }
 
         // Arrow key navigation — move through the currently filtered list
@@ -1449,7 +1507,7 @@
             loadFontFromDB(filtered[nextPos].index);
         }
 
-        fontList.addEventListener('keydown', e => {
+        document.addEventListener('keydown', e => {
             if (e.key === 'ArrowDown') { e.preventDefault(); navigateList(+1); }
             if (e.key === 'ArrowUp')   { e.preventDefault(); navigateList(-1); }
         });
@@ -1467,13 +1525,17 @@
 
         function setFontLoaded(name) {
             currentFontName = name;
-            downloadBtn.disabled = false;
-            downloadBtn.style.opacity = '1';
+            downloadAsBDF.disabled = false;
+            downloadAsBDF.style.opacity = '1';
+            downloadAsPCF.disabled = false;
+            downloadAsPCF.style.opacity = '1';
         }
 
         function loadFontFromDB(index) {
             const f = FONT_DB[index];
+            if (!f) return console.warn('Not found', index)
             activeFontIndex = index;
+            location.hash = '#' + index;
             renderFontList();
             statusMsg.textContent = 'Loading ' + f.name + '…';
             fetch(f.url)
@@ -1489,6 +1551,7 @@
                 })
                 .catch(err => {
                     statusMsg.textContent = 'Failed to load ' + f.name + ': ' + err.message;
+                    console.warn('Failed to load font ' + f.name, err.message)
                     activeFontIndex = -1;
                     renderFontList();
                 });
@@ -1525,37 +1588,60 @@
 
         themeSelect.addEventListener('change', e => applyTheme(e.target.value));
 
-
         // =====================================================================
         // BDF Parser
         // =====================================================================
+
         function parseBDF(bdfText) {
             const lines = bdfText.split('\n');
-            const font  = { glyphs:{}, bounds:{w:0,h:0,x:0,y:0}, ascent:0, descent:0 };
+            const font  = {
+                glyphs: {}, bounds: {w:0,h:0,x:0,y:0}, ascent: 0, descent: 0,
+                // Preserved header fields for faithful round-trip serialization
+                fontLine: '',       // raw FONT line value
+                sizeLine: '',       // raw SIZE line (e.g. "11 72 72")
+                properties: [],     // [{key, raw}] — all lines between STARTPROPERTIES..ENDPROPERTIES
+            };
             let currentChar = null;
             let inBitmap    = false;
+            let inProps     = false;
 
             for (let line of lines) {
-                line = line.trim();
-                if (line.startsWith('FONTBOUNDINGBOX')) {
-                    const p = line.split(/\s+/);
+                const trimmed = line.trim();
+                if (trimmed.startsWith('FONT ')) {
+                    font.fontLine = trimmed.slice(5).trim();
+                } else if (trimmed.startsWith('SIZE ')) {
+                    font.sizeLine = trimmed.slice(5).trim();
+                } else if (trimmed.startsWith('FONTBOUNDINGBOX')) {
+                    const p = trimmed.split(/\s+/);
                     font.bounds = { w:parseInt(p[1]), h:parseInt(p[2]), x:parseInt(p[3]), y:parseInt(p[4]) };
-                } else if (line.startsWith('FONT_ASCENT')) {
-                    font.ascent  = parseInt(line.split(/\s+/)[1]);
-                } else if (line.startsWith('FONT_DESCENT')) {
-                    font.descent = parseInt(line.split(/\s+/)[1]);
-                } else if (line.startsWith('STARTCHAR')) {
-                    currentChar = { bitmap:[] };
-                } else if (line.startsWith('ENCODING') && currentChar) {
-                    currentChar.encoding = parseInt(line.split(/\s+/)[1]);
-                } else if (line.startsWith('DWIDTH') && currentChar) {
-                    currentChar.dwidth = parseInt(line.split(/\s+/)[1]);
-                } else if (line.startsWith('BBX') && currentChar) {
-                    const p = line.split(/\s+/);
+                } else if (trimmed.startsWith('STARTPROPERTIES')) {
+                    inProps = true;
+                } else if (trimmed === 'ENDPROPERTIES') {
+                    inProps = false;
+                } else if (inProps) {
+                    // Store each property as its raw trimmed line
+                    font.properties.push(trimmed);
+                    if (trimmed.startsWith('FONT_ASCENT')) {
+                        font.ascent  = parseInt(trimmed.split(/\s+/)[1]);
+                    } else if (trimmed.startsWith('FONT_DESCENT')) {
+                        font.descent = parseInt(trimmed.split(/\s+/)[1]);
+                    }
+                } else if (trimmed.startsWith('STARTCHAR')) {
+                    currentChar = { bitmap: [], charName: trimmed.slice(10).trim() };
+                } else if (trimmed.startsWith('ENCODING') && currentChar) {
+                    currentChar.encoding = parseInt(trimmed.split(/\s+/)[1]);
+                } else if (trimmed.startsWith('SWIDTH') && currentChar) {
+                    currentChar.swidth  = parseInt(trimmed.split(/\s+/)[1]);
+                    currentChar.swidth2 = parseInt(trimmed.split(/\s+/)[2]) || 0;
+                } else if (trimmed.startsWith('DWIDTH') && currentChar) {
+                    currentChar.dwidth  = parseInt(trimmed.split(/\s+/)[1]);
+                    currentChar.dwidth2 = parseInt(trimmed.split(/\s+/)[2]) || 0;
+                } else if (trimmed.startsWith('BBX') && currentChar) {
+                    const p = trimmed.split(/\s+/);
                     currentChar.bbx = { w:parseInt(p[1]), h:parseInt(p[2]), x:parseInt(p[3]), y:parseInt(p[4]) };
-                } else if (line === 'BITMAP') {
+                } else if (trimmed === 'BITMAP') {
                     inBitmap = true;
-                } else if (line === 'ENDCHAR') {
+                } else if (trimmed === 'ENDCHAR') {
                     if (currentChar && currentChar.encoding !== undefined) {
                         font.glyphs[currentChar.encoding] = currentChar;
                     }
@@ -1563,7 +1649,7 @@
                     inBitmap    = false;
                 } else if (inBitmap && currentChar) {
                     const byteLen  = Math.ceil(currentChar.bbx.w / 8) * 2;
-                    const padded   = line.padEnd(byteLen, '0').substring(0, byteLen);
+                    const padded   = trimmed.padEnd(byteLen, '0').substring(0, byteLen);
                     let binString  = '';
                     for (let i = 0; i < padded.length; i++) {
                         binString += parseInt(padded[i], 16).toString(2).padStart(4, '0');
@@ -1583,94 +1669,112 @@
         // BDF Serializer
         // =====================================================================
 
-        // Port of the Python bdf-scale script.
-        // Works on the parsed font object: scales all metric numbers and
-        // expands each bitmap row by repeating every bit `scale` times,
-        // then repeating each row `scale` times.
         function scaleFont(font, scale) {
             if (scale === 1) return font;
             const b = font.bounds;
+
+            // These property keywords have all their numeric arguments scaled
+            const SCALE_PROPS = new Set([
+                'DWIDTH','SWIDTH','BBX','SIZE','FONTBOUNDINGBOX',
+                'PIXEL_SIZE','POINT_SIZE','RESOLUTION_X','RESOLUTION_Y',
+                'RESOLUTION','AVERAGE_WIDTH','X_HEIGHT','QUAD_WIDTH',
+                'FONT_DESCENT','FONT_ASCENT',
+            ]);
+
+            const scaledProps = (font.properties || []).map(raw => {
+                const key = raw.split(/\s+/)[0];
+                if (!SCALE_PROPS.has(key)) return raw;
+                const parts = raw.split(/\s+/);
+                return parts[0] + ' ' + parts.slice(1).map(n => {
+                    const v = parseInt(n);
+                    return isNaN(v) ? n : String(v * scale);
+                }).join(' ');
+            });
+
             const newGlyphs = {};
             for (const [enc, g] of Object.entries(font.glyphs)) {
                 const scaledBitmap = [];
                 for (const rowBin of g.bitmap) {
-                    // Python: binary = bin(int(hex,16))[2:]
-                    // then rescaled = "".join([x*scale for x in binary])
-                    // Our bitmap rows are already binary strings — just repeat each bit.
-                    // But we must first pad to the proper hex-aligned width, as the
-                    // Python script does (pad hex to even length before scaling).
-                    const hexLen  = Math.ceil(rowBin.length / 8) * 2; // even hex chars
-                    const bitLen  = hexLen * 4;                        // bits in that hex
+                    const hexLen  = Math.ceil(rowBin.length / 8) * 2;
+                    const bitLen  = hexLen * 4;
                     const padded  = rowBin.padEnd(bitLen, '0');
-
-                    // Repeat each bit `scale` times — matches Python list comprehension
                     const rescaled = padded.split('').map(b => b.repeat(scale)).join('');
-
-                    // Keep as binary string — same format parseBDF uses.
-                    // Repeat the row `scale` times (one row becomes `scale` rows).
                     for (let r = 0; r < scale; r++) scaledBitmap.push(rescaled);
                 }
-
                 newGlyphs[enc] = {
                     ...g,
-                    dwidth: (g.dwidth !== undefined ? g.dwidth : g.bbx.w) * scale,
-                    swidth: (g.swidth || 0) * scale,
+                    dwidth:  (g.dwidth  !== undefined ? g.dwidth  : g.bbx.w) * scale,
+                    dwidth2: (g.dwidth2 || 0),
+                    swidth:  (g.swidth  || 0) * scale,
+                    swidth2: (g.swidth2 || 0),
                     bbx: {
-                        w: g.bbx.w * scale,
-                        h: g.bbx.h * scale,
-                        x: g.bbx.x * scale,
-                        y: g.bbx.y * scale,
+                        w: g.bbx.w * scale, h: g.bbx.h * scale,
+                        x: g.bbx.x * scale, y: g.bbx.y * scale,
                     },
                     bitmap: scaledBitmap,
                 };
             }
             return {
                 ...font,
-                glyphs:  newGlyphs,
-                ascent:  (font.ascent  || 0) * scale,
-                descent: (font.descent || 0) * scale,
-                bounds:  { w: b.w * scale, h: b.h * scale, x: b.x * scale, y: b.y * scale },
+                glyphs:     newGlyphs,
+                ascent:     (font.ascent  || 0) * scale,
+                descent:    (font.descent || 0) * scale,
+                bounds:     { w: b.w*scale, h: b.h*scale, x: b.x*scale, y: b.y*scale },
+                properties: scaledProps,
+                // SIZE line: scale all three numbers
+                sizeLine: (font.sizeLine || '').split(/\s+/).map((n,i) => {
+                    const v = parseInt(n); return isNaN(v) ? n : String(v * scale);
+                }).join(' '),
             };
         }
 
         function fontToBDF(font, pixelScale) {
-            const s     = pixelScale || 1;
-            const f     = s > 1 ? scaleFont(font, s) : font;
-            const lines = [];
-            const b     = f.bounds;
+            const s = pixelScale || 1;
+            const f = s > 1 ? scaleFont(font, s) : font;
+            const b = f.bounds;
             const ascent  = f.ascent  || (b.h + b.y);
             const descent = f.descent || (-b.y);
+            const lines   = [];
 
             lines.push('STARTFONT 2.1');
-            lines.push('FONT ' + (font.name || '-custom-bitmap'));
-            lines.push('SIZE ' + b.h + ' 75 75');
+            lines.push('FONT ' + (f.fontLine || '-unknown-bitmap'));
+            lines.push('SIZE ' + (f.sizeLine || (b.h + ' 75 75')));
             lines.push('FONTBOUNDINGBOX ' + b.w + ' ' + b.h + ' ' + b.x + ' ' + b.y);
-            lines.push('STARTPROPERTIES 2');
-            lines.push('FONT_ASCENT ' + ascent);
-            lines.push('FONT_DESCENT ' + descent);
+
+            // Properties — re-emit everything we captured, updating FONT_ASCENT/DESCENT
+            // in case embolden changed them (they may differ from the stored values).
+            const props = (f.properties || []).map(raw => {
+                if (raw.startsWith('FONT_ASCENT'))  return 'FONT_ASCENT '  + ascent;
+                if (raw.startsWith('FONT_DESCENT')) return 'FONT_DESCENT ' + descent;
+                return raw;
+            });
+            // If the source had no properties at all, emit the bare minimum
+            if (props.length === 0) {
+                props.push('FONT_ASCENT '  + ascent);
+                props.push('FONT_DESCENT ' + descent);
+            }
+            lines.push('STARTPROPERTIES ' + props.length);
+            for (const p of props) lines.push(p);
             lines.push('ENDPROPERTIES');
-            lines.push('');
+            // lines.push('');
 
             const glyphs = Object.values(f.glyphs);
             lines.push('CHARS ' + glyphs.length);
-            lines.push('');
+            // lines.push('');
 
             glyphs.sort((a, b) => a.encoding - b.encoding);
 
             for (const g of glyphs) {
-                const enc  = g.encoding;
-                const name = (enc >= 0x21 && enc <= 0x7e)
-                    ? String.fromCharCode(enc)
-                    : enc.toString(16).toUpperCase().padStart(4, '0');
-                lines.push('STARTCHAR ' + name);
-                lines.push('ENCODING ' + enc);
-                lines.push('SWIDTH ' + (g.swidth || 0) + ' 0');
-                lines.push('DWIDTH ' + (g.dwidth !== undefined ? g.dwidth : g.bbx.w) + ' 0');
+                // Use the original STARTCHAR name if we have it, else fall back
+                const charName = g.charName !== undefined ? g.charName : String(g.encoding);
+                lines.push('STARTCHAR ' + charName);
+                lines.push('ENCODING ' + g.encoding);
+                lines.push('SWIDTH ' + (g.swidth || 0) + ' ' + (g.swidth2 || 0));
+                lines.push('DWIDTH ' + (g.dwidth !== undefined ? g.dwidth : g.bbx.w)
+                                     + ' ' + (g.dwidth2 || 0));
                 lines.push('BBX ' + g.bbx.w + ' ' + g.bbx.h + ' ' + g.bbx.x + ' ' + g.bbx.y);
                 lines.push('BITMAP');
 
-                // All bitmap rows are binary strings (from parseBDF or scaleFont).
-                // Convert each to hex for BDF output.
                 for (const row of g.bitmap) {
                     const padded = row.padEnd(Math.ceil(row.length / 8) * 8, '0');
                     let hex = '';
@@ -1681,30 +1785,58 @@
                     lines.push(hex);
                 }
                 lines.push('ENDCHAR');
-                lines.push('');
+                // lines.push('');
             }
             lines.push('ENDFONT');
+            lines.push('');
             return lines.join('\n');
         }
+        function convertToPCF(buffer) {
+            // const uint8View = new Uint8Array(buffer);
+            FS.writeFile("/input.bdf", buffer);
+            var res = Module._font_convert();
+            var arr = FS.readFile("/output.pcf");
+            return arr.buffer;
+        }
 
-        function downloadFont() {
-            if (!currentFont) return;
-            const boldScale  = parseInt(boldScaleInput.value, 10) || 1;
-            const pixelScale = parseInt(scaleInput.value, 10) || 1;
-            const font = boldToggle.checked ? emboldenFont(currentFont, boldScale) : currentFont;
-
+        function generateFile(asPCF, boldScale, pixelScale, cb) {
+            const font = boldScale > 1 ? emboldenFont(currentFont, boldScale) : currentFont;
             const bdfText = fontToBDF(font, pixelScale);
-            const blob    = new Blob([bdfText], { type: 'text/plain' });
-            const url     = URL.createObjectURL(blob);
-            const a       = document.createElement('a');
 
-            let name = (currentFontName || 'font').replace(/\.(bdf|pcf|pcf\.gz)$/i, '');
-            if (boldToggle.checked) name += '-bold' + boldScale + 'px';
-            if (pixelScale > 1)    name += '-x' + pixelScale;
-            a.href     = url;
-            a.download = name + '.bdf';
+            var blob = new Blob([bdfText], { type: 'text/plain' });
+            if (!asPCF) return cb(blob)
+
+            var pcfBuffer = convertToPCF(bdfText);
+            blob = new Blob([pcfBuffer], { type: 'application/octet-stream' });
+            if (blob) cb(blob)
+
+            // blob.arrayBuffer().then(function(buffer) {
+            //     var pcfData = convertToPCF(buffer);
+            //     blob = new Blob([pcfData], { type: 'application/octet-stream' });
+            // })
+        }
+
+        function downloadBlobAsFile(blob, fileName) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href  = url;
+            a.download = fileName;
             a.click();
             URL.revokeObjectURL(url);
+        }
+
+        function downloadFont(asPCF) {
+            if (!currentFont) return;
+
+            const boldScale  = boldToggle.checked && parseInt(boldScaleInput.value, 10) || 1;
+            const pixelScale = saveScaledToggle.checked && parseInt(scaleInput.value, 10) || 1;
+
+            generateFile(asPCF, boldScale, pixelScale, function(blob) {
+                let name = (currentFontName || 'font').replace(/\.(bdf|pcf|pcf\.gz)$/i, '');
+                if (boldScale > 1) name += '-bold' + boldScale + 'px';
+                if (pixelScale > 1) name += '-x' + pixelScale;
+                downloadBlobAsFile(blob, name + (asPCF ? '.pcf' : '.bdf'));
+            })
         }
 
         // =====================================================================
@@ -1728,17 +1860,18 @@
             "",
             "Pchn\u0105\u0107 w t\u0119 \u0142\u00f3d\u017a je\u017ca lub",
             "o\u015bm skrzy\u0144 fig.",
-            "",
-            // Cyrillic
-            "\u0421\u044a\u0435\u0448\u044c \u0436\u0435 \u0435\u0449\u0451 \u044d\u0442\u0438\u0445 \u043c\u044f\u0433\u043a\u0438\u0445",
-            "\u0444\u0440\u0430\u043d\u0446\u0443\u0437\u0441\u043a\u0438\u0445 \u0431\u0443\u043b\u043e\u043a, \u0434\u0430 \u0432\u044b\u043f\u0435\u0439 \u0447\u0430\u044e.",
-            "",
-            "\u041b\u044e\u0431\u044f, \u0441\u044a\u0435\u0448\u044c \u0449\u0438\u043f\u0446\u044b — \u0432\u0437\u0434\u043e\u0445\u043d\u0451\u0442",
-            "\u043c\u044d\u0440, — \u041a\u0430\u0439\u0444 \u0436\u0433\u0443\u0447!",
+            // "",
+            // // Cyrillic
+            // "\u0421\u044a\u0435\u0448\u044c \u0436\u0435 \u0435\u0449\u0451 \u044d\u0442\u0438\u0445 \u043c\u044f\u0433\u043a\u0438\u0445",
+            // "\u0444\u0440\u0430\u043d\u0446\u0443\u0437\u0441\u043a\u0438\u0445 \u0431\u0443\u043b\u043e\u043a, \u0434\u0430 \u0432\u044b\u043f\u0435\u0439 \u0447\u0430\u044e.",
+            // "",
+            // "\u041b\u044e\u0431\u044f, \u0441\u044a\u0435\u0448\u044c \u0449\u0438\u043f\u0446\u044b — \u0432\u0437\u0434\u043e\u0445\u043d\u0451\u0442",
+            // "\u043c\u044d\u0440, — \u041a\u0430\u0439\u0444 \u0436\u0433\u0443\u0447!",
         ]
 
         function getTextLines() {
-            return TEXT_PARAGRAPHS;
+            // return TEXT_PARAGRAPHS;
+            return textInput.value == '' ? TEXT_PARAGRAPHS : textInput.value.split('\n');
         }
 
         // =====================================================================
@@ -1769,11 +1902,12 @@
             ['абвгдежзийклмноп', 'cyrillic'],
             ['рстуфхцчшщъыьэюя', 'cyrillic'],
             ['',                 'sep'],
-            ['•‣․⁃◦·∙†‡¶§', 'symbol'],
-            ['✓✔✗✘✕✖☐☑☒',             'symbol'],
+            ['•‣․⁃◦·∙†‡¶§',      'symbol'],
+            ['✓✔✗✘✕✖☐☑☒',        'symbol'],
+            ['▫◆◧◩◻◼★◽◾',      'symbol']
             ['■□▢▣▤▥▦▧▨▩',       'symbol'],
-            ['○◌◍◎●◐◑◖◗⭕⚫⚪', 'symbol'],
-            ['←↑→↓↔↕↵▲▶▼◀△▷▽◁', 'symbol'],
+            ['○◌◍◎●◐◑◖◗⭕⚫⚪',  'symbol'],
+            ['←↑→↓↔↕↵▲▶▼◀△▷▽◁',  'symbol'],
             // ['',                 'sep'],
             // ['┌─┬─┐', 'box'],
             // ['│││││', 'box'],
@@ -1800,7 +1934,7 @@
             // ['╈╉╊╋╌╍╎╏═║╒╓╔╕╖╗', 'box'],
             // ['╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧', 'box'],
             // ['╨╩╪╫╬╭╮╯╰╱╲╳╴╵╶╷', 'box'],
-            // ['╸╹╺╻╼╽╾╿',                                                 'box'],
+            // ['╸╹╺╻╼╽╾╿',         'box'],
             // ['',                 'sep'],
             // ['▀▁▂▃▄▅▆▇█▉▊▋▌▍▎▏', 'block'],
             // ['▐░▒▓▔▕▖▗▘▙▚▛▜▝▞▟', 'block'],
@@ -1820,8 +1954,11 @@
                 // Keep separator only when both neighbours have content
                 const prev = mapped[i - 1];
                 const next = mapped[i + 1];
-                return prev && prev[0] !== '' && next && next[0] !== '';
+                return prev && prev[0] !== ''; // && next && next[0] !== '';
             });
+
+            // var lastLine = mapped[mapped.length-1];
+            // while ()
         }
 
         // =====================================================================
@@ -1835,7 +1972,6 @@
 
         function getCodeLines() {
             const lang = langSelect.value;
-            if (lang === 'custom') return textInput.value.split('\n');
             const i = getIndent();
             const i2 = i + i;
             if (lang === 'js') return [
@@ -2160,13 +2296,13 @@
 
                 const maxW = Math.max(...rows.map(rowPixelWidth), 1);
                 canvas.width  = (maxW + padX * 2) * scale;
-                canvas.height = (rows.length * (lineH + lineGap) + padY * 2) * scale;
+                canvas.height = (rows.length * (lineH) + padY * 2) * scale;
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 for (let li = 0; li < rows.length; li++) {
                     const [chars, key] = rows[li];
                     ctx.fillStyle = charsetColors[key] || t.text;
                     const spaced = SPACED_KEYS.has(key);
-                    const baselineY = padY + li * (lineH + lineGap) + font.ascent;
+                    const baselineY = padY + li * (lineH) + font.ascent;
                     let cx = padX;
                     for (const ch of chars) {
                         const cc = ch.charCodeAt(0);
@@ -2181,12 +2317,18 @@
             }
         }
 
+        function scaleChanged(ev) {
+            saveScaledToggle.disabled = parseInt(scaleInput.value) == 1;
+            renderText();
+        }
+
         // =====================================================================
         // Event Listeners
         // =====================================================================
-        downloadBtn.addEventListener('click', downloadFont);
+        downloadAsBDF.addEventListener('click', function(e) { downloadFont() });
+        downloadAsPCF.addEventListener('click', function(e) { downloadFont(true) });
         textInput.addEventListener('input', renderText);
-        scaleInput.addEventListener('input', renderText);
+        scaleInput.addEventListener('input', scaleChanged);
         boldToggle.addEventListener('change', renderText);
         boldScaleInput.addEventListener('input', renderText);
         indentSelect.addEventListener('change', renderText);
@@ -2194,6 +2336,8 @@
             customTextGroup.style.display = langSelect.value === 'custom' ? '' : 'none';
             renderText();
         });
+
+        textInput.value = TEXT_PARAGRAPHS.join("\n");
 
         // Font list is initialised after applyTheme (see bottom)
 
@@ -2256,7 +2400,16 @@
         // =====================================================================
         applyTheme('default');
         refreshPills();
-        renderFontList();
+        var count = renderFontList();
+
+        var match = (location.hash || '').match(/#(\d+)/);
+        if (match) {
+            loadFontFromDB(parseInt(match[1]));
+        } else {
+            var random = Math.floor(Math.random() * count);
+            loadFontFromDB(random);
+        }
     </script>
+    <script src="index.js"></script>
 </body>
 </html>
