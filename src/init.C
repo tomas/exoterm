@@ -1576,11 +1576,17 @@ void rxvt_term::initialize_minimap_colors() {
     minimap.sel_render_color.blue  = 0xFFFF;
     minimap.sel_render_color.alpha = (uint16_t)(0xFFFF * 0.30);
 
-    // Prompt mark highlight: soft amber at ~10% opacity
+    // Prompt mark highlight: soft amber at ~10% opacity (bright, bottom pixel)
     minimap.prompt_render_color.red   = 0xFFFF;
     minimap.prompt_render_color.green = 0xAAAA;
     minimap.prompt_render_color.blue  = 0x2222;
     minimap.prompt_render_color.alpha = (uint16_t)(0xFFFF * 0.10);
+
+    // Prompt mark dark variant (top pixel, ~5% opacity)
+    minimap.prompt_render_color_dark.red   = 0x8888;
+    minimap.prompt_render_color_dark.green = 0x5555;
+    minimap.prompt_render_color_dark.blue  = 0x1111;
+    minimap.prompt_render_color_dark.alpha = (uint16_t)(0xFFFF * 0.05);
 
     minimap.colors_initialized = true;
     XFreeColormap(dpy, colormap);

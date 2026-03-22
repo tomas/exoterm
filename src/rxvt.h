@@ -309,7 +309,8 @@ struct minimap_t {
     XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
     XRenderColor bg_render_color;    // 80% opaque background color for XRender composite
     XRenderColor sel_render_color;   // Selection highlight overlay color
-    XRenderColor prompt_render_color; // Prompt mark highlight overlay color
+    XRenderColor prompt_render_color;      // Prompt mark highlight overlay color (bright, bottom pixel)
+    XRenderColor prompt_render_color_dark; // Prompt mark highlight overlay color (dark, top pixel)
 };
 
 #endif

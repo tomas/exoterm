@@ -1247,9 +1247,8 @@ rxvt_term::key_press (XKeyEvent &ev)
           return;
         }
 
-        // Alt + P → jump to previous prompt (scan backwards for RS_PromptMark in rend_t r[0])
-        // Each press goes one prompt further back in scrollback.
-        if (meta && !ctrl && !shft && keysym == XK_p) {
+        // Alt + Shift + Up → jump to previous prompt marker
+        if (meta && shft && !ctrl && keysym == XK_Up) {
           for (int r = view_start - 1; r >= top_row; r--) {
             line_t &l = ROW(r);
             if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
@@ -1257,6 +1256,25 @@ rxvt_term::key_press (XKeyEvent &ev)
               want_refresh = 1;
               break;
             }
+          }
+          return;
+        }
+
+        // Alt + Shift + Down → jump to next prompt marker, or to the current prompt line if none found
+        if (meta && shft && !ctrl && keysym == XK_Down) {
+          bool found = false;
+          for (int r = view_start + 1; r < nrow; r++) {
+            line_t &l = ROW(r);
+            if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+              scr_changeview (r);
+              want_refresh = 1;
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            scr_changeview (screen.cur.row);
+            want_refresh = 1;
           }
           return;
         }

@@ -4700,10 +4700,12 @@ void rxvt_term::render_minimap() {
                 continue;
             if (line.r[0] & RS_PromptMark) {
                 int y = i * total_line_height;
+                // Dark pixel on top
+                XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color_dark,
+                                     minimap.width - 5, y, 5, 1);
+                // Bright pixel below
                 XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color,
-                                     0, y, 10, 1);
-                XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color,
-                                     minimap.width - 10, y, 10, 1);
+                                     minimap.width - 5, y + 1, 5, 1);
             }
         }
         XRenderFreePicture(dpy, buf_pic);
