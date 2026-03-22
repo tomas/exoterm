@@ -4701,7 +4701,9 @@ void rxvt_term::render_minimap() {
             if (line.r[0] & RS_PromptMark) {
                 int y = i * total_line_height;
                 XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color,
-                                     0, y, minimap.width, total_line_height);
+                                     0, y, 10, 1);
+                XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.prompt_render_color,
+                                     minimap.width - 10, y, 10, 1);
             }
         }
         XRenderFreePicture(dpy, buf_pic);

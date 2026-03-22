@@ -1429,6 +1429,31 @@ rxvt_term::key_press (XKeyEvent &ev)
         for (int i = prompt_end; i < pl.l; i++) {
           text_t ch = pl.t[i];
           if (ch != ' ' && ch != 0 && ch != NOCHAR) {
+            // Before marking this line, retroactively remove the previous
+            // mark if the command it flagged produced no output (i.e. there
+            // is nothing between that mark and the current prompt line).
+            for (int r = screen.cur.row - 1; r >= top_row; r--) {
+              line_t &prev = ROW(r);
+              if (!prev.valid () || !prev.r)
+                continue;
+              if (prev.r[0] & RS_PromptMark) {
+                bool has_output = false;
+                for (int rr = r + 1; rr < screen.cur.row && !has_output; rr++) {
+                  line_t &mid = ROW(rr);
+                  if (!mid.valid () || !mid.t) continue;
+                  for (int c = 0; c < mid.l; c++) {
+                    text_t mc = mid.t[c];
+                    if (mc != ' ' && mc != 0 && mc != NOCHAR) {
+                      has_output = true;
+                      break;
+                    }
+                  }
+                }
+                if (!has_output)
+                  prev.r[0] &= ~RS_PromptMark;
+                break;
+              }
+            }
             pl.r[0] |= RS_PromptMark;
             break;
           }
