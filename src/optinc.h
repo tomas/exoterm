@@ -66,4 +66,5 @@
  nodef(buffered)
 #endif
  def(dockapp)
+ def(autoCopySelection)
 

@@ -98,6 +98,7 @@
   def (insecure)
   def (pointerBlank)
   def (pointerBlankDelay)
+  def (autoCopySelection)
   def (imLocale)
   def (imFont)
   def (pastableTabs)

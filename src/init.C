@@ -712,6 +712,7 @@ rxvt_term::init_vars ()
   set_option (Opt_iso14755);
   set_option (Opt_iso14755_52);
   set_option (Opt_buffered);
+  set_option (Opt_autoCopySelection);
 }
 
 #if ENABLE_PERL
