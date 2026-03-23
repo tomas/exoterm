@@ -121,12 +121,12 @@ struct color_scheme_t {
 };
 
 static const color_scheme_t color_schemes[] = {
-  { "Dracula", {
-    "#f8f8f2", "#282a36",
-    "#21222c", "#ff5555", "#50fa7b", "#f1fa8c",
-    "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
-    "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5",
-    "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
+  { "Ayu Dark", {
+    "#cccac2", "#0d1017",
+    "#11151c", "#ea6c73", "#91b362", "#f9af4f",
+    "#53bdfa", "#fae994", "#90e1c6", "#c7c7c7",
+    "#686868", "#f07178", "#c2d94c", "#ffb454",
+    "#59c2ff", "#ffee99", "#95e6cb", "#ffffff",
   }},
   { "Catppuccin Mocha", {
     "#cdd6f4", "#1e1e2e",
@@ -135,12 +135,47 @@ static const color_scheme_t color_schemes[] = {
     "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af",
     "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8",
   }},
-  { "Tokyo Night", {
-    "#a9b1d6", "#1a1b26",
-    "#32344a", "#f7768e", "#9ece6a", "#e0af68",
-    "#7aa2f7", "#ad8ee6", "#449dab", "#787c99",
-    "#444b6a", "#ff7a93", "#b9f27c", "#ff9e64",
-    "#7da6ff", "#bb9af7", "#0db9d7", "#acb0d0",
+  { "Cobalt2", {
+    "#ffffff", "#193549",
+    "#000000", "#ff0000", "#00c200", "#c7c400",
+    "#0225c7", "#ca30c7", "#00c5c7", "#c7c7c7",
+    "#686868", "#ff6e67", "#5ffa68", "#fffc67",
+    "#6871ff", "#ff77ff", "#60fdff", "#ffffff",
+  }},
+  { "Dracula", {
+    "#f8f8f2", "#282a36",
+    "#21222c", "#ff5555", "#50fa7b", "#f1fa8c",
+    "#bd93f9", "#ff79c6", "#8be9fd", "#f8f8f2",
+    "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5",
+    "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
+  }},
+  { "Everforest Dark", {
+    "#d3c6aa", "#2d353b",
+    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
+    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
+    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
+    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
+  }},
+  { "Gruvbox Dark", {
+    "#ebdbb2", "#282828",
+    "#282828", "#cc241d", "#98971a", "#d79921",
+    "#458588", "#b16286", "#689d6a", "#a89984",
+    "#928374", "#fb4934", "#b8bb26", "#fabd2f",
+    "#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
+  }},
+  { "Horizon", {
+    "#d5d8da", "#1c1e26",
+    "#16161c", "#e95678", "#29d398", "#fab795",
+    "#26bbd9", "#ee64ae", "#59e3e3", "#d5d8da",
+    "#595f6f", "#ec6a88", "#3fdaa4", "#fbc3a7",
+    "#3fc6de", "#f075b7", "#6be6e6", "#d5d8da",
+  }},
+  { "Iceberg", {
+    "#c6c8d1", "#161821",
+    "#1e2132", "#e27878", "#b4be82", "#e2a478",
+    "#84a0c6", "#a093c7", "#89b8c2", "#c6c8d1",
+    "#6b7089", "#e98989", "#c0ca8e", "#e9b189",
+    "#91acd1", "#ada0d3", "#95c4ce", "#d2d4de",
   }},
   { "Kanagawa", {
     "#dcd7ba", "#1f1f28",
@@ -148,6 +183,34 @@ static const color_scheme_t color_schemes[] = {
     "#7e9cd8", "#957fb8", "#6a9589", "#c8c093",
     "#727169", "#e82424", "#98bb6c", "#e6c384",
     "#7fb4ca", "#938aa9", "#7aa89f", "#dcd7ba",
+  }},
+  { "Monokai", {
+    "#f8f8f2", "#272822",
+    "#272822", "#f92672", "#a6e22e", "#f4bf75",
+    "#66d9e8", "#ae81ff", "#a1efe4", "#f8f8f2",
+    "#75715e", "#f92672", "#a6e22e", "#f4bf75",
+    "#66d9e8", "#ae81ff", "#a1efe4", "#f9f8f5",
+  }},
+  { "Nord", {
+    "#d8dee9", "#2e3440",
+    "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
+    "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
+    "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
+    "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
+  }},
+  { "One Dark", {
+    "#abb2bf", "#282c34",
+    "#282c34", "#e06c75", "#98c379", "#e5c07b",
+    "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+    "#5c6370", "#e06c75", "#98c379", "#e5c07b",
+    "#61afef", "#c678dd", "#56b6c2", "#ffffff",
+  }},
+  { "Palenight", {
+    "#a6accd", "#292d3e",
+    "#292d3e", "#f07178", "#c3e88d", "#ffcb6b",
+    "#82aaff", "#c792ea", "#89ddff", "#d0d0d0",
+    "#434758", "#ff8b92", "#ddffa7", "#ffe585",
+    "#9cc4ff", "#e1acff", "#a3f7ff", "#ffffff",
   }},
   { "Rose Pine", {
     "#e0def4", "#191724",
@@ -163,69 +226,6 @@ static const color_scheme_t color_schemes[] = {
     "#59546d", "#eb6f92", "#3e8fb0", "#f6c177",
     "#9ccfd8", "#c4a7e7", "#ea9a97", "#faf4ed",
   }},
-  { "One Dark", {
-    "#abb2bf", "#282c34",
-    "#282c34", "#e06c75", "#98c379", "#e5c07b",
-    "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
-    "#5c6370", "#e06c75", "#98c379", "#e5c07b",
-    "#61afef", "#c678dd", "#56b6c2", "#ffffff",
-  }},
-  { "Gruvbox Dark", {
-    "#ebdbb2", "#282828",
-    "#282828", "#cc241d", "#98971a", "#d79921",
-    "#458588", "#b16286", "#689d6a", "#a89984",
-    "#928374", "#fb4934", "#b8bb26", "#fabd2f",
-    "#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
-  }},
-  { "Everforest Dark", {
-    "#d3c6aa", "#2d353b",
-    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
-    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
-    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
-    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
-  }},
-  { "Nord", {
-    "#d8dee9", "#2e3440",
-    "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
-    "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
-    "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
-    "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
-  }},
-  { "Palenight", {
-    "#a6accd", "#292d3e",
-    "#292d3e", "#f07178", "#c3e88d", "#ffcb6b",
-    "#82aaff", "#c792ea", "#89ddff", "#d0d0d0",
-    "#434758", "#ff8b92", "#ddffa7", "#ffe585",
-    "#9cc4ff", "#e1acff", "#a3f7ff", "#ffffff",
-  }},
-  { "Iceberg", {
-    "#c6c8d1", "#161821",
-    "#1e2132", "#e27878", "#b4be82", "#e2a478",
-    "#84a0c6", "#a093c7", "#89b8c2", "#c6c8d1",
-    "#6b7089", "#e98989", "#c0ca8e", "#e9b189",
-    "#91acd1", "#ada0d3", "#95c4ce", "#d2d4de",
-  }},
-  { "Horizon", {
-    "#d5d8da", "#1c1e26",
-    "#16161c", "#e95678", "#29d398", "#fab795",
-    "#26bbd9", "#ee64ae", "#59e3e3", "#d5d8da",
-    "#595f6f", "#ec6a88", "#3fdaa4", "#fbc3a7",
-    "#3fc6de", "#f075b7", "#6be6e6", "#d5d8da",
-  }},
-  { "Ayu Dark", {
-    "#cccac2", "#0d1017",
-    "#11151c", "#ea6c73", "#91b362", "#f9af4f",
-    "#53bdfa", "#fae994", "#90e1c6", "#c7c7c7",
-    "#686868", "#f07178", "#c2d94c", "#ffb454",
-    "#59c2ff", "#ffee99", "#95e6cb", "#ffffff",
-  }},
-  { "Monokai", {
-    "#f8f8f2", "#272822",
-    "#272822", "#f92672", "#a6e22e", "#f4bf75",
-    "#66d9e8", "#ae81ff", "#a1efe4", "#f8f8f2",
-    "#75715e", "#f92672", "#a6e22e", "#f4bf75",
-    "#66d9e8", "#ae81ff", "#a1efe4", "#f9f8f5",
-  }},
   { "Solarized Dark", {
     "#839496", "#002b36",
     "#073642", "#dc322f", "#859900", "#b58900",
@@ -233,19 +233,19 @@ static const color_scheme_t color_schemes[] = {
     "#002b36", "#cb4b16", "#586e75", "#657b83",
     "#839496", "#6c71c4", "#93a1a1", "#fdf6e3",
   }},
+  { "Tokyo Night", {
+    "#a9b1d6", "#1a1b26",
+    "#32344a", "#f7768e", "#9ece6a", "#e0af68",
+    "#7aa2f7", "#ad8ee6", "#449dab", "#787c99",
+    "#444b6a", "#ff7a93", "#b9f27c", "#ff9e64",
+    "#7da6ff", "#bb9af7", "#0db9d7", "#acb0d0",
+  }},
   { "Zenburn", {
     "#dcdccc", "#3f3f3f",
     "#1e2320", "#705050", "#60b48a", "#dfaf8f",
     "#506070", "#dc8cc3", "#8cd0d3", "#dcdccc",
     "#709080", "#dca3a3", "#72d5a3", "#f0dfaf",
     "#94bff3", "#ec93d3", "#93e0e3", "#ffffff",
-  }},
-  { "Cobalt2", {
-    "#ffffff", "#193549",
-    "#000000", "#ff0000", "#00c200", "#c7c400",
-    "#0225c7", "#ca30c7", "#00c5c7", "#c7c7c7",
-    "#686868", "#ff6e67", "#5ffa68", "#fffc67",
-    "#6871ff", "#ff77ff", "#60fdff", "#ffffff",
   }},
 };
 
@@ -548,7 +548,7 @@ static int build_settings_window (mu_Context *ctx) {
     section_header (ctx, "Color Scheme");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
     const char *scheme_label = (s_active_scheme >= 0 && s_active_scheme < NUM_SCHEMES)
-      ? color_schemes[s_active_scheme].name : "None";
+      ? color_schemes[s_active_scheme].name : "Custom";
     if (mu_begin_combo_ex (ctx, "##schemes", scheme_label, NUM_SCHEMES * 32, 0)) {
       for (int i = 0; i < NUM_SCHEMES; i++) {
         const color_scheme_t &s = color_schemes[i];
@@ -558,10 +558,13 @@ static int build_settings_window (mu_Context *ctx) {
         { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
         bool clicked = (bool) mu_button (ctx, label);
         /* compact swatch strip — must re-set layout after the button */
-        int sw = (PANEL_WIDTH - 48) / 16;
-        { int widths[16]; for (int j = 0; j < 16; j++) widths[j] = sw;
-          mu_layout_row (ctx, 16, widths, 6); }
-        for (int j = 0; j < 16; j++) {
+        int sw = (PANEL_WIDTH - 110) / 8;
+
+
+        { int widths[8]; for (int j = 0; j < 8; j++) widths[j] = sw;
+          mu_layout_row (ctx, 8, widths, 4); }
+
+        for (int j = 0; j < 8; j++) {
           mu_Rect r = mu_layout_next (ctx);
           mu_draw_rect (ctx, r, hex_to_mu (s.palette[2 + j]));
         }
@@ -575,10 +578,10 @@ static int build_settings_window (mu_Context *ctx) {
     }
     /* swatch strip for the currently active scheme, shown below the combo */
     if (s_active_scheme >= 0 && s_active_scheme < NUM_SCHEMES) {
-      int sw = (PANEL_WIDTH - 30) / 16;
-      { int widths[16]; for (int j = 0; j < 16; j++) widths[j] = sw;
-        mu_layout_row (ctx, 16, widths, 8); }
-      for (int j = 0; j < 16; j++) {
+      int sw = (PANEL_WIDTH - 73) / 8;
+      { int widths[8]; for (int j = 0; j < 8; j++) widths[j] = sw;
+        mu_layout_row (ctx, 8, widths, 5); }
+      for (int j = 0; j < 8; j++) {
         mu_Rect r = mu_layout_next (ctx);
         mu_draw_rect (ctx, r, hex_to_mu (color_schemes[s_active_scheme].palette[2 + j]));
       }
@@ -950,6 +953,26 @@ static void read_settings_from_term (rxvt_term *t) {
 #endif
   free(s_active_font_xlfd);
   s_active_font_xlfd = t->rs[Rs_font] ? strdup(t->rs[Rs_font]) : nullptr;
+
+  /* Detect which (if any) named scheme matches the terminal's current colors. */
+  auto rgb_of = [&](int cidx) -> const char * {
+    /* color_to_hex produces "#rrggbb" or "[n]#rrggbb" — we only need the "#..." part */
+    rgba c = (rgba) t->pix_colors_focused[cidx];
+    static char buf[8];
+    snprintf (buf, sizeof (buf), "#%02x%02x%02x", c.r >> 8, c.g >> 8, c.b >> 8);
+    return buf;
+  };
+  s_active_scheme = -1;
+  for (int i = 0; i < NUM_SCHEMES; i++) {
+    const color_scheme_t &s = color_schemes[i];
+    if (strcasecmp (rgb_of (Color_fg), s.palette[0]) != 0) continue;
+    if (strcasecmp (rgb_of (Color_bg), s.palette[1]) != 0) continue;
+    bool match = true;
+    for (int j = 0; j < 16 && match; j++)
+      if (strcasecmp (rgb_of (minCOLOR + j), s.palette[2 + j]) != 0)
+        match = false;
+    if (match) { s_active_scheme = i; break; }
+  }
 }
 
 /* ======================================================================= */
