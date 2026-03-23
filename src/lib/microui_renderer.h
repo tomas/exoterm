@@ -8,6 +8,8 @@
 int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
 /* Update the display/window/GC without touching the pixel buffer or image. */
 void r_update_context(Display *display, Window window, GC context);
+/* Switch the renderer to a different window, recreating XRender pictures. */
+void r_switch_window(Window new_win, int width, int height);
 void r_draw_rect(mu_Rect rect, mu_Color color);
 void r_draw_text(const char *text, mu_Vec2 pos, mu_Color color);
 void r_draw_icon(int id, mu_Rect rect, mu_Color color);

@@ -7,6 +7,7 @@
 
 int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
 void r_update_context(Display *display, Window window, GC context);
+void r_switch_window(Window new_win, int width, int height);
 void r_resize(int width, int height);
 void r_clear(mu_Color clr);
 void r_draw_rect(mu_Rect rect, mu_Color color);

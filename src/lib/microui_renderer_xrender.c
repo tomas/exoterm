@@ -137,6 +137,27 @@ void r_update_context(Display * display, Window window, GC context) {
   gc = context;
 }
 
+void r_switch_window(Window new_win, int width, int height) {
+  if (window_picture) {
+    XRenderFreePicture(dpy, window_picture);
+    window_picture = None;
+  }
+  win = new_win;
+  /* Ensure the new window receives the same event types r_init would set. */
+  XSelectInput(dpy, win,
+    ExposureMask | KeyPressMask | KeyReleaseMask |
+    ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+    StructureNotifyMask);
+  XRenderPictFormat *fmt = XRenderFindVisualFormat(dpy, s_visual);
+  if (!fmt)
+    fmt = XRenderFindStandardFormat(dpy, s_depth == 32
+                                        ? PictStandardARGB32
+                                        : PictStandardRGB24);
+  if (fmt)
+    window_picture = XRenderCreatePicture(dpy, win, fmt, 0, NULL);
+  r_resize(width, height);
+}
+
 void r_resize(int width, int height) {
   if (!dpy || !back_buffer_picture) return;
   XRenderFreePicture(dpy, back_buffer_picture);

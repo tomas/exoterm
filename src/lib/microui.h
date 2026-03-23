@@ -384,6 +384,8 @@ void mu_end_panel(mu_Context *ctx);
 int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item, int32_t max_items, int32_t opt);
 void mu_end_combo(mu_Context* ctx);
 
+void mu_menu_separator(mu_Context *ctx);
+
 // void mu_begin_tabs(mu_Context *ctx, const char *name, int opt);
 int mu_begin_tabs(mu_Context *ctx, const char *name, int num_tabs, const char **tab_names, int *active_tab);
 void mu_end_tabs(mu_Context *ctx);
