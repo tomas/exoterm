@@ -20,6 +20,7 @@ extern "C" {
 #include <glib/gstdio.h>
 
 #include <sys/stat.h>
+#include <algorithm>
 
 /* Panel sits flush on the right edge, full parent height. */
 #define PANEL_WIDTH 320
@@ -749,6 +750,30 @@ static void apply_color_scheme (int idx) {
   s_active_scheme = idx;
 }
 
+/* Replace t->rs[idx] safely, keeping t->allocated consistent to avoid
+   double-free in ~rxvt_term.  The original string may or may not be
+   tracked in allocated; either way we free it exactly once and track
+   the replacement. */
+static void replace_rs_str (rxvt_term *t, int idx, const char *newval)
+{
+  char *new_str = newval ? strdup (newval) : nullptr;
+  const char *old = t->rs[idx];
+  if (old) {
+    auto &alloc = t->allocated;
+    auto it = std::find (alloc.begin (), alloc.end (), (void *)old);
+    if (it != alloc.end ()) {
+      free (*it);
+      *it = new_str;          /* replace in-place so slot stays valid */
+    } else {
+      free ((void *)old);
+      if (new_str) alloc.push_back (new_str);
+    }
+  } else if (new_str) {
+    t->allocated.push_back (new_str);
+  }
+  t->rs[idx] = new_str;
+}
+
 /* --- apply changed settings to all terminals --- */
 static void apply_settings (int changed) {
   if (changed & CHANGED_COLOR_SCHEME) {
@@ -764,8 +789,7 @@ static void apply_settings (int changed) {
         unsigned int w, h, bw, d;
         XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
 
-        free ((void *) t->rs[Rs_font]);
-        t->rs[Rs_font] = strdup (s_font_entries[idx].xlfd);
+        replace_rs_str (t, Rs_font, s_font_entries[idx].xlfd);
         t->set_fonts ();
 
         XResizeWindow(t->dpy, t->parent, w, h);
@@ -782,8 +806,7 @@ static void apply_settings (int changed) {
           free(s_active_bold_xlfd);
           s_active_bold_xlfd = strdup(bold);
           for (rxvt_term *t : rxvt_term::termlist) {
-            free((void *)t->rs[Rs_boldFont]);
-            t->rs[Rs_boldFont] = strdup(bold);
+            replace_rs_str (t, Rs_boldFont, bold);
             t->set_fonts();
           }
         }
@@ -801,12 +824,10 @@ static void apply_settings (int changed) {
       XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
 
       if (idx >= 0 && idx < s_num_fonts) {
-        free ((void *) t->rs[Rs_boldFont]);
-        t->rs[Rs_boldFont] = strdup (s_font_entries[idx].xlfd);
+        replace_rs_str (t, Rs_boldFont, s_font_entries[idx].xlfd);
         t->set_fonts ();
       } else {
-        free ((void *) t->rs[Rs_boldFont]);
-        t->rs[Rs_boldFont] = nullptr;
+        replace_rs_str (t, Rs_boldFont, nullptr);
         t->set_fonts ();
       }
       XResizeWindow(t->dpy, t->parent, w, h);
@@ -925,8 +946,7 @@ static void restore_snapshot () {
     for (int i = 0; i < 16; i++)
       t->set_window_color (minCOLOR + i, s_snapshot.colors[2 + i]);
     if (s_snapshot.font) {
-      free ((void *) t->rs[Rs_font]);
-      t->rs[Rs_font] = strdup (s_snapshot.font);
+      replace_rs_str (t, Rs_font, s_snapshot.font);
       t->set_fonts ();
     }
   }
