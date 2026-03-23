@@ -692,7 +692,8 @@ static int build_settings_window (mu_Context *ctx) {
     /* ---- Buttons ---- */
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 10); }
     mu_label (ctx, "", 0);
-    { int c[] = {-1, -80, -80, -80}; mu_layout_row (ctx, 4, c, 0); }
+    // { int c[] = {-160, -80, -1}; mu_layout_row (ctx, 3, c, 0); }
+    { int c[] = {-200, 60, 60, 60}; mu_layout_row (ctx, 4, c, 0); }
     mu_label (ctx, "", 0);
     if (mu_button (ctx, "Cancel")) changed |= CHANGED_CANCEL;
     if (mu_button (ctx, "Apply"))  changed |= CHANGED_APPLY;
