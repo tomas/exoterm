@@ -238,6 +238,7 @@ void mu_end(mu_Context *ctx) {
   // ctx->copy_text[0] = '\0';
   ctx->mouse_pressed = 0;
   ctx->mouse_up = 0;
+  ctx->scrollbar_drag = 0;
   ctx->scroll_delta = mu_vec2(0, 0);
   ctx->last_mouse_pos = ctx->mouse_pos;
   ctx->prevent_scroll = 0;
@@ -2013,8 +2014,12 @@ void mu_end_treenode(mu_Context *ctx) {
                                                                             \
       if (ctx->focus == id && ctx->mouse_down == MU_MOUSE_LEFT) {           \
         cnt->scroll.y += ctx->mouse_delta.y * cs.y / base.h;                \
+        ctx->scrollbar_drag = 1;                                           \
         colorid += 1;                                                       \
       } else if (ctx->hover == id) colorid += 1;                            \
+                                                                            \
+      /* DEBUG: also set if scrollbar has focus */                         \
+      if (ctx->focus == id) { ctx->scrollbar_drag = 1; }                            \
                                                                             \
       /* clamp scroll to limits */                                          \
       cnt->scroll.y = mu_clamp(cnt->scroll.y, 0, maxscroll);                \
@@ -2221,21 +2226,13 @@ int mu_begin_window_ex(mu_Context *ctx, const char *title, mu_Rect rect, int opt
 
   /* close if this is a popup window and elsewhere was clicked */
   if (opt & MU_OPT_POPUP) {
-    if (ctx->mouse_pressed && ctx->hover_root != cnt) {
-      // printf("clicked elsewhere\n");
+    if (ctx->mouse_pressed && ctx->hover_root != cnt && !ctx->scrollbar_drag) {
       cnt->open = 0;
-      // active_popup_id = 0;
-    } else if (ctx->mouse_up && cnt->open++ > 1 && (opt & MU_OPT_HIDE_ON_CLICK)) {
-      // printf("hiding popup, mouse up and cnt->open is %d\n", cnt->open);
+    } else if (ctx->mouse_up && cnt->open++ > 1 && (opt & MU_OPT_HIDE_ON_CLICK) && !ctx->scrollbar_drag) {
       cnt->open = 0;
-      // active_popup_id = 0;
-    // close popup if opened with mouse click and release took longer than X ms
     } else if (ctx->mouse_up == MU_MOUSE_RIGHT && mu_get_timediff(ctx->mouse_down_ts) > 0.2) {
-      // printf("closing, last mousedown was at %f\n", mu_get_timediff(ctx->mouse_down_ts));
       cnt->open = 0;
-      // active_popup_id = 0;
     }
-    if (!cnt->open) ctx->needs_redraw = 1;
   }
 
   mu_push_clip_rect(ctx, cnt->body);

@@ -266,6 +266,7 @@ struct mu_Context {
   int mouse_down;
   int mouse_pressed;
   int mouse_up;
+  int scrollbar_drag;
   int key_down;
   int key_pressed;
 #ifdef __linux__
