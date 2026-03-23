@@ -1,11 +1,9 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitmap Font Previewer</title>
+    <title>Pixelfonts | Preview and download bitmap fonts (BDF/PCF)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <style>
         :root {
@@ -224,6 +222,23 @@
             border-color: var(--border);
             color: var(--text-muted);
         }
+
+        /* Star button in font list */
+        .star-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            color: var(--border);
+            font-size: 0.85rem;
+            line-height: 1;
+            flex-shrink: 0;
+            transition: color 0.15s, transform 0.1s;
+        }
+        .star-btn:hover { color: var(--accent); transform: scale(1.2); }
+        .star-btn.starred { color: var(--accent); }
+        .font-item.active .star-btn { color: rgba(0,0,0,0.35); }
+        .font-item.active .star-btn.starred { color: rgba(0,0,0,0.7); }
 
         #font-list {
             flex: 1 1 0;
@@ -699,6 +714,10 @@
                 <svg class="toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div id="filter-section" class="collapsed">
+                <div class="filter-row">
+                    <label>Category</label>
+                    <div class="pill-group" id="tag-pills"></div>
+                </div>
                 <div class="filter-row">
                     <label>Width (px)</label>
                     <div class="pill-group" id="w-pills"></div>
@@ -1378,6 +1397,22 @@
         let   fontSearchQuery = '';
         const wPills          = document.getElementById('w-pills');
         const hPills          = document.getElementById('h-pills');
+        const tagPills        = document.getElementById('tag-pills');
+
+        // Starred fonts — persisted to localStorage
+        let starredFonts = new Set(JSON.parse(localStorage.getItem('pixelfonts-starred') || '[]'));
+        function saveStarred() {
+            localStorage.setItem('pixelfonts-starred', JSON.stringify([...starredFonts]));
+        }
+        function toggleStar(index) {
+            if (starredFonts.has(index)) starredFonts.delete(index);
+            else starredFonts.add(index);
+            saveStarred();
+            renderFontList();
+        }
+
+        // Active tag filter
+        let activeTag = null;
 
         // =====================================================================
         // Font Database
@@ -1389,496 +1424,496 @@
         const CDN = '/archive/bitmap-fonts/bitmap/'
 
         const FONT_DB = [
-            // { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/aleczapka.bdf' }, // Note: aleczapka.bdf, not artwiz-aleczapka.bdf
-            { name: 'Artwiz Cure',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/cure.bdf' },
-            { name: 'Artwiz Drift',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/drift.bdf' },
-            { name: 'Artwiz Fkp',            author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/fkp.bdf' },
-            { name: 'Artwiz Glisp',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp.bdf' },
-            { name: 'Artwiz Lime',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/lime.bdf' },
-            { name: 'Artwiz Mints',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-mild.bdf' },
-            { name: 'Artwiz Snap',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/snap.bdf' },
-            { name: 'Bitocra 7',             author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra7.bdf' },
-            { name: 'Bitocra 13',            author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13.bdf' },
-            { name: 'Boxxy',                 author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy.bdf' },
-            { name: 'Cherry 10',             author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-r.bdf' },
-            { name: 'Cherry 11',             author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-r.bdf' },
-            { name: 'Cherry 13',             author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-r.bdf' },
-            // { name: 'CG Mono',               author: 'Christian Gruen',   w:  9, h: 15, url: CDN+'cg-mono/CG-mono-Roman15.bdf' },
-            { name: 'Creep',                 author: 'romeovs',           w:  5, h: 11, url: CDN+'creep/creep.bdf' },
-            { name: 'Ctrld Fixed',           author: 'bjin',              w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r.bdf' },
-            { name: 'Dina 6',               author: 'Jørgen Ibsen',      w:  6, h: 10, url: CDN+'dina/Dina_r400-6.bdf' },
-            { name: 'Dina 8',               author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r400-8.bdf' },
-            { name: 'Dina 9',               author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r400-9.bdf' },
-            { name: 'Dina 10',              author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r400-10.bdf' },
-            { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn7x13.bdf' }, // Changed to actual file
-            // { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' },
-            { name: 'Gohufont 11',          author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11.bdf' },
-            { name: 'Gohufont 11 Bold',     author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11b.bdf' },
-            { name: 'Gohufont 14',          author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14.bdf' },
-            { name: 'Gohufont 14 Bold',     author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14b.bdf' },
-            { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/Gomme10x20n.bdf' }, // Updated path
-            { name: 'Knxt',                 author: 'bytensky',          w:  6, h: 11, url: CDN+'knxt/knxt.bdf' },
-            { name: 'Leggie Small',         author: 'wiktor-b',          w:  5, h: 10, url: CDN+'leggie/leggie.bdf' },
-            // { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' },
-            { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon.bdf' }, // Fixed path
-            { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloMedium.bdf' }, // Updated path
-            // { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' },
-            // { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' },
-            // { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' },
-            // { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' },
-            { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-medium.bdf' },
-            { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-bold.bdf' },
-            // { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' },
-            { name: 'Progsole',             author: 'Glenn Schemenauer', w:  7, h: 10, url: CDN+'progsole/progsole-10.bdf' },
-            // { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' },
-            { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientifica-11.bdf' }, // Fixed path
-            { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaBold-11.bdf' }, // Fixed path
-            { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaItalic-11.bdf' }, // Fixed path
-            // { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' },
-            { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9r.bdf' }, // Note: directory is tamzen-font, not tamsyn-font
-            { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9b.bdf' },
-            { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12r.bdf' },
-            { name: 'Tamsyn 6x12 Bold',    author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12b.bdf' },
-            { name: 'Tamsyn 7x13',         author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13r.bdf' },
-            { name: 'Tamsyn 7x13 Bold',    author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13b.bdf' },
-            { name: 'Tamsyn 8x15',         author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15r.bdf' },
-            { name: 'Tamsyn 8x15 Bold',    author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15b.bdf' },
-            { name: 'Tamsyn 8x16',         author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16r.bdf' },
-            { name: 'Tamsyn 8x16 Bold',    author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16b.bdf' },
-            { name: 'Tamsyn 10x20',        author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20r.bdf' },
-            { name: 'Tamsyn 10x20 Bold',   author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20b.bdf' },
-            { name: 'Tewi Normal',         author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-normal-11.bdf' },
-            { name: 'Tewi Bold',           author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-bold-11.bdf' },
+            // { name: 'Artwiz Aleczapka',     author: 'Oliwier Ptak',      w:  6, h: 13, url: CDN+'artwiz/bdf/aleczapka.bdf' , tags:['display','mono'] }, // Note: aleczapka.bdf, not artwiz-aleczapka.bdf
+            { name: 'Artwiz Cure',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/cure.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Drift',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/drift.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Fkp',            author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/fkp.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Glisp',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Lime',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/lime.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Mints',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-mild.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Snap',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/snap.bdf' , tags:['display','mono'] },
+            { name: 'Bitocra 7',             author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra7.bdf' , tags:['mono'] },
+            { name: 'Bitocra 13',            author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13.bdf' , tags:['mono'] },
+            { name: 'Boxxy',                 author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy.bdf' , tags:['mono'] },
+            { name: 'Cherry 10',             author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-r.bdf' , tags:['mono'] },
+            { name: 'Cherry 11',             author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-r.bdf' , tags:['mono'] },
+            { name: 'Cherry 13',             author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-r.bdf' , tags:['mono'] },
+            // { name: 'CG Mono',               author: 'Christian Gruen',   w:  9, h: 15, url: CDN+'cg-mono/CG-mono-Roman15.bdf' , tags:['mono'] },
+            { name: 'Creep',                 author: 'romeovs',           w:  5, h: 11, url: CDN+'creep/creep.bdf' , tags:['mono','popular'] },
+            { name: 'Ctrld Fixed',           author: 'bjin',              w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r.bdf' , tags:['mono'] },
+            { name: 'Dina 6',               author: 'Jørgen Ibsen',      w:  6, h: 10, url: CDN+'dina/Dina_r400-6.bdf' , tags:['mono','popular'] },
+            { name: 'Dina 8',               author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r400-8.bdf' , tags:['mono','popular'] },
+            { name: 'Dina 9',               author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r400-9.bdf' , tags:['mono','popular'] },
+            { name: 'Dina 10',              author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r400-10.bdf' , tags:['mono','popular'] },
+            { name: 'Envypn',               author: 'Ypnose',            w:  6, h:  8, url: CDN+'envypn-font/envypn7x13.bdf' , tags:['mono','popular'] }, // Changed to actual file
+            // { name: 'VGA 8x16',             author: 'Giles Orr',         w:  8, h: 16, url: CDN+'vga/vga.bdf' , tags:['mono'] },
+            { name: 'Gohufont 11',          author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11.bdf' , tags:['mono','popular'] },
+            { name: 'Gohufont 11 Bold',     author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-11b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Gohufont 14',          author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14.bdf' , tags:['mono','popular'] },
+            { name: 'Gohufont 14 Bold',     author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-14b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Gomme',                author: 'tonkazoid',         w:  4, h:  6, url: CDN+'gomme/Gomme10x20n.bdf' , tags:['mono'] }, // Updated path
+            { name: 'Knxt',                 author: 'bytensky',          w:  6, h: 11, url: CDN+'knxt/knxt.bdf' , tags:['mono','popular'] },
+            { name: 'Leggie Small',         author: 'wiktor-b',          w:  5, h: 10, url: CDN+'leggie/leggie.bdf' , tags:['mono'] },
+            // { name: 'Leggie Large',         author: 'wiktor-b',          w: 10, h: 20, url: CDN+'leggie/leggie2x.bdf' , tags:['mono'] },
+            { name: 'Lemon',                author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon.bdf' , tags:['display','mono'] }, // Fixed path
+            { name: 'MonteCarlo',           author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloMedium.bdf' , tags:['mono','popular'] }, // Updated path
+            // { name: 'Ohsnap 4x8',          author: 'stlarch',           w:  4, h:  8, url: CDN+'ohsnap/bdf/ohsnap.4x8r.bdf' , tags:['mono'] },
+            // { name: 'Ohsnap 6x10',         author: 'stlarch',           w:  6, h: 10, url: CDN+'ohsnap/bdf/ohsnap.6x10r.bdf' , tags:['mono'] },
+            // { name: 'Ohsnap 6x11',         author: 'stlarch',           w:  6, h: 11, url: CDN+'ohsnap/bdf/ohsnap.6x11r.bdf' , tags:['mono'] },
+            // { name: 'Ohsnap 6x12',         author: 'stlarch',           w:  6, h: 12, url: CDN+'ohsnap/bdf/ohsnap.6x12r.bdf' , tags:['mono'] },
+            { name: 'Orp Normal',           author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-medium.bdf' , tags:['mono','popular'] },
+            { name: 'Orp Bold',             author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-bold.bdf' , tags:['bold','mono','popular'] },
+            // { name: 'ProFont',              author: 'Tobias Jung',       w:  7, h: 11, url: CDN+'profont/bdf/ProFontWindows-7x11.bdf' , tags:['mono','popular'] },
+            { name: 'Progsole',             author: 'Glenn Schemenauer', w:  7, h: 10, url: CDN+'progsole/progsole-10.bdf' , tags:['mono','popular'] },
+            // { name: 'Raize',               author: 'Raize Software',    w:  7, h: 14, url: CDN+'raize/Raize_7x14.bdf' , tags:['mono'] },
+            { name: 'Scientifica Normal',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientifica-11.bdf' , tags:['mono','popular'] }, // Fixed path
+            { name: 'Scientifica Bold',    author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaBold-11.bdf' , tags:['bold','mono','popular'] }, // Fixed path
+            { name: 'Scientifica Italic',  author: 'NerdyPepper',       w:  5, h: 11, url: CDN+'scientifica/scientificaItalic-11.bdf' , tags:['italic','mono','popular'] }, // Fixed path
+            // { name: 'Speedy',              author: 'Walter Reel',       w:  6, h: 10, url: CDN+'speedy/speedy.bdf' , tags:['mono'] },
+            { name: 'Tamsyn 5x9',          author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9r.bdf' , tags:['mono','popular'] }, // Note: directory is tamzen-font, not tamsyn-font
+            { name: 'Tamsyn 5x9 Bold',     author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Tamzen5x9b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tamsyn 6x12',         author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12r.bdf' , tags:['mono','popular'] },
+            { name: 'Tamsyn 6x12 Bold',    author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Tamzen6x12b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tamsyn 7x13',         author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13r.bdf' , tags:['mono','popular'] },
+            { name: 'Tamsyn 7x13 Bold',    author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Tamzen7x13b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tamsyn 8x15',         author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15r.bdf' , tags:['mono','popular'] },
+            { name: 'Tamsyn 8x15 Bold',    author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Tamzen8x15b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tamsyn 8x16',         author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16r.bdf' , tags:['mono','popular'] },
+            { name: 'Tamsyn 8x16 Bold',    author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Tamzen8x16b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tamsyn 10x20',        author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20r.bdf' , tags:['mono','popular'] },
+            { name: 'Tamsyn 10x20 Bold',   author: 'Scott Fial',        w: 10, h: 20, url: CDN+'tamzen-font/bdf/Tamzen10x20b.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Tewi Normal',         author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-normal-11.bdf' , tags:['mono','popular'] },
+            { name: 'Tewi Bold',           author: 'Lucy',              w:  6, h: 11, url: CDN+'tewi-font/Tewi-bold-11.bdf' , tags:['bold','mono','popular'] },
 
             // Spleen fonts
-            { name: 'Spleen 5x8',            author: 'fcambus',            w:  5, h:  8, url: CDN+'spleen/spleen-5x8.bdf' },
-            { name: 'Spleen 8x16',           author: 'fcambus',            w:  8, h: 16, url: CDN+'spleen/spleen-8x16.bdf' },
-            { name: 'Spleen 12x24',          author: 'fcambus',            w: 12, h: 24, url: CDN+'spleen/spleen-12x24.bdf' },
-            // { name: 'Spleen 16x32',          author: 'fcambus',            w: 16, h: 32, url: CDN+'spleen/spleen-16x32.bdf' },
-            // { name: 'Spleen 32x64',          author: 'fcambus',            w: 32, h: 64, url: CDN+'spleen/spleen-32x64.bdf' },
+            { name: 'Spleen 5x8',            author: 'fcambus',            w:  5, h:  8, url: CDN+'spleen/spleen-5x8.bdf' , tags:['mono','popular'] },
+            { name: 'Spleen 8x16',           author: 'fcambus',            w:  8, h: 16, url: CDN+'spleen/spleen-8x16.bdf' , tags:['mono','popular'] },
+            { name: 'Spleen 12x24',          author: 'fcambus',            w: 12, h: 24, url: CDN+'spleen/spleen-12x24.bdf' , tags:['mono','popular'] },
+            // { name: 'Spleen 16x32',          author: 'fcambus',            w: 16, h: 32, url: CDN+'spleen/spleen-16x32.bdf' , tags:['mono','popular'] },
+            // { name: 'Spleen 32x64',          author: 'fcambus',            w: 32, h: 64, url: CDN+'spleen/spleen-32x64.bdf' , tags:['mono','popular'] },
 
             // Cherry additional variants
-            { name: 'Cherry 10 Bold',        author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-b.bdf' },
-            { name: 'Cherry 11 Bold',        author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-b.bdf' },
-            { name: 'Cherry 13 Bold',        author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-b.bdf' },
+            { name: 'Cherry 10 Bold',        author: 'MarinHoc',          w:  6, h: 10, url: CDN+'cherry/cherry-10-b.bdf' , tags:['bold','mono'] },
+            { name: 'Cherry 11 Bold',        author: 'MarinHoc',          w:  7, h: 11, url: CDN+'cherry/cherry-11-b.bdf' , tags:['bold','mono'] },
+            { name: 'Cherry 13 Bold',        author: 'MarinHoc',          w:  8, h: 13, url: CDN+'cherry/cherry-13-b.bdf' , tags:['bold','mono'] },
 
             // Artwiz additional fonts
-            { name: 'Artwiz Anorexia',       author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/anorexia.bdf' },
-            { name: 'Artwiz Aqui',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/aqui.bdf' },
-            { name: 'Artwiz Edges',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/edges.bdf' },
-            { name: 'Artwiz Gelly',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/gelly.bdf' },
-            { name: 'Artwiz Glisp Bold',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp-bold.bdf' },
-            { name: 'Artwiz Kates',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/kates.bdf' },
-            { name: 'Artwiz Mints Strong',   author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-strong.bdf' },
-            { name: 'Artwiz Nu',             author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/nu.bdf' },
-            { name: 'Artwiz Smoothansi',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/smoothansi.bdf' },
+            { name: 'Artwiz Anorexia',       author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/anorexia.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Aqui',           author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/aqui.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Edges',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/edges.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Gelly',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/gelly.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Glisp Bold',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/glisp-bold.bdf' , tags:['bold','display','mono'] },
+            { name: 'Artwiz Kates',          author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/kates.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Mints Strong',   author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/mints-strong.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Nu',             author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/nu.bdf' , tags:['display','mono'] },
+            { name: 'Artwiz Smoothansi',     author: 'Artwiz',            w:  6, h: 13, url: CDN+'artwiz/bdf/smoothansi.bdf' , tags:['display','mono'] },
 
             // Terminus fonts
-            { name: 'Terminus 12n',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12n.bdf' },
-            { name: 'Terminus 12b',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12b.bdf' },
-            { name: 'Terminus 14n',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14n.bdf' },
-            { name: 'Terminus 14b',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14b.bdf' },
-            { name: 'Terminus 14v',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14v.bdf' },
-            { name: 'Terminus 16n',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16n.bdf' },
-            { name: 'Terminus 16b',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16b.bdf' },
-            { name: 'Terminus 16v',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16v.bdf' },
-            { name: 'Terminus 18n',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18n.bdf' },
-            { name: 'Terminus 18b',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18b.bdf' },
-            { name: 'Terminus 20n',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20n.bdf' },
-            { name: 'Terminus 20b',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20b.bdf' },
-            { name: 'Terminus 22n',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22n.bdf' },
-            { name: 'Terminus 22b',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22b.bdf' },
-            { name: 'Terminus 24n',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24n.bdf' },
-            { name: 'Terminus 24b',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24b.bdf' },
-            { name: 'Terminus 28n',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28n.bdf' },
-            { name: 'Terminus 28b',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28b.bdf' },
-            { name: 'Terminus 32n',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32n.bdf' },
-            { name: 'Terminus 32b',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32b.bdf' },
+            { name: 'Terminus 12n',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 12b',          author: 'Dimitar Zhekov',    w:  6, h: 12, url: CDN+'terminus-font-4.39/ter-u12b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 14n',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 14b',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 14v',          author: 'Dimitar Zhekov',    w:  7, h: 14, url: CDN+'terminus-font-4.39/ter-u14v.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 16n',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 16b',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 16v',          author: 'Dimitar Zhekov',    w:  8, h: 16, url: CDN+'terminus-font-4.39/ter-u16v.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 18n',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 18b',          author: 'Dimitar Zhekov',    w:  9, h: 18, url: CDN+'terminus-font-4.39/ter-u18b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 20n',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 20b',          author: 'Dimitar Zhekov',    w: 10, h: 20, url: CDN+'terminus-font-4.39/ter-u20b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 22n',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 22b',          author: 'Dimitar Zhekov',    w: 11, h: 22, url: CDN+'terminus-font-4.39/ter-u22b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 24n',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 24b',          author: 'Dimitar Zhekov',    w: 12, h: 24, url: CDN+'terminus-font-4.39/ter-u24b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 28n',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 28b',          author: 'Dimitar Zhekov',    w: 14, h: 28, url: CDN+'terminus-font-4.39/ter-u28b.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 32n',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32n.bdf' , tags:['mono','popular'] },
+            { name: 'Terminus 32b',          author: 'Dimitar Zhekov',    w: 16, h: 32, url: CDN+'terminus-font-4.39/ter-u32b.bdf' , tags:['mono','popular'] },
 
             // XBM Icons
-            // { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' },
+            // { name: 'XBM Icons',             author: 'Unknown',           w: 16, h: 16, url: CDN+'xbmicons/xbmicons.bdf' , tags:['icons','mono'] },
 
             // Mplus fonts
-            // { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' },
-            { name: 'Mplus Q06r',            author: 'coz',               w:  3, h:  6, url: CDN+'mplus/mplus_q06r.bdf' },
-            { name: 'Mplus F10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10r.bdf' },
-            { name: 'Mplus F10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10b.bdf' },
-            { name: 'Mplus F12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12r.bdf' },
-            { name: 'Mplus F12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12b.bdf' },
-            { name: 'Mplus H10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10r.bdf' },
-            { name: 'Mplus H10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10b.bdf' },
-            { name: 'Mplus H12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12r.bdf' },
-            { name: 'Mplus H12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12b.bdf' },
-            { name: 'Mplus S10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10r.bdf' },
-            { name: 'Mplus S10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10b.bdf' },
+            // { name: 'Mplus Cursors',         author: 'coz',               w:  0, h:  0, url: CDN+'mplus/mplus_cursors.bdf' , tags:['icons','mono'] },
+            { name: 'Mplus Q06r',            author: 'coz',               w:  3, h:  6, url: CDN+'mplus/mplus_q06r.bdf' , tags:['mono'] },
+            { name: 'Mplus F10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10r.bdf' , tags:['mono'] },
+            { name: 'Mplus F10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_f10b.bdf' , tags:['mono'] },
+            { name: 'Mplus F12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12r.bdf' , tags:['mono'] },
+            { name: 'Mplus F12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_f12b.bdf' , tags:['mono'] },
+            { name: 'Mplus H10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10r.bdf' , tags:['mono'] },
+            { name: 'Mplus H10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_h10b.bdf' , tags:['mono'] },
+            { name: 'Mplus H12r',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12r.bdf' , tags:['mono'] },
+            { name: 'Mplus H12b',            author: 'coz',               w:  6, h: 12, url: CDN+'mplus/mplus_h12b.bdf' , tags:['mono'] },
+            { name: 'Mplus S10r',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10r.bdf' , tags:['mono'] },
+            { name: 'Mplus S10b',            author: 'coz',               w:  5, h: 10, url: CDN+'mplus/mplus_s10b.bdf' , tags:['mono'] },
 
             // Dylex fonts
-            { name: 'Dylex 6x10',            author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10.bdf' },
-            { name: 'Dylex 6x10B',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10B.bdf' },
-            { name: 'Dylex 6x10O',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10O.bdf' },
-            { name: 'Dylex 6x10BO',          author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10BO.bdf' },
-            { name: 'Dylex 7x13',            author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13.bdf' },
-            { name: 'Dylex 7x13B',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13B.bdf' },
-            { name: 'Dylex 7x13O',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13O.bdf' },
-            { name: 'Dylex 7x13BO',          author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13BO.bdf' },
-            { name: 'Dylex 10x20',           author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20.bdf' },
-            { name: 'Dylex 10x20B',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20B.bdf' },
-            { name: 'Dylex 10x20O',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20O.bdf' },
-            { name: 'Dylex 10x20BO',         author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20BO.bdf' },
-            { name: 'Dylex 14x14',           author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14.bdf' },
-            { name: 'Dylex 14x14B',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14B.bdf' },
-            { name: 'Dylex 14x14O',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14O.bdf' },
-            { name: 'Dylex 14x14BO',         author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14BO.bdf' },
+            { name: 'Dylex 6x10',            author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10.bdf' , tags:['mono'] },
+            { name: 'Dylex 6x10B',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10B.bdf' , tags:['mono'] },
+            { name: 'Dylex 6x10O',           author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10O.bdf' , tags:['mono'] },
+            { name: 'Dylex 6x10BO',          author: 'dylex',             w:  6, h: 10, url: CDN+'dylex/6x10BO.bdf' , tags:['mono'] },
+            { name: 'Dylex 7x13',            author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13.bdf' , tags:['mono'] },
+            { name: 'Dylex 7x13B',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13B.bdf' , tags:['mono'] },
+            { name: 'Dylex 7x13O',           author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13O.bdf' , tags:['mono'] },
+            { name: 'Dylex 7x13BO',          author: 'dylex',             w:  7, h: 13, url: CDN+'dylex/7x13BO.bdf' , tags:['mono'] },
+            { name: 'Dylex 10x20',           author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20.bdf' , tags:['mono'] },
+            { name: 'Dylex 10x20B',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20B.bdf' , tags:['mono'] },
+            { name: 'Dylex 10x20O',          author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20O.bdf' , tags:['mono'] },
+            { name: 'Dylex 10x20BO',         author: 'dylex',             w: 10, h: 20, url: CDN+'dylex/10x20BO.bdf' , tags:['mono'] },
+            { name: 'Dylex 14x14',           author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14.bdf' , tags:['mono'] },
+            { name: 'Dylex 14x14B',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14B.bdf' , tags:['mono'] },
+            { name: 'Dylex 14x14O',          author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14O.bdf' , tags:['mono'] },
+            { name: 'Dylex 14x14BO',         author: 'dylex',             w: 14, h: 14, url: CDN+'dylex/14x14BO.bdf' , tags:['mono'] },
 
             // SQ fonts
-            { name: 'SQ',                    author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sq.bdf' },
-            { name: 'SQ Bold',               author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sqb.bdf' },
+            { name: 'SQ',                    author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sq.bdf' , tags:['mono'] },
+            { name: 'SQ Bold',               author: 'Unknown',           w:  8, h: 13, url: CDN+'sq/sqb.bdf' , tags:['bold','mono'] },
 
             // Kakwa fonts
-            { name: 'Kakwa 12 Normal',       author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-n.bdf' },
-            { name: 'Kakwa 12 Bold',         author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-b.bdf' },
+            { name: 'Kakwa 12 Normal',       author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-n.bdf' , tags:['mono'] },
+            { name: 'Kakwa 12 Bold',         author: 'kakwa',             w:  6, h: 12, url: CDN+'kakwa/kakwafont-12-b.bdf' , tags:['bold','mono'] },
 
             // Kourier fonts
-            { name: 'Kourier',               author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourier.bdf' },
-            { name: 'Kourier SS',            author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourierss.bdf' },
+            { name: 'Kourier',               author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourier.bdf' , tags:['mono'] },
+            { name: 'Kourier SS',            author: 'Unknown',           w:  7, h: 13, url: CDN+'kourier/kourierss.bdf' , tags:['mono'] },
 
             // Bitocra additional
-            { name: 'Bitocra 13 Full',       author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13-full.bdf' },
-            { name: 'Bitocra Full',          author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra-full.bdf' },
-            { name: 'Bitbuntu',              author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu.bdf' },
-            { name: 'Bitbuntu Full',         author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu-full.bdf' },
-            { name: '4th Dimension D',       author: 'ninjaaron',         w:  6, h: 13, url: CDN+'bitocra/4thD.bdf' },
-            { name: '5th Element',           author: 'ninjaaron',         w:  8, h: 15, url: CDN+'bitocra/5thElement.bdf' },
+            { name: 'Bitocra 13 Full',       author: 'ninjaaron',         w:  7, h: 13, url: CDN+'bitocra/bitocra-13-full.bdf' , tags:['mono'] },
+            { name: 'Bitocra Full',          author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitocra-full.bdf' , tags:['mono'] },
+            { name: 'Bitbuntu',              author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu.bdf' , tags:['mono','unicode'] },
+            { name: 'Bitbuntu Full',         author: 'ninjaaron',         w:  5, h:  7, url: CDN+'bitocra/bitbuntu-full.bdf' , tags:['mono','unicode'] },
+            { name: '4th Dimension D',       author: 'ninjaaron',         w:  6, h: 13, url: CDN+'bitocra/4thD.bdf' , tags:['display','mono'] },
+            { name: '5th Element',           author: 'ninjaaron',         w:  8, h: 15, url: CDN+'bitocra/5thElement.bdf' , tags:['display','mono'] },
 
             // UW ttyp0 fonts
-            // { name: 'UW ttyp0 11',           author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11.bdf' },
-            // { name: 'UW ttyp0 11b',          author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11b.bdf' },
-            // { name: 'UW ttyp0 12',           author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12.bdf' },
-            // { name: 'UW ttyp0 12b',          author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12b.bdf' },
-            // { name: 'UW ttyp0 13',           author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13.bdf' },
-            // { name: 'UW ttyp0 13b',          author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13b.bdf' },
-            // { name: 'UW ttyp0 14',           author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14.bdf' },
-            // { name: 'UW ttyp0 14b',          author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14b.bdf' },
-            // { name: 'UW ttyp0 15',           author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15.bdf' },
-            // { name: 'UW ttyp0 15b',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15b.bdf' },
-            // { name: 'UW ttyp0 15i',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15i.bdf' },
-            // { name: 'UW ttyp0 16',           author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16.bdf' },
-            // { name: 'UW ttyp0 16b',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16b.bdf' },
-            // { name: 'UW ttyp0 16i',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16i.bdf' },
-            // { name: 'UW ttyp0 17',           author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17.bdf' },
-            // { name: 'UW ttyp0 17b',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17b.bdf' },
-            // { name: 'UW ttyp0 17i',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17i.bdf' },
-            // { name: 'UW ttyp0 18',           author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18.bdf' },
-            // { name: 'UW ttyp0 18b',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18b.bdf' },
-            // { name: 'UW ttyp0 18i',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18i.bdf' },
-            // { name: 'UW ttyp0 22',           author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22.bdf' },
-            // { name: 'UW ttyp0 22b',          author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22b.bdf' },
+            // { name: 'UW ttyp0 11',           author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 11b',          author: 'Unknown',           w:  5, h: 11, url: CDN+'uw-ttyp0-1.2/t0-11b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 12',           author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 12b',          author: 'Unknown',           w:  6, h: 12, url: CDN+'uw-ttyp0-1.2/t0-12b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 13',           author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 13b',          author: 'Unknown',           w:  6, h: 13, url: CDN+'uw-ttyp0-1.2/t0-13b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 14',           author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 14b',          author: 'Unknown',           w:  7, h: 14, url: CDN+'uw-ttyp0-1.2/t0-14b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 15',           author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 15b',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 15i',          author: 'Unknown',           w:  7, h: 15, url: CDN+'uw-ttyp0-1.2/t0-15i.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 16',           author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 16b',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 16i',          author: 'Unknown',           w:  8, h: 16, url: CDN+'uw-ttyp0-1.2/t0-16i.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 17',           author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 17b',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 17i',          author: 'Unknown',           w:  8, h: 17, url: CDN+'uw-ttyp0-1.2/t0-17i.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 18',           author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 18b',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18b.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 18i',          author: 'Unknown',           w:  9, h: 18, url: CDN+'uw-ttyp0-1.2/t0-18i.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 22',           author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22.bdf' , tags:['mono'] },
+            // { name: 'UW ttyp0 22b',          author: 'Unknown',           w: 11, h: 22, url: CDN+'uw-ttyp0-1.2/t0-22b.bdf' , tags:['mono'] },
 
             // Gohufont unicode variants
-            { name: 'Gohufont 11 Unicode',   author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11.bdf' },
-            { name: 'Gohufont 11 Bold Unicode', author: 'Hugo Chargois',  w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11b.bdf' },
-            { name: 'Gohufont 14 Unicode',   author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14.bdf' },
-            { name: 'Gohufont 14 Bold Unicode', author: 'Hugo Chargois',  w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14b.bdf' },
+            { name: 'Gohufont 11 Unicode',   author: 'Hugo Chargois',     w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11.bdf' , tags:['mono','popular','unicode'] },
+            { name: 'Gohufont 11 Bold Unicode', author: 'Hugo Chargois',  w:  6, h: 11, url: CDN+'gohufont/bdf/gohufont-uni-11b.bdf' , tags:['bold','mono','popular','unicode'] },
+            { name: 'Gohufont 14 Unicode',   author: 'Hugo Chargois',     w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14.bdf' , tags:['mono','popular','unicode'] },
+            { name: 'Gohufont 14 Bold Unicode', author: 'Hugo Chargois',  w:  8, h: 14, url: CDN+'gohufont/bdf/gohufont-uni-14b.bdf' , tags:['bold','mono','popular','unicode'] },
 
             // Haxor fonts
-            { name: 'Haxor Medium 10',       author: 'Haxor',             w:  5, h: 10, url: CDN+'haxor/HaxorMedium-10.bdf' },
-            { name: 'Haxor Medium 11',       author: 'Haxor',             w:  5, h: 11, url: CDN+'haxor/HaxorMedium-11.bdf' },
-            { name: 'Haxor Medium 12',       author: 'Haxor',             w:  6, h: 12, url: CDN+'haxor/HaxorMedium-12.bdf' },
-            { name: 'Haxor Medium 13',       author: 'Haxor',             w:  6, h: 13, url: CDN+'haxor/HaxorMedium-13.bdf' },
-            { name: 'Haxor Narrow 15',       author: 'Haxor',             w:  7, h: 15, url: CDN+'haxor/HaxorNarrow-15.bdf' },
-            { name: 'Haxor Narrow 16',       author: 'Haxor',             w:  8, h: 16, url: CDN+'haxor/HaxorNarrow-16.bdf' },
-            { name: 'Haxor Narrow 17',       author: 'Haxor',             w:  8, h: 17, url: CDN+'haxor/HaxorNarrow-17.bdf' },
-            { name: 'Psevdo Azbuka Medium 12', author: 'Haxor',          w:  6, h: 12, url: CDN+'haxor/PsevdoAzbukaMedium-12.bdf' },
+            { name: 'Haxor Medium 10',       author: 'Haxor',             w:  5, h: 10, url: CDN+'haxor/HaxorMedium-10.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Medium 11',       author: 'Haxor',             w:  5, h: 11, url: CDN+'haxor/HaxorMedium-11.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Medium 12',       author: 'Haxor',             w:  6, h: 12, url: CDN+'haxor/HaxorMedium-12.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Medium 13',       author: 'Haxor',             w:  6, h: 13, url: CDN+'haxor/HaxorMedium-13.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Narrow 15',       author: 'Haxor',             w:  7, h: 15, url: CDN+'haxor/HaxorNarrow-15.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Narrow 16',       author: 'Haxor',             w:  8, h: 16, url: CDN+'haxor/HaxorNarrow-16.bdf' , tags:['display','mono'] },
+            { name: 'Haxor Narrow 17',       author: 'Haxor',             w:  8, h: 17, url: CDN+'haxor/HaxorNarrow-17.bdf' , tags:['display','mono'] },
+            { name: 'Psevdo Azbuka Medium 12', author: 'Haxor',          w:  6, h: 12, url: CDN+'haxor/PsevdoAzbukaMedium-12.bdf' , tags:['mono','unicode'] },
 
             // ClearlyU fonts
-            { name: 'ClearlyU',              author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu12.bdf' },
-            // { name: 'ClearlyU Alt',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-alt12.bdf' },
-            // { name: 'ClearlyU Ligatures',    author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-lig12.bdf' },
-            // { name: 'ClearlyU PUA',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-pua12.bdf' },
-            // { name: 'ClearlyU Arabic',       author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-arabic12.bdf' },
+            { name: 'ClearlyU',              author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu12.bdf' , tags:['mono','serif'] },
+            // { name: 'ClearlyU Alt',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-alt12.bdf' , tags:['mono','serif'] },
+            // { name: 'ClearlyU Ligatures',    author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-lig12.bdf' , tags:['mono','serif'] },
+            // { name: 'ClearlyU PUA',          author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-pua12.bdf' , tags:['mono','serif'] },
+            // { name: 'ClearlyU Arabic',       author: 'Mark Leisher',      w:  6, h: 12, url: CDN+'clearlyu/cu-arabic12.bdf' , tags:['mono','serif'] },
 
             // Lokaltog fonts
-            { name: 'Lokaltog Fixed 10r ISO8859', author: 'Lokaltog',    w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso8859.bdf' },
-            { name: 'Lokaltog Fixed 10r ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso10646.bdf' },
-            { name: 'Lokaltog Fixed 10b ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10b-iso10646.bdf' },
-            { name: 'Lokaltog Fixed 12r ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12r-iso10646.bdf' },
-            { name: 'Lokaltog Fixed 12b ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12b-iso10646.bdf' },
-            // { name: 'Lokaltog Symbols 11',   author: 'Lokaltog',          w:  5, h: 11, url: CDN+'lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf' },
+            { name: 'Lokaltog Fixed 10r ISO8859', author: 'Lokaltog',    w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso8859.bdf' , tags:['mono'] },
+            { name: 'Lokaltog Fixed 10r ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10r-iso10646.bdf' , tags:['mono','unicode'] },
+            { name: 'Lokaltog Fixed 10b ISO10646', author: 'Lokaltog',   w:  5, h: 10, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-10b-iso10646.bdf' , tags:['mono','unicode'] },
+            { name: 'Lokaltog Fixed 12r ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12r-iso10646.bdf' , tags:['mono','unicode'] },
+            { name: 'Lokaltog Fixed 12b ISO10646', author: 'Lokaltog',   w:  6, h: 12, url: CDN+'lokaltog-fonts/lokaltog-fixed/lokaltog-fixed-12b-iso10646.bdf' , tags:['mono','unicode'] },
+            // { name: 'Lokaltog Symbols 11',   author: 'Lokaltog',          w:  5, h: 11, url: CDN+'lokaltog-fonts/lokaltog-symbols/lokaltog-symbols-11-iso10646.bdf' , tags:['mono'] },
 
             // Tamzen Powerline variants
-            // { name: 'Tamzen Powerline 5x9',  author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Powerline5x9.bdf' },
-            // { name: 'Tamzen Powerline 6x12', author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Powerline6x12.bdf' },
-            // { name: 'Tamzen Powerline 7x13', author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Powerline7x13.bdf' },
-            // { name: 'Tamzen Powerline 7x14', author: 'Scott Fial',        w:  7, h: 14, url: CDN+'tamzen-font/bdf/Powerline7x14.bdf' },
-            // { name: 'Tamzen Powerline 8x15', author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Powerline8x15.bdf' },
-            // { name: 'Tamzen Powerline 8x16', author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Powerline8x16.bdf' },
-            // { name: 'Tamzen Powerline 10x20', author: 'Scott Fial',       w: 10, h: 20, url: CDN+'tamzen-font/bdf/Powerline10x20.bdf' },
+            // { name: 'Tamzen Powerline 5x9',  author: 'Scott Fial',        w:  5, h:  9, url: CDN+'tamzen-font/bdf/Powerline5x9.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 6x12', author: 'Scott Fial',        w:  6, h: 12, url: CDN+'tamzen-font/bdf/Powerline6x12.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 7x13', author: 'Scott Fial',        w:  7, h: 13, url: CDN+'tamzen-font/bdf/Powerline7x13.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 7x14', author: 'Scott Fial',        w:  7, h: 14, url: CDN+'tamzen-font/bdf/Powerline7x14.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 8x15', author: 'Scott Fial',        w:  8, h: 15, url: CDN+'tamzen-font/bdf/Powerline8x15.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 8x16', author: 'Scott Fial',        w:  8, h: 16, url: CDN+'tamzen-font/bdf/Powerline8x16.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen Powerline 10x20', author: 'Scott Fial',       w: 10, h: 20, url: CDN+'tamzen-font/bdf/Powerline10x20.bdf' , tags:['mono','popular'] },
 
             // Zevv Peep fonts
-            { name: 'Zevv Peep 7x14 ISO8859-1', author: 'zevv',          w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-1-07x14.bdf' },
-            { name: 'Zevv Peep 7x14 ISO8859-15', author: 'zevv',         w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-15-07x14.bdf' },
-            { name: 'Zevv Peep 8x16 ISO8859-1', author: 'zevv',          w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-1-08x16.bdf' },
-            { name: 'Zevv Peep 8x16 ISO8859-15', author: 'zevv',         w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-15-08x16.bdf' },
-            { name: 'Zevv Peep 10x20 ISO8859-1', author: 'zevv',         w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-1-10x20.bdf' },
-            { name: 'Zevv Peep 10x20 ISO8859-15', author: 'zevv',        w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-15-10x20.bdf' },
+            { name: 'Zevv Peep 7x14 ISO8859-1', author: 'zevv',          w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-1-07x14.bdf' , tags:['mono'] },
+            { name: 'Zevv Peep 7x14 ISO8859-15', author: 'zevv',         w:  7, h: 14, url: CDN+'zevv-peep/zevv-peep-iso8859-15-07x14.bdf' , tags:['mono'] },
+            { name: 'Zevv Peep 8x16 ISO8859-1', author: 'zevv',          w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-1-08x16.bdf' , tags:['mono'] },
+            { name: 'Zevv Peep 8x16 ISO8859-15', author: 'zevv',         w:  8, h: 16, url: CDN+'zevv-peep/zevv-peep-iso8859-15-08x16.bdf' , tags:['mono'] },
+            { name: 'Zevv Peep 10x20 ISO8859-1', author: 'zevv',         w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-1-10x20.bdf' , tags:['mono'] },
+            { name: 'Zevv Peep 10x20 ISO8859-15', author: 'zevv',        w: 10, h: 20, url: CDN+'zevv-peep/zevv-peep-iso8859-15-10x20.bdf' , tags:['mono'] },
 
             // Siji
-            { name: 'Siji',                  author: 'Unknown',           w:  6, h: 12, url: CDN+'siji/bdf/siji.bdf' },
+            { name: 'Siji',                  author: 'Unknown',           w:  6, h: 12, url: CDN+'siji/bdf/siji.bdf' , tags:['icons','mono'] },
 
             // Ctrld font additional variants
-            { name: 'Ctrld Fixed 10r',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10r.bdf' },
-            { name: 'Ctrld Fixed 10b',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10b.bdf' },
-            { name: 'Ctrld Fixed 13r',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r.bdf' },
-            { name: 'Ctrld Fixed 13b',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b.bdf' },
-            { name: 'Ctrld Fixed 13r Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r-i.bdf' },
-            { name: 'Ctrld Fixed 13b Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b-i.bdf' },
-            { name: 'Ctrld Fixed 16r Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r-i.bdf' },
-            { name: 'Ctrld Fixed 16b Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16b-i.bdf' },
+            { name: 'Ctrld Fixed 10r',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10r.bdf' , tags:['mono'] },
+            { name: 'Ctrld Fixed 10b',       author: 'bjin',              w:  5, h: 10, url: CDN+'ctrld-font/ctrld-fixed-10b.bdf' , tags:['mono'] },
+            { name: 'Ctrld Fixed 13r',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r.bdf' , tags:['mono'] },
+            { name: 'Ctrld Fixed 13b',       author: 'bjin',              w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b.bdf' , tags:['mono'] },
+            { name: 'Ctrld Fixed 13r Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13r-i.bdf' , tags:['italic','mono'] },
+            { name: 'Ctrld Fixed 13b Italic', author: 'bjin',             w:  6, h: 13, url: CDN+'ctrld-font/ctrld-fixed-13b-i.bdf' , tags:['italic','mono'] },
+            { name: 'Ctrld Fixed 16r Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16r-i.bdf' , tags:['italic','mono'] },
+            { name: 'Ctrld Fixed 16b Italic', author: 'bjin',             w:  8, h: 16, url: CDN+'ctrld-font/ctrld-fixed-16b-i.bdf' , tags:['italic','mono'] },
 
             // Orp additional
-            { name: 'Orp Book',              author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-book.bdf' },
-            { name: 'Orp Italic',            author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-italic.bdf' },
-            { name: 'Orp ProFont',           author: 'Micah Elliott',     w:  7, h: 11, url: CDN+'orp-font/bdf/profont.bdf' },
+            { name: 'Orp Book',              author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-book.bdf' , tags:['mono','popular'] },
+            { name: 'Orp Italic',            author: 'Micah Elliott',     w:  6, h: 11, url: CDN+'orp-font/bdf/orp-italic.bdf' , tags:['italic','mono','popular'] },
+            { name: 'Orp ProFont',           author: 'Micah Elliott',     w:  7, h: 11, url: CDN+'orp-font/bdf/profont.bdf' , tags:['mono','popular'] },
 
             // Trisk
-            { name: 'Triskweline Normal 12', author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineNormal-12.bdf' },
-            { name: 'Triskweline Bold 12',   author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineBold-12.bdf' },
+            { name: 'Triskweline Normal 12', author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineNormal-12.bdf' , tags:['mono'] },
+            { name: 'Triskweline Bold 12',   author: 'Trisk',            w:  6, h: 12, url: CDN+'trisk/TriskwelineBold-12.bdf' , tags:['bold','mono'] },
 
             // Phallus additional
-            { name: 'Lemon J',               author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon-j.bdf' },
-            { name: 'Uushi',                 author: 'phallus',           w:  6, h: 12, url: CDN+'phallus/uushi.bdf' },
+            { name: 'Lemon J',               author: 'phallus',           w:  6, h: 10, url: CDN+'phallus/lemon-j.bdf' , tags:['display','mono'] },
+            { name: 'Uushi',                 author: 'phallus',           w:  6, h: 12, url: CDN+'phallus/uushi.bdf' , tags:['display','mono'] },
 
             // Dina additional variants
-            { name: 'Dina 8 Italic',         author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i400-8.bdf' },
-            { name: 'Dina 8 Bold',           author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r700-8.bdf' },
-            { name: 'Dina 8 Bold Italic',    author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i700-8.bdf' },
-            { name: 'Dina 9 Italic',         author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i400-9.bdf' },
-            { name: 'Dina 9 Bold',           author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r700-9.bdf' },
-            { name: 'Dina 9 Bold Italic',    author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i700-9.bdf' },
-            { name: 'Dina 10 Italic',        author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i400-10.bdf' },
-            { name: 'Dina 10 Bold',          author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r700-10.bdf' },
-            { name: 'Dina 10 Bold Italic',   author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i700-10.bdf' },
+            { name: 'Dina 8 Italic',         author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i400-8.bdf' , tags:['italic','mono','popular'] },
+            { name: 'Dina 8 Bold',           author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_r700-8.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Dina 8 Bold Italic',    author: 'Jørgen Ibsen',      w:  8, h: 13, url: CDN+'dina/Dina_i700-8.bdf' , tags:['bold','italic','mono','popular'] },
+            { name: 'Dina 9 Italic',         author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i400-9.bdf' , tags:['italic','mono','popular'] },
+            { name: 'Dina 9 Bold',           author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_r700-9.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Dina 9 Bold Italic',    author: 'Jørgen Ibsen',      w:  9, h: 15, url: CDN+'dina/Dina_i700-9.bdf' , tags:['bold','italic','mono','popular'] },
+            { name: 'Dina 10 Italic',        author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i400-10.bdf' , tags:['italic','mono','popular'] },
+            { name: 'Dina 10 Bold',          author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_r700-10.bdf' , tags:['bold','mono','popular'] },
+            { name: 'Dina 10 Bold Italic',   author: 'Jørgen Ibsen',      w: 10, h: 16, url: CDN+'dina/Dina_i700-10.bdf' , tags:['bold','italic','mono','popular'] },
 
             // Boxxy bold
-            { name: 'Boxxy Bold',            author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy-bold.bdf' },
+            { name: 'Boxxy Bold',            author: 'caffeinebasedlife', w:  6, h: 14, url: CDN+'boxxy/boxxy-bold.bdf' , tags:['bold','mono'] },
 
             // MonteCarlo bold
-            { name: 'MonteCarlo Bold',       author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloBold.bdf' },
+            { name: 'MonteCarlo Bold',       author: 'bok',               w:  6, h: 11, url: CDN+'montecarlo/bdf/MonteCarloBold.bdf' , tags:['bold','mono','popular'] },
 
             // Envypn additional
-            { name: 'Envypn 7x13e',          author: 'Ypnose',            w:  7, h: 13, url: CDN+'envypn-font/envypn7x13e.bdf' },
-            { name: 'Envypn 7x15',           author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15.bdf' },
-            { name: 'Envypn 7x15e',          author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15e.bdf' },
+            { name: 'Envypn 7x13e',          author: 'Ypnose',            w:  7, h: 13, url: CDN+'envypn-font/envypn7x13e.bdf' , tags:['mono','popular'] },
+            { name: 'Envypn 7x15',           author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15.bdf' , tags:['mono','popular'] },
+            { name: 'Envypn 7x15e',          author: 'Ypnose',            w:  7, h: 15, url: CDN+'envypn-font/envypn7x15e.bdf' , tags:['mono','popular'] },
 
             // ── Others from around the web ───────────────────────────────────
-            // { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' },
-            // { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' },
-            // { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' },
-            // { name: 'Tamzen 6x12',         author: 'sunaku',            w:  6, h: 12, url: CDN+'tamzen/bdf/Tamzen6x12r.bdf' },
-            // { name: 'Tamzen 7x13',         author: 'sunaku',            w:  7, h: 13, url: CDN+'tamzen/bdf/Tamzen7x13r.bdf' },
-            // { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' },
-            // { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' },
-            // { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' },
+            // { name: 'Terminus 6x12',       author: 'Dimitar Zhekov',    w:  6, h: 12, url: 'https://cdn.jsdelivr.net/gh/be5invis/vscode-custom-css@master/terminus.bdf' , tags:['mono','popular'] },
+            // { name: 'Creep2',              author: 'raymond-npe',       w:  5, h: 11, url: 'https://cdn.jsdelivr.net/gh/raymond-npe/creep2@master/creep2.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 5x9',          author: 'sunaku',            w:  5, h:  9, url: CDN+'tamzen/bdf/Tamzen5x9r.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 6x12',         author: 'sunaku',            w:  6, h: 12, url: CDN+'tamzen/bdf/Tamzen6x12r.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 7x13',         author: 'sunaku',            w:  7, h: 13, url: CDN+'tamzen/bdf/Tamzen7x13r.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 8x15',         author: 'sunaku',            w:  8, h: 15, url: CDN+'tamzen/bdf/Tamzen8x15r.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 8x16',         author: 'sunaku',            w:  8, h: 16, url: CDN+'tamzen/bdf/Tamzen8x16r.bdf' , tags:['mono','popular'] },
+            // { name: 'Tamzen 10x20',        author: 'sunaku',            w: 10, h: 20, url: CDN+'tamzen/bdf/Tamzen10x20r.bdf' , tags:['mono','popular'] },
 
-            // { name: 'Bitmap Garamond 14px medium (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamond.bdf' },
-            { name: 'Bitmap Garamond 14px medium (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamon2.bdf' },
-            // { name: 'Bitmap Garamond 14px bold (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabold.bdf' },
-            { name: 'Bitmap Garamond 14px bold (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabol2.bdf' },
-            // { name: 'Bitmap Garamond 14px italic (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaital.bdf' },
-            { name: 'Bitmap Garamond 14px italic (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaita2.bdf' },
+            // { name: 'Bitmap Garamond 14px medium (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamond.bdf' , tags:['display','mono','serif'] },
+            { name: 'Bitmap Garamond 14px medium (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garamon2.bdf' , tags:['display','mono','serif'] },
+            // { name: 'Bitmap Garamond 14px bold (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabold.bdf' , tags:['bold','display','mono','serif'] },
+            { name: 'Bitmap Garamond 14px bold (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garabol2.bdf' , tags:['bold','display','mono','serif'] },
+            // { name: 'Bitmap Garamond 14px italic (ISO-8859-1)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaital.bdf' , tags:['display','italic','mono','serif'] },
+            { name: 'Bitmap Garamond 14px italic (ISO-8859-2)', author: 'Chris Cannam', w: 6, h: 14, url: '/archive/bitmap-garamond/garaita2.bdf' , tags:['display','italic','mono','serif'] },
 
-            { name: 'lemon', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/lemon.bdf' },
-            { name: 'limey', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/limey.bdf' },
-            { name: 'berryBold', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berryBold.bdf' },
-            { name: 'berry', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berry.bdf' },
-            { name: 'uushi', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/uushi.bdf' },
-            { name: 'antidote', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/antidote.bdf' },
+            { name: 'lemon', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/lemon.bdf' , tags:['display','mono'] },
+            { name: 'limey', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/limey.bdf' , tags:['display','mono'] },
+            { name: 'berryBold', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berryBold.bdf' , tags:['bold','display','mono'] },
+            { name: 'berry', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/spectrum-fonts/berry.bdf' , tags:['display','mono'] },
+            { name: 'uushi', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/uushi.bdf' , tags:['display','mono'] },
+            { name: 'antidote', author: 'cmvnd', w: 4, h: 10, url: '/archive/cmvnd-fonts/antidote.bdf' , tags:['display','mono'] },
 
-            { name: 'Cozette', author: 'Slavfox', w:  6, h: 13, url: '/archive/cozette.bdf' },
-            { name: 'Zpix', author: 'SolidZORO', w: 10, h: 14, url: '/archive/zpix.bdf' },
-            { name: '5x13', author: 'Christian Neukirchen', w: 5, h: 13, url: '/archive/5x13.bdf' },
+            { name: 'Cozette', author: 'Slavfox', w:  6, h: 13, url: '/archive/cozette.bdf' , tags:['mono','popular'] },
+            { name: 'Zpix', author: 'SolidZORO', w: 10, h: 14, url: '/archive/zpix.bdf' , tags:['mono','unicode'] },
+            { name: '5x13', author: 'Christian Neukirchen', w: 5, h: 13, url: '/archive/5x13.bdf' , tags:['mono'] },
 
-            { name: 'WineTahomaBit-16.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-16.bdf' },
-            { name: 'WineTahomaBit-11.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-11.bdf' },
-            { name: 'WineTahomaBit-12.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-12.bdf' },
-            { name: 'WineTahomaBit-15.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-15.bdf' },
-            { name: 'WineTahomaBit-13.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-13.bdf' },
+            { name: 'WineTahomaBit-16.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-16.bdf' , tags:['mono','unicode'] },
+            { name: 'WineTahomaBit-11.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-11.bdf' , tags:['mono','unicode'] },
+            { name: 'WineTahomaBit-12.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-12.bdf' , tags:['mono','unicode'] },
+            { name: 'WineTahomaBit-15.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-15.bdf' , tags:['mono','unicode'] },
+            { name: 'WineTahomaBit-13.bdf', author: '', url: 'archive/WineTahoma/WineTahomaBit-13.bdf' , tags:['mono','unicode'] },
 
-            { name: 'POKEMON-11.bdf', author: '', url: 'archive/POKEMON-11.bdf' },
-            { name: 'ter-powerline-x18n.bdf', author: '', url: 'archive/ter-powerline-x18n.bdf' },
-            { name: 'mara-font-x16n.bdf', author: '', url: 'archive/mara-font-x16n.bdf' },
-            { name: 'gohu.bdf', author: '', url: 'archive/gohu.bdf' },
+            { name: 'POKEMON-11.bdf', author: '', url: 'archive/POKEMON-11.bdf' , tags:['display','mono'] },
+            { name: 'ter-powerline-x18n.bdf', author: '', url: 'archive/ter-powerline-x18n.bdf' , tags:['mono'] },
+            { name: 'mara-font-x16n.bdf', author: '', url: 'archive/mara-font-x16n.bdf' , tags:['mono'] },
+            { name: 'gohu.bdf', author: '', url: 'archive/gohu.bdf' , tags:['mono'] },
 
-            { name: 'ProgCleanConsole-11.bdf', author: '', url: 'archive/Proggy/ProgCleanConsole-11.bdf' },
-            { name: 'ProggyClean-11.bdf', author: '', url: 'archive/Proggy/ProggyClean-11.bdf' },
+            { name: 'ProgCleanConsole-11.bdf', author: '', url: 'archive/Proggy/ProgCleanConsole-11.bdf' , tags:['mono','popular'] },
+            { name: 'ProggyClean-11.bdf', author: '', url: 'archive/Proggy/ProggyClean-11.bdf' , tags:['mono','popular'] },
 
-            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-16.bdf' },
-            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-15.bdf' },
+            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-16.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/HaxorNarrow/HaxorNarrow-15.bdf' , tags:['display','mono'] },
 
-            { name: 'PICO-8RaizeOEM-19.bdf', author: '', url: 'archive/PICO-8RaizeOEM-19.bdf' },
-            { name: 'PICO-8Raize-19.bdf', author: '', url: 'archive/PICO-8Raize-19.bdf' },
-            { name: 'XARAFONT-4.bdf', author: '', url: 'archive/XARAFONT-4.bdf' },
-            { name: 'terv12n.bdf', author: '', url: 'archive/terv12n.bdf' },
-            { name: 'ter-powerline-x20n.bdf', author: '', url: 'archive/ter-powerline-x20n.bdf' },
+            { name: 'PICO-8RaizeOEM-19.bdf', author: '', url: 'archive/PICO-8RaizeOEM-19.bdf' , tags:['display','mono'] },
+            { name: 'PICO-8Raize-19.bdf', author: '', url: 'archive/PICO-8Raize-19.bdf' , tags:['display','mono'] },
+            { name: 'XARAFONT-4.bdf', author: '', url: 'archive/XARAFONT-4.bdf' , tags:['mono'] },
+            { name: 'terv12n.bdf', author: '', url: 'archive/terv12n.bdf' , tags:['mono'] },
+            { name: 'ter-powerline-x20n.bdf', author: '', url: 'archive/ter-powerline-x20n.bdf' , tags:['mono'] },
 
-            // { name: 'spleen-8x16.bdf', author: '', url: 'archive/bdf-fonts/spleen-8x16.bdf' },
-            // { name: 'spleen-12x24.bdf', author: '', url: 'archive/bdf-fonts/spleen-12x24.bdf' },
-            // { name: 'spleen-32x64.bdf', author: '', url: 'archive/bdf-fonts/spleen-32x64.bdf' },
-            // { name: 'spleen-16x32.bdf', author: '', url: 'archive/bdf-fonts/spleen-16x32.bdf' },
-            // { name: 'spleen-5x8.bdf', author: '', url: 'archive/bdf-fonts/spleen-5x8.bdf' },
+            // { name: 'spleen-8x16.bdf', author: '', url: 'archive/bdf-fonts/spleen-8x16.bdf' , tags:['mono','popular'] },
+            // { name: 'spleen-12x24.bdf', author: '', url: 'archive/bdf-fonts/spleen-12x24.bdf' , tags:['mono','popular'] },
+            // { name: 'spleen-32x64.bdf', author: '', url: 'archive/bdf-fonts/spleen-32x64.bdf' , tags:['mono','popular'] },
+            // { name: 'spleen-16x32.bdf', author: '', url: 'archive/bdf-fonts/spleen-16x32.bdf' , tags:['mono','popular'] },
+            // { name: 'spleen-5x8.bdf', author: '', url: 'archive/bdf-fonts/spleen-5x8.bdf' , tags:['mono','popular'] },
 
-            { name: '4x6.bdf', author: '', url: 'archive/bdf-fonts/4x6.bdf' },
-            { name: '9x15B.bdf', author: '', url: 'archive/bdf-fonts/9x15B.bdf' },
-            { name: '7x13.bdf', author: '', url: 'archive/bdf-fonts/7x13.bdf' },
-            { name: '8x13B.bdf', author: '', url: 'archive/bdf-fonts/8x13B.bdf' },
-            { name: '9x15.bdf', author: '', url: 'archive/bdf-fonts/9x15.bdf' },
-            { name: '6x13.bdf', author: '', url: 'archive/bdf-fonts/6x13.bdf' },
+            { name: '4x6.bdf', author: '', url: 'archive/bdf-fonts/4x6.bdf' , tags:['mono'] },
+            { name: '9x15B.bdf', author: '', url: 'archive/bdf-fonts/9x15B.bdf' , tags:['mono'] },
+            { name: '7x13.bdf', author: '', url: 'archive/bdf-fonts/7x13.bdf' , tags:['mono'] },
+            { name: '8x13B.bdf', author: '', url: 'archive/bdf-fonts/8x13B.bdf' , tags:['mono'] },
+            { name: '9x15.bdf', author: '', url: 'archive/bdf-fonts/9x15.bdf' , tags:['mono'] },
+            { name: '6x13.bdf', author: '', url: 'archive/bdf-fonts/6x13.bdf' , tags:['mono'] },
 
-            { name: 'clR6x12.bdf', author: '', url: 'archive/bdf-fonts/clR6x12.bdf' },
-            { name: 'creep.bdf', author: '', url: 'archive/bdf-fonts/creep.bdf' },
-            { name: '10x20.bdf', author: '', url: 'archive/bdf-fonts/10x20.bdf' },
+            { name: 'clR6x12.bdf', author: '', url: 'archive/bdf-fonts/clR6x12.bdf' , tags:['mono'] },
+            { name: 'creep.bdf', author: '', url: 'archive/bdf-fonts/creep.bdf' , tags:['mono','popular'] },
+            { name: '10x20.bdf', author: '', url: 'archive/bdf-fonts/10x20.bdf' , tags:['mono'] },
 
-            // { name: 'HaxorMedium-13.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-13.bdf' },
-            // { name: 'HaxorMedium-11.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-11.bdf' },
-            // { name: 'HaxorMedium-10.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-10.bdf' },
-            // { name: 'HaxorNarrow-17.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-17.bdf' },
-            // { name: 'HaxorMedium-12.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-12.bdf' },
-            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-15.bdf' },
-            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-16.bdf' },
+            // { name: 'HaxorMedium-13.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-13.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorMedium-11.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-11.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorMedium-10.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-10.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorNarrow-17.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-17.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorMedium-12.bdf', author: '', url: 'archive/bdf-fonts/HaxorMedium-12.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorNarrow-15.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-15.bdf' , tags:['display','mono'] },
+            // { name: 'HaxorNarrow-16.bdf', author: '', url: 'archive/bdf-fonts/HaxorNarrow-16.bdf' , tags:['display','mono'] },
 
-            // { name: 'scientificaBold-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaBold-11.bdf' },
-            // { name: 'scientificaItalic-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaItalic-11.bdf' },
-            // { name: 'scientifica-11.bdf', author: '', url: 'archive/bdf-fonts/scientifica-11.bdf' },
+            // { name: 'scientificaBold-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaBold-11.bdf' , tags:['bold','mono','popular'] },
+            // { name: 'scientificaItalic-11.bdf', author: '', url: 'archive/bdf-fonts/scientificaItalic-11.bdf' , tags:['italic','mono','popular'] },
+            // { name: 'scientifica-11.bdf', author: '', url: 'archive/bdf-fonts/scientifica-11.bdf' , tags:['mono','popular'] },
 
-            { name: 'tom-thumb.bdf', author: '', url: 'archive/bdf-fonts/tom-thumb.bdf' },
-            // { name: 'PsevdoAzbukaMedium-12.bdf', author: '', url: 'archive/bdf-fonts/PsevdoAzbukaMedium-12.bdf' },
+            { name: 'tom-thumb.bdf', author: '', url: 'archive/bdf-fonts/tom-thumb.bdf' , tags:['mono'] },
+            // { name: 'PsevdoAzbukaMedium-12.bdf', author: '', url: 'archive/bdf-fonts/PsevdoAzbukaMedium-12.bdf' , tags:['mono','unicode'] },
 
-            { name: '8x13.bdf', author: '', url: 'archive/bdf-fonts/8x13.bdf' },
-            { name: '8x13O.bdf', author: '', url: 'archive/bdf-fonts/8x13O.bdf' },
-            { name: 'knxt.bdf', author: '', url: 'archive/bdf-fonts/knxt.bdf' },
-            { name: 'logisoso46.bdf', author: '', url: 'archive/bdf-fonts/logisoso46.bdf' },
-            { name: '7x13O.bdf', author: '', url: 'archive/bdf-fonts/7x13O.bdf' },
-            { name: '6x9.bdf', author: '', url: 'archive/bdf-fonts/6x9.bdf' },
-            { name: '7x14B.bdf', author: '', url: 'archive/bdf-fonts/7x14B.bdf' },
-            { name: '6x12.bdf', author: '', url: 'archive/bdf-fonts/6x12.bdf' },
-            { name: 'helvR12 copy.bdf', author: '', url: 'archive/bdf-fonts/helvR12 copy.bdf' },
+            { name: '8x13.bdf', author: '', url: 'archive/bdf-fonts/8x13.bdf' , tags:['mono'] },
+            { name: '8x13O.bdf', author: '', url: 'archive/bdf-fonts/8x13O.bdf' , tags:['mono'] },
+            { name: 'knxt.bdf', author: '', url: 'archive/bdf-fonts/knxt.bdf' , tags:['mono','popular'] },
+            { name: 'logisoso46.bdf', author: '', url: 'archive/bdf-fonts/logisoso46.bdf' , tags:['display','mono'] },
+            { name: '7x13O.bdf', author: '', url: 'archive/bdf-fonts/7x13O.bdf' , tags:['mono'] },
+            { name: '6x9.bdf', author: '', url: 'archive/bdf-fonts/6x9.bdf' , tags:['mono'] },
+            { name: '7x14B.bdf', author: '', url: 'archive/bdf-fonts/7x14B.bdf' , tags:['mono'] },
+            { name: '6x12.bdf', author: '', url: 'archive/bdf-fonts/6x12.bdf' , tags:['mono'] },
+            { name: 'helvR12 copy.bdf', author: '', url: 'archive/bdf-fonts/helvR12 copy.bdf' , tags:['mono','serif'] },
 
-            { name: '7x13B.bdf', author: '', url: 'archive/bdf-fonts/7x13B.bdf' },
-            { name: '7x14.bdf', author: '', url: 'archive/bdf-fonts/7x14.bdf' },
-            { name: '6x13B.bdf', author: '', url: 'archive/bdf-fonts/6x13B.bdf' },
+            { name: '7x13B.bdf', author: '', url: 'archive/bdf-fonts/7x13B.bdf' , tags:['mono'] },
+            { name: '7x14.bdf', author: '', url: 'archive/bdf-fonts/7x14.bdf' , tags:['mono'] },
+            { name: '6x13B.bdf', author: '', url: 'archive/bdf-fonts/6x13B.bdf' , tags:['mono'] },
 
-            { name: 'peep-10x20.bdf', author: '', url: 'archive/bdf-fonts/peep-10x20.bdf' },
-            { name: '9x18B.bdf', author: '', url: 'archive/bdf-fonts/9x18B.bdf' },
-            { name: '9x18.bdf', author: '', url: 'archive/bdf-fonts/9x18.bdf' },
-            { name: '5x8.bdf', author: '', url: 'archive/bdf-fonts/5x8.bdf' },
-            { name: '6x13O.bdf', author: '', url: 'archive/bdf-fonts/6x13O.bdf' },
-            { name: '5x7.bdf', author: '', url: 'archive/bdf-fonts/5x7.bdf' },
-            { name: 'helvR12.bdf', author: '', url: 'archive/bdf-fonts/helvR12.bdf' },
-            { name: '6x10.bdf', author: '', url: 'archive/bdf-fonts/6x10.bdf' },
+            { name: 'peep-10x20.bdf', author: '', url: 'archive/bdf-fonts/peep-10x20.bdf' , tags:['mono'] },
+            { name: '9x18B.bdf', author: '', url: 'archive/bdf-fonts/9x18B.bdf' , tags:['mono'] },
+            { name: '9x18.bdf', author: '', url: 'archive/bdf-fonts/9x18.bdf' , tags:['mono'] },
+            { name: '5x8.bdf', author: '', url: 'archive/bdf-fonts/5x8.bdf' , tags:['mono'] },
+            { name: '6x13O.bdf', author: '', url: 'archive/bdf-fonts/6x13O.bdf' , tags:['mono'] },
+            { name: '5x7.bdf', author: '', url: 'archive/bdf-fonts/5x7.bdf' , tags:['mono'] },
+            { name: 'helvR12.bdf', author: '', url: 'archive/bdf-fonts/helvR12.bdf' , tags:['mono','serif'] },
+            { name: '6x10.bdf', author: '', url: 'archive/bdf-fonts/6x10.bdf' , tags:['mono'] },
 
-            { name: 'Helvetica O 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO10-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica R 12.pcf.bdf', author: '', url: 'archive/helvetica/helvR12.pcf.bdf' },
-            { name: 'Helvetica B O08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 14.pcf.bdf', author: '', url: 'archive/helvetica/helvO14.pcf.bdf' },
-            { name: 'Helvetica B 08.pcf.bdf', author: '', url: 'archive/helvetica/helvB08.pcf.bdf' },
-            { name: 'Helvetica B O12.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12.pcf.bdf' },
-            { name: 'Helvetica B 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB18-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB08-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB12-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B O14.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14.pcf.bdf' },
-            { name: 'Helvetica R 14.pcf.bdf', author: '', url: 'archive/helvetica/helvR14.pcf.bdf' },
-            { name: 'Helvetica B O24.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24.pcf.bdf' },
-            { name: 'Helvetica O 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO18-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B O18.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18.pcf.bdf' },
-            { name: 'Helvetica B O08.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08.pcf.bdf' },
-            { name: 'Helvetica B 18.pcf.bdf', author: '', url: 'archive/helvetica/helvB18.pcf.bdf' },
-            { name: 'Helvetica R 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR24-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO24-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO08-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica R 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR08-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 10.pcf.bdf', author: '', url: 'archive/helvetica/helvB10.pcf.bdf' },
-            { name: 'Helvetica R 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR12-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B O10.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10.pcf.bdf' },
-            { name: 'Helvetica B O12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 24.pcf.bdf', author: '', url: 'archive/helvetica/helvB24.pcf.bdf' },
-            { name: 'Helvetica R 24.pcf.bdf', author: '', url: 'archive/helvetica/helvR24.pcf.bdf' },
-            { name: 'Helvetica O 08.pcf.bdf', author: '', url: 'archive/helvetica/helvO08.pcf.bdf' },
-            { name: 'Helvetica B O14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica R 08.pcf.bdf', author: '', url: 'archive/helvetica/helvR08.pcf.bdf' },
-            { name: 'Helvetica R 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR10-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB24-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 24.pcf.bdf', author: '', url: 'archive/helvetica/helvO24.pcf.bdf' },
-            { name: 'Helvetica O 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO14-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 18.pcf.bdf', author: '', url: 'archive/helvetica/helvO18.pcf.bdf' },
-            { name: 'Helvetica B 12.pcf.bdf', author: '', url: 'archive/helvetica/helvB12.pcf.bdf' },
-            { name: 'Helvetica B O24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 10.pcf.bdf', author: '', url: 'archive/helvetica/helvO10.pcf.bdf' },
-            { name: 'Helvetica R 18.pcf.bdf', author: '', url: 'archive/helvetica/helvR18.pcf.bdf' },
-            { name: 'Helvetica B 14.pcf.bdf', author: '', url: 'archive/helvetica/helvB14.pcf.bdf' },
-            { name: 'Helvetica R 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR18-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica O 12.pcf.bdf', author: '', url: 'archive/helvetica/helvO12.pcf.bdf' },
-            { name: 'Helvetica B O10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica R 10.pcf.bdf', author: '', url: 'archive/helvetica/helvR10.pcf.bdf' },
-            { name: 'Helvetica O 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO12-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica R 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR14-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B O18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB10-ISO8859-1.pcf.bdf' },
-            { name: 'Helvetica B 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB14-ISO8859-1.pcf.bdf' },
+            { name: 'Helvetica O 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO10-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 12.pcf.bdf', author: '', url: 'archive/helvetica/helvR12.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 14.pcf.bdf', author: '', url: 'archive/helvetica/helvO14.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 08.pcf.bdf', author: '', url: 'archive/helvetica/helvB08.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O12.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB18-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB08-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB12-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O14.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 14.pcf.bdf', author: '', url: 'archive/helvetica/helvR14.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O24.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO18-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O18.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O08.pcf.bdf', author: '', url: 'archive/helvetica/helvBO08.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 18.pcf.bdf', author: '', url: 'archive/helvetica/helvB18.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR24-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO24-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO08-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 08-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR08-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 10.pcf.bdf', author: '', url: 'archive/helvetica/helvB10.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR12-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O10.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO12-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 24.pcf.bdf', author: '', url: 'archive/helvetica/helvB24.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 24.pcf.bdf', author: '', url: 'archive/helvetica/helvR24.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 08.pcf.bdf', author: '', url: 'archive/helvetica/helvO08.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO14-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 08.pcf.bdf', author: '', url: 'archive/helvetica/helvR08.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR10-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB24-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 24.pcf.bdf', author: '', url: 'archive/helvetica/helvO24.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO14-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 18.pcf.bdf', author: '', url: 'archive/helvetica/helvO18.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 12.pcf.bdf', author: '', url: 'archive/helvetica/helvB12.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O24-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO24-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 10.pcf.bdf', author: '', url: 'archive/helvetica/helvO10.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 18.pcf.bdf', author: '', url: 'archive/helvetica/helvR18.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 14.pcf.bdf', author: '', url: 'archive/helvetica/helvB14.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR18-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 12.pcf.bdf', author: '', url: 'archive/helvetica/helvO12.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO10-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 10.pcf.bdf', author: '', url: 'archive/helvetica/helvR10.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica O 12-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvO12-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica R 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvR14-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B O18-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvBO18-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 10-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB10-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
+            { name: 'Helvetica B 14-ISO8859-1.pcf.bdf', author: '', url: 'archive/helvetica/helvB14-ISO8859-1.pcf.bdf' , tags:['mono','serif'] },
 
-            { name: 'Bm437 - OlivettiThin8x16-16.bdf', author: '', url: 'archive/oldschool/Bm437OlivettiThin8x16-16.bdf' },
-            { name: 'Bm437 - RobotronA7100-16.bdf', author: '', url: 'archive/oldschool/Bm437RobotronA7100-16.bdf' },
-            { name: 'Bm437 - ToshibaSat8x14-13.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat8x14-13.bdf' },
-            { name: 'Bm437 - IBMModel3xAlt3-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt3-16.bdf' },
-            { name: 'Bm437 - IBMModel3xAlt2-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt2-16.bdf' },
-            { name: 'Bm437 - Wyse700b-2y-32.bdf', author: '', url: 'archive/oldschool/Bm437Wyse700b-2y-32.bdf' },
-            { name: 'Bm437 - NECAPC38x16-16.bdf', author: '', url: 'archive/oldschool/Bm437NECAPC38x16-16.bdf' },
-            { name: 'Bm437 - ToshibaSat9x16-16.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat9x16-16.bdf' },
+            { name: 'Bm437 - OlivettiThin8x16-16.bdf', author: '', url: 'archive/oldschool/Bm437OlivettiThin8x16-16.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - RobotronA7100-16.bdf', author: '', url: 'archive/oldschool/Bm437RobotronA7100-16.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - ToshibaSat8x14-13.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat8x14-13.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - IBMModel3xAlt3-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt3-16.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - IBMModel3xAlt2-16.bdf', author: '', url: 'archive/oldschool/Bm437IBMModel3xAlt2-16.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - Wyse700b-2y-32.bdf', author: '', url: 'archive/oldschool/Bm437Wyse700b-2y-32.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - NECAPC38x16-16.bdf', author: '', url: 'archive/oldschool/Bm437NECAPC38x16-16.bdf' , tags:['display','mono'] },
+            { name: 'Bm437 - ToshibaSat9x16-16.bdf', author: '', url: 'archive/oldschool/Bm437ToshibaSat9x16-16.bdf' , tags:['display','mono'] },
 
-            { name: 'vgafonts/ROTUND.bdf', author: '', url: 'archive/vgafonts/ROTUND.bdf' },
-            { name: 'vgafonts/BLKBOARD.bdf', author: '', url: 'archive/vgafonts/BLKBOARD.bdf' },
-            { name: 'vgafonts/TANDY2K1.bdf', author: '', url: 'archive/vgafonts/TANDY2K1.bdf' },
-            { name: 'vgafonts/SPRANTO1.bdf', author: '', url: 'archive/vgafonts/SPRANTO1.bdf' },
-            { name: 'vgafonts/MACNTOSH.bdf', author: '', url: 'archive/vgafonts/MACNTOSH.bdf' },
-            { name: 'vgafonts/TOSHT300.bdf', author: '', url: 'archive/vgafonts/TOSHT300.bdf' },
-            { name: 'vgafonts/READABL7.bdf', author: '', url: 'archive/vgafonts/READABL7.bdf' },
-            { name: 'vgafonts/READABL8.bdf', author: '', url: 'archive/vgafonts/READABL8.bdf' },
-            { name: 'vgafonts/ARTX.bdf', author: '', url: 'archive/vgafonts/ARTX.bdf' },
-            { name: 'vgafonts/FM-T-437.bdf', author: '', url: 'archive/vgafonts/FM-T-437.bdf' },
-            { name: 'vgafonts/HUGE.bdf', author: '', url: 'archive/vgafonts/HUGE.bdf' },
-            { name: 'vgafonts/BULKY.bdf', author: '', url: 'archive/vgafonts/BULKY.bdf' },
-            { name: 'vgafonts/DKY001.bdf', author: '', url: 'archive/vgafonts/DKY001.bdf' },
-            { name: 'vgafonts/DOSJ-437.bdf', author: '', url: 'archive/vgafonts/DOSJ-437.bdf' },
-            { name: 'vgafonts/MEDIEVAL.bdf', author: '', url: 'archive/vgafonts/MEDIEVAL.bdf' },
-            { name: 'vgafonts/GSPLAY.bdf', author: '', url: 'archive/vgafonts/GSPLAY.bdf' },
-            { name: 'vgafonts/APC-III.bdf', author: '', url: 'archive/vgafonts/APC-III.bdf' },
-            { name: 'vgafonts/TANDY2K2.bdf', author: '', url: 'archive/vgafonts/TANDY2K2.bdf' },
-            { name: 'vgafonts/A7100-US.bdf', author: '', url: 'archive/vgafonts/A7100-US.bdf' },
-            { name: 'vgafonts/ART.bdf', author: '', url: 'archive/vgafonts/ART.bdf' },
-            { name: 'vgafonts/WIGGLY.bdf', author: '', url: 'archive/vgafonts/WIGGLY.bdf' },
-            { name: 'vgafonts/FATSCII.bdf', author: '', url: 'archive/vgafonts/FATSCII.bdf' },
-            { name: 'vgafonts/HEB-BOLD.bdf', author: '', url: 'archive/vgafonts/HEB-BOLD.bdf' },
-            { name: 'vgafonts/FM-TOWNS.bdf', author: '', url: 'archive/vgafonts/FM-TOWNS.bdf' },
+            { name: 'vgafonts/ROTUND.bdf', author: '', url: 'archive/vgafonts/ROTUND.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/BLKBOARD.bdf', author: '', url: 'archive/vgafonts/BLKBOARD.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/TANDY2K1.bdf', author: '', url: 'archive/vgafonts/TANDY2K1.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/SPRANTO1.bdf', author: '', url: 'archive/vgafonts/SPRANTO1.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/MACNTOSH.bdf', author: '', url: 'archive/vgafonts/MACNTOSH.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/TOSHT300.bdf', author: '', url: 'archive/vgafonts/TOSHT300.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/READABL7.bdf', author: '', url: 'archive/vgafonts/READABL7.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/READABL8.bdf', author: '', url: 'archive/vgafonts/READABL8.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/ARTX.bdf', author: '', url: 'archive/vgafonts/ARTX.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/FM-T-437.bdf', author: '', url: 'archive/vgafonts/FM-T-437.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/HUGE.bdf', author: '', url: 'archive/vgafonts/HUGE.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/BULKY.bdf', author: '', url: 'archive/vgafonts/BULKY.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/DKY001.bdf', author: '', url: 'archive/vgafonts/DKY001.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/DOSJ-437.bdf', author: '', url: 'archive/vgafonts/DOSJ-437.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/MEDIEVAL.bdf', author: '', url: 'archive/vgafonts/MEDIEVAL.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/GSPLAY.bdf', author: '', url: 'archive/vgafonts/GSPLAY.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/APC-III.bdf', author: '', url: 'archive/vgafonts/APC-III.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/TANDY2K2.bdf', author: '', url: 'archive/vgafonts/TANDY2K2.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/A7100-US.bdf', author: '', url: 'archive/vgafonts/A7100-US.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/ART.bdf', author: '', url: 'archive/vgafonts/ART.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/WIGGLY.bdf', author: '', url: 'archive/vgafonts/WIGGLY.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/FATSCII.bdf', author: '', url: 'archive/vgafonts/FATSCII.bdf' , tags:['display','mono'] },
+            { name: 'vgafonts/HEB-BOLD.bdf', author: '', url: 'archive/vgafonts/HEB-BOLD.bdf' , tags:['bold','display','mono'] },
+            { name: 'vgafonts/FM-TOWNS.bdf', author: '', url: 'archive/vgafonts/FM-TOWNS.bdf' , tags:['display','mono'] },
 
-            { name: 'Sanyo-8200-Msg-Normal-13.bdf', url: 'archive/converted/Sanyo-8200-Msg-Normal-13.bdf' },
-            { name: 'Monocraft-18.bdf', url: 'archive/converted/Monocraft-18.bdf' },
-            { name: 'Galmuri11-Condensed-12.bdf', url: 'archive/converted/Galmuri11-Condensed-12.bdf' },
-            { name: 'PixelUltima-16.bdf', url: 'archive/converted/PixelUltima-16.bdf' },
-            { name: 'NeuePixelSans-24.bdf', url: 'archive/converted/NeuePixelSans-24.bdf' },
-            { name: 'PixelUltima-Bold-16.bdf', url: 'archive/converted/PixelUltima-Bold-16.bdf' },
-            { name: 'GrixelAcme9RegularXtnd-8.bdf', url: 'archive/converted/GrixelAcme9RegularXtnd-8.bdf' },
-            { name: 'GrixelAcme9RegularBold-8.bdf', url: 'archive/converted/GrixelAcme9RegularBold-8.bdf' },
-            { name: 'Quarlow-16.bdf', url: 'archive/converted/Quarlow-16.bdf' },
-            { name: 'BobsGame-Big-10.bdf', url: 'archive/converted/BobsGame-Big-10.bdf' },
-            { name: 'TwelveBySeven-16.bdf', url: 'archive/converted/TwelveBySeven-16.bdf' },
-            { name: 'GBAFE2-16.bdf', url: 'archive/converted/GBAFE2-16.bdf' },
-            { name: 'Earth-Illusion-15.bdf', url: 'archive/converted/Earth-Illusion-15.bdf' },
-            { name: 'Pixel-Paradise-16.bdf', url: 'archive/converted/Pixel-Paradise-16.bdf' },
-            { name: 'Mecha-Bold-16.bdf', url: 'archive/converted/Mecha-Bold-16.bdf' },
-            { name: 'Galmuri14-Regular-18.bdf', url: 'archive/converted/Galmuri14-Regular-18.bdf' },
-            { name: 'hgpsPentaCom-16.bdf', url: 'archive/converted/hgpsPentaCom-16.bdf' },
-            { name: 'Mecha-16.bdf', url: 'archive/converted/Mecha-16.bdf' },
-            { name: 'BetterDeterminationSansThin-12.bdf', url: 'archive/converted/BetterDeterminationSansThin-12.bdf' },
-            { name: 'Galmuri11-Bold-12.bdf', url: 'archive/converted/Galmuri11-Bold-12.bdf' },
+            { name: 'Sanyo-8200-Msg-Normal-13.bdf', url: 'archive/converted/Sanyo-8200-Msg-Normal-13.bdf' , tags:['display','mono'] },
+            { name: 'Monocraft-18.bdf', url: 'archive/converted/Monocraft-18.bdf' , tags:['display','mono'] },
+            { name: 'Galmuri11-Condensed-12.bdf', url: 'archive/converted/Galmuri11-Condensed-12.bdf' , tags:['display','mono','unicode'] },
+            { name: 'PixelUltima-16.bdf', url: 'archive/converted/PixelUltima-16.bdf' , tags:['display','mono'] },
+            { name: 'NeuePixelSans-24.bdf', url: 'archive/converted/NeuePixelSans-24.bdf' , tags:['display','mono'] },
+            { name: 'PixelUltima-Bold-16.bdf', url: 'archive/converted/PixelUltima-Bold-16.bdf' , tags:['bold','display','mono'] },
+            { name: 'GrixelAcme9RegularXtnd-8.bdf', url: 'archive/converted/GrixelAcme9RegularXtnd-8.bdf' , tags:['display','mono'] },
+            { name: 'GrixelAcme9RegularBold-8.bdf', url: 'archive/converted/GrixelAcme9RegularBold-8.bdf' , tags:['bold','display','mono'] },
+            { name: 'Quarlow-16.bdf', url: 'archive/converted/Quarlow-16.bdf' , tags:['display','mono'] },
+            { name: 'BobsGame-Big-10.bdf', url: 'archive/converted/BobsGame-Big-10.bdf' , tags:['display','mono'] },
+            { name: 'TwelveBySeven-16.bdf', url: 'archive/converted/TwelveBySeven-16.bdf' , tags:['mono'] },
+            { name: 'GBAFE2-16.bdf', url: 'archive/converted/GBAFE2-16.bdf' , tags:['mono'] },
+            { name: 'Earth-Illusion-15.bdf', url: 'archive/converted/Earth-Illusion-15.bdf' , tags:['display','mono'] },
+            { name: 'Pixel-Paradise-16.bdf', url: 'archive/converted/Pixel-Paradise-16.bdf' , tags:['display','mono'] },
+            { name: 'Mecha-Bold-16.bdf', url: 'archive/converted/Mecha-Bold-16.bdf' , tags:['bold','display','mono'] },
+            { name: 'Galmuri14-Regular-18.bdf', url: 'archive/converted/Galmuri14-Regular-18.bdf' , tags:['display','mono','unicode'] },
+            { name: 'hgpsPentaCom-16.bdf', url: 'archive/converted/hgpsPentaCom-16.bdf' , tags:['mono'] },
+            { name: 'Mecha-16.bdf', url: 'archive/converted/Mecha-16.bdf' , tags:['display','mono'] },
+            { name: 'BetterDeterminationSansThin-12.bdf', url: 'archive/converted/BetterDeterminationSansThin-12.bdf' , tags:['mono'] },
+            { name: 'Galmuri11-Bold-12.bdf', url: 'archive/converted/Galmuri11-Bold-12.bdf' , tags:['bold','display','mono','unicode'] },
 
 
         ].sort(function(a, b) {
@@ -1893,9 +1928,23 @@
             return f;
         });
 
+        // All unique tags across the DB
+        const ALL_TAGS = [...new Set(FONT_DB.flatMap(f => f.tags || []))].sort();
+        // Put these first in a nice order
+        const TAG_ORDER = ['starred','popular','mono','serif','display','unicode','bold','italic','icons'];
+        const SORTED_TAGS = [
+            ...TAG_ORDER.filter(t => ALL_TAGS.includes(t)),
+            ...ALL_TAGS.filter(t => !TAG_ORDER.includes(t)),
+        ];
+        const TAG_LABELS = {
+            starred: '★ Starred', popular: '⭐ Popular', mono: 'Mono',
+            serif: 'Serif', display: 'Display', unicode: 'Unicode',
+            bold: 'Bold', italic: 'Italic', icons: 'Icons',
+        };
+
         // Derive unique sorted values from data
-        const uniqueW = [...new Set(FONT_DB.map(f => f.w))].sort((a, b) => a - b);
-        const uniqueH = [...new Set(FONT_DB.map(f => f.h))].sort((a, b) => a - b);
+        const uniqueW = [...new Set(FONT_DB.map(f => f.w))].sort((a, b) => a - b).filter(function(w) { return !!w });
+        const uniqueH = [...new Set(FONT_DB.map(f => f.h))].sort((a, b) => a - b).filter(function(h) { return !!h });
 
         let activeW = null; // null = any
         let activeH = null;
@@ -1963,9 +2012,21 @@
             for (const f of filtered) {
                 const item = document.createElement('div');
                 item.className = 'font-item' + (f.index === activeFontIndex ? ' active' : '');
+                const isStarred = starredFonts.has(f.index);
                 var html = '<span class="font-name">' + f.name + '</span>';
                 if (f.w) html += '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
                 item.innerHTML = html;
+
+                const starBtn = document.createElement('button');
+                starBtn.className = 'star-btn' + (isStarred ? ' starred' : '');
+                starBtn.setAttribute('aria-label', isStarred ? 'Unstar' : 'Star');
+                starBtn.innerHTML = isStarred ? '★' : '☆';
+                starBtn.addEventListener('click', e => {
+                    e.stopPropagation();
+                    toggleStar(f.index);
+                    buildTagPills();
+                });
+                item.appendChild(starBtn);
                 item.addEventListener('click', () => { loadFontFromDB(f.index); fontList.focus(); });
                 fontList.appendChild(item);
             }
