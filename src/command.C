@@ -1248,7 +1248,7 @@ rxvt_term::key_press (XKeyEvent &ev)
         }
 
         // Alt + Shift + Up → jump to previous prompt marker
-        if (meta && shft && !ctrl && keysym == XK_Up) {
+        if (ctrl && keysym == XK_Page_Up) {
           for (int r = view_start - 1; r >= top_row; r--) {
             line_t &l = ROW(r);
             if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
@@ -1261,7 +1261,7 @@ rxvt_term::key_press (XKeyEvent &ev)
         }
 
         // Alt + Shift + Down → jump to next prompt marker, or to the current prompt line if none found
-        if (meta && shft && !ctrl && keysym == XK_Down) {
+        if (ctrl && keysym == XK_Page_Down) {
           bool found = false;
           for (int r = view_start + 1; r < nrow; r++) {
             line_t &l = ROW(r);
