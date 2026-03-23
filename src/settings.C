@@ -1,5 +1,5 @@
 /*----------------------------------------------------------------------*
- * File:        settings_ui.C - microui-based settings side panel
+ * File:        settings.C - microui-based settings side panel
  *----------------------------------------------------------------------*/
 
 #include "../config.h"
@@ -128,33 +128,12 @@ static const color_scheme_t color_schemes[] = {
     "#6272a4", "#ff6e6e", "#69ff94", "#ffffa5",
     "#d6acff", "#ff92df", "#a4ffff", "#ffffff",
   }},
-  { "Gruvbox Dark", {
-    "#ebdbb2", "#282828",
-    "#282828", "#cc241d", "#98971a", "#d79921",
-    "#458588", "#b16286", "#689d6a", "#a89984",
-    "#928374", "#fb4934", "#b8bb26", "#fabd2f",
-    "#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
-  }},
-  { "Nord", {
-    "#d8dee9", "#2e3440",
-    "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
-    "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
-    "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
-    "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
-  }},
-  { "Solarized Dark", {
-    "#839496", "#002b36",
-    "#073642", "#dc322f", "#859900", "#b58900",
-    "#268bd2", "#d33682", "#2aa198", "#eee8d5",
-    "#002b36", "#cb4b16", "#586e75", "#657b83",
-    "#839496", "#6c71c4", "#93a1a1", "#fdf6e3",
-  }},
-  { "One Dark", {
-    "#abb2bf", "#282c34",
-    "#282c34", "#e06c75", "#98c379", "#e5c07b",
-    "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
-    "#5c6370", "#e06c75", "#98c379", "#e5c07b",
-    "#61afef", "#c678dd", "#56b6c2", "#ffffff",
+  { "Catppuccin Mocha", {
+    "#cdd6f4", "#1e1e2e",
+    "#45475a", "#f38ba8", "#a6e3a1", "#f9e2af",
+    "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de",
+    "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af",
+    "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8",
   }},
   { "Tokyo Night", {
     "#a9b1d6", "#1a1b26",
@@ -163,12 +142,82 @@ static const color_scheme_t color_schemes[] = {
     "#444b6a", "#ff7a93", "#b9f27c", "#ff9e64",
     "#7da6ff", "#bb9af7", "#0db9d7", "#acb0d0",
   }},
-  { "Catppuccin Mocha", {
-    "#cdd6f4", "#1e1e2e",
-    "#45475a", "#f38ba8", "#a6e3a1", "#f9e2af",
-    "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de",
-    "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af",
-    "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8",
+  { "Kanagawa", {
+    "#dcd7ba", "#1f1f28",
+    "#090618", "#c34043", "#76946a", "#c0a36e",
+    "#7e9cd8", "#957fb8", "#6a9589", "#c8c093",
+    "#727169", "#e82424", "#98bb6c", "#e6c384",
+    "#7fb4ca", "#938aa9", "#7aa89f", "#dcd7ba",
+  }},
+  { "Rose Pine", {
+    "#e0def4", "#191724",
+    "#26233a", "#eb6f92", "#31748f", "#f6c177",
+    "#9ccfd8", "#c4a7e7", "#ebbcba", "#e0def4",
+    "#6e6a86", "#eb6f92", "#31748f", "#f6c177",
+    "#9ccfd8", "#c4a7e7", "#ebbcba", "#fffaf3",
+  }},
+  { "Rose Pine Moon", {
+    "#e0def4", "#232136",
+    "#393552", "#eb6f92", "#3e8fb0", "#f6c177",
+    "#9ccfd8", "#c4a7e7", "#ea9a97", "#e0def4",
+    "#59546d", "#eb6f92", "#3e8fb0", "#f6c177",
+    "#9ccfd8", "#c4a7e7", "#ea9a97", "#faf4ed",
+  }},
+  { "One Dark", {
+    "#abb2bf", "#282c34",
+    "#282c34", "#e06c75", "#98c379", "#e5c07b",
+    "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+    "#5c6370", "#e06c75", "#98c379", "#e5c07b",
+    "#61afef", "#c678dd", "#56b6c2", "#ffffff",
+  }},
+  { "Gruvbox Dark", {
+    "#ebdbb2", "#282828",
+    "#282828", "#cc241d", "#98971a", "#d79921",
+    "#458588", "#b16286", "#689d6a", "#a89984",
+    "#928374", "#fb4934", "#b8bb26", "#fabd2f",
+    "#83a598", "#d3869b", "#8ec07c", "#ebdbb2",
+  }},
+  { "Everforest Dark", {
+    "#d3c6aa", "#2d353b",
+    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
+    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
+    "#475258", "#e67e80", "#a7c080", "#dbbc7f",
+    "#7fbbb3", "#d699b6", "#83c092", "#d3c6aa",
+  }},
+  { "Nord", {
+    "#d8dee9", "#2e3440",
+    "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b",
+    "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
+    "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b",
+    "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4",
+  }},
+  { "Palenight", {
+    "#a6accd", "#292d3e",
+    "#292d3e", "#f07178", "#c3e88d", "#ffcb6b",
+    "#82aaff", "#c792ea", "#89ddff", "#d0d0d0",
+    "#434758", "#ff8b92", "#ddffa7", "#ffe585",
+    "#9cc4ff", "#e1acff", "#a3f7ff", "#ffffff",
+  }},
+  { "Iceberg", {
+    "#c6c8d1", "#161821",
+    "#1e2132", "#e27878", "#b4be82", "#e2a478",
+    "#84a0c6", "#a093c7", "#89b8c2", "#c6c8d1",
+    "#6b7089", "#e98989", "#c0ca8e", "#e9b189",
+    "#91acd1", "#ada0d3", "#95c4ce", "#d2d4de",
+  }},
+  { "Horizon", {
+    "#d5d8da", "#1c1e26",
+    "#16161c", "#e95678", "#29d398", "#fab795",
+    "#26bbd9", "#ee64ae", "#59e3e3", "#d5d8da",
+    "#595f6f", "#ec6a88", "#3fdaa4", "#fbc3a7",
+    "#3fc6de", "#f075b7", "#6be6e6", "#d5d8da",
+  }},
+  { "Ayu Dark", {
+    "#cccac2", "#0d1017",
+    "#11151c", "#ea6c73", "#91b362", "#f9af4f",
+    "#53bdfa", "#fae994", "#90e1c6", "#c7c7c7",
+    "#686868", "#f07178", "#c2d94c", "#ffb454",
+    "#59c2ff", "#ffee99", "#95e6cb", "#ffffff",
   }},
   { "Monokai", {
     "#f8f8f2", "#272822",
@@ -176,6 +225,27 @@ static const color_scheme_t color_schemes[] = {
     "#66d9e8", "#ae81ff", "#a1efe4", "#f8f8f2",
     "#75715e", "#f92672", "#a6e22e", "#f4bf75",
     "#66d9e8", "#ae81ff", "#a1efe4", "#f9f8f5",
+  }},
+  { "Solarized Dark", {
+    "#839496", "#002b36",
+    "#073642", "#dc322f", "#859900", "#b58900",
+    "#268bd2", "#d33682", "#2aa198", "#eee8d5",
+    "#002b36", "#cb4b16", "#586e75", "#657b83",
+    "#839496", "#6c71c4", "#93a1a1", "#fdf6e3",
+  }},
+  { "Zenburn", {
+    "#dcdccc", "#3f3f3f",
+    "#1e2320", "#705050", "#60b48a", "#dfaf8f",
+    "#506070", "#dc8cc3", "#8cd0d3", "#dcdccc",
+    "#709080", "#dca3a3", "#72d5a3", "#f0dfaf",
+    "#94bff3", "#ec93d3", "#93e0e3", "#ffffff",
+  }},
+  { "Cobalt2", {
+    "#ffffff", "#193549",
+    "#000000", "#ff0000", "#00c200", "#c7c400",
+    "#0225c7", "#ca30c7", "#00c5c7", "#c7c7c7",
+    "#686868", "#ff6e67", "#5ffa68", "#fffc67",
+    "#6871ff", "#ff77ff", "#60fdff", "#ffffff",
   }},
 };
 
@@ -426,6 +496,7 @@ enum {
   CHANGED_COLOR_SCHEME   = 1 << 17,
   CHANGED_FONT           = 1 << 18,
   CHANGED_BOLD_FONT      = 1 << 19,
+  CHANGED_SAVE           = 1 << 28,
   CHANGED_APPLY          = 1 << 29,
   CHANGED_CANCEL         = 1 << 30,
 };
@@ -438,30 +509,12 @@ static void section_header (mu_Context *ctx, const char *label) {
   mu_label (ctx, label, 0);
 }
 
-/* --- draw one color scheme row, return true if clicked --- */
-static bool draw_scheme_row (mu_Context *ctx, int idx) {
-  const color_scheme_t &s = color_schemes[idx];
-  bool active = (s_active_scheme == idx);
-
-  { int c[] = {-1}; mu_layout_row (ctx, 1, c, 22); }
-  char label[48];
-  snprintf (label, sizeof (label), "%s%s", active ? ">  " : "   ", s.name);
-  bool clicked = (bool) mu_button (ctx, label);
-
-  /* 16-color swatch strip */
-  int sw = (PANEL_WIDTH - 30) / 16;
-  { int widths[16]; for (int i = 0; i < 16; i++) widths[i] = sw;
-    mu_layout_row (ctx, 16, widths, 10); }
-  for (int i = 0; i < 16; i++) {
-    mu_Rect r = mu_layout_next (ctx);
-    mu_draw_rect (ctx, r, hex_to_mu (s.palette[2 + i]));
-  }
-  return clicked;
-}
 
 /* --- build settings panel, return CHANGED_* bitmask --- */
 static int build_settings_window (mu_Context *ctx) {
   int changed = 0;
+  char *font_display_name = nullptr;
+  char *bold_display_name = nullptr;
   mu_Rect rect = mu_rect (0, 0, PANEL_WIDTH, s_panel_h);
 
   int opt = MU_OPT_NOCLOSE | MU_OPT_NORESIZE | MU_OPT_NODRAG; //  | MU_OPT_NOINTERACT;
@@ -486,15 +539,56 @@ static int build_settings_window (mu_Context *ctx) {
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
 
-    // mu_label (ctx, "Letter spacing:", 0);
-    // if (float_slider (ctx, &s_letter_space, -4.0f, 8.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
-    //   changed |= CHANGED_LETTER_SPACE;
+    /* ---- Color Scheme ---- */
+    section_header (ctx, "Color Scheme");
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+    const char *scheme_label = (s_active_scheme >= 0 && s_active_scheme < NUM_SCHEMES)
+      ? color_schemes[s_active_scheme].name : "None";
+    if (mu_begin_combo_ex (ctx, "##schemes", scheme_label, NUM_SCHEMES * 32, 0)) {
+      for (int i = 0; i < NUM_SCHEMES; i++) {
+        const color_scheme_t &s = color_schemes[i];
+        char label[64];
+        snprintf (label, sizeof (label), "%s%s", (s_active_scheme == i) ? ">  " : "   ", s.name);
+        /* reset to full-width single column before each name button */
+        { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+        bool clicked = (bool) mu_button (ctx, label);
+        /* compact swatch strip — must re-set layout after the button */
+        int sw = (PANEL_WIDTH - 48) / 16;
+        { int widths[16]; for (int j = 0; j < 16; j++) widths[j] = sw;
+          mu_layout_row (ctx, 16, widths, 6); }
+        for (int j = 0; j < 16; j++) {
+          mu_Rect r = mu_layout_next (ctx);
+          mu_draw_rect (ctx, r, hex_to_mu (s.palette[2 + j]));
+        }
+        if (clicked) {
+          s_pending_scheme = i;
+          changed |= CHANGED_COLOR_SCHEME;
+          mu_close_popup (ctx, "##schemes");
+        }
+      }
+      mu_end_combo (ctx);
+    }
+    /* swatch strip for the currently active scheme, shown below the combo */
+    if (s_active_scheme >= 0 && s_active_scheme < NUM_SCHEMES) {
+      int sw = (PANEL_WIDTH - 30) / 16;
+      { int widths[16]; for (int j = 0; j < 16; j++) widths[j] = sw;
+        mu_layout_row (ctx, 16, widths, 8); }
+      for (int j = 0; j < 16; j++) {
+        mu_Rect r = mu_layout_next (ctx);
+        mu_draw_rect (ctx, r, hex_to_mu (color_schemes[s_active_scheme].palette[2 + j]));
+      }
+    }
 
     /* ---- Fonts ---- */
     section_header (ctx, "Font");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
-    const char *current = s_active_font == -1 ? "Choose one" : s_font_entries[s_active_font].name;
+    font_display_name = (s_active_font == -1)
+      ? xlfd_to_name (s_active_font_xlfd)  /* loaded font not in list, derive a display name */
+      : nullptr;
+    const char *current = (s_active_font != -1)
+      ? s_font_entries[s_active_font].name
+      : (font_display_name && *font_display_name ? font_display_name : "Choose one");
     if (mu_begin_combo_ex(ctx, "##fonts", current, s_num_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
       for (int i = 0; i < s_num_fonts; i++) {
@@ -510,8 +604,12 @@ static int build_settings_window (mu_Context *ctx) {
     }
 
     mu_label (ctx, "Bold:", 0);
-    const char *bold_current = s_active_bold_font == -1 ? "(auto)"
-        : s_font_entries[s_active_bold_font].name;
+    bold_display_name = (s_active_bold_font == -1)
+      ? xlfd_to_name (s_active_bold_xlfd)
+      : nullptr;
+    const char *bold_current = (s_active_bold_font != -1)
+      ? s_font_entries[s_active_bold_font].name
+      : (bold_display_name && *bold_display_name ? bold_display_name : "(auto)");
     if (mu_begin_combo_ex(ctx, "##boldfonts", bold_current, s_num_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
       if (mu_button(ctx, "   (auto-detect)")) {
@@ -583,26 +681,20 @@ static int build_settings_window (mu_Context *ctx) {
       changed |= CHANGED_PTR_BLANK;
 
 
-    /* ---- Color Schemes ---- */
-    section_header (ctx, "Color Schemes");
-    for (int i = 0; i < NUM_SCHEMES; i++) {
-      if (draw_scheme_row (ctx, i)) {
-        s_pending_scheme = i;
-        changed |= CHANGED_COLOR_SCHEME;
-      }
-    }
-
     /* ---- Buttons ---- */
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 10); }
     mu_label (ctx, "", 0);
-    { int c[] = {-160, -80, -1}; mu_layout_row (ctx, 3, c, 0); }
+    { int c[] = {-1, -80, -80, -80}; mu_layout_row (ctx, 4, c, 0); }
     mu_label (ctx, "", 0);
     if (mu_button (ctx, "Cancel")) changed |= CHANGED_CANCEL;
     if (mu_button (ctx, "Apply"))  changed |= CHANGED_APPLY;
+    if (mu_button (ctx, "Save"))   changed |= CHANGED_SAVE;
 
     mu_end_window (ctx);
   }
 
+  free (font_display_name);
+  free (bold_display_name);
   return changed;
 }
 
@@ -1124,6 +1216,14 @@ rxvt_term::hide_settings_ui ()
      Touching non-active tabs can cause issues (e.g., stale selection state
      on split panes that weren't visible). */
   GET_R->scr_touch (true);
+
+  /* Reset microui state so the panel opens clean next time (no lingering
+     open popups, stale focus, scroll positions, etc.). */
+  if (mu_ctx) {
+    mu_init (mu_ctx);
+    mu_ctx->text_width  = text_width_cb;
+    mu_ctx->font_height = font_height_cb;
+  }
 }
 
 void
@@ -1217,6 +1317,150 @@ rxvt_term::destroy_settings_ui ()
   s_pending_bold_font = -1;
 }
 
+/* ======================================================================
+   Persist settings to ~/.Xdefaults
+   - Strips any existing managed block (BEGIN/END markers)
+   - Comments out any Exoterm.* / URxvt.* lines above the block that
+     overlap with the keys we manage, to prevent duplicates
+   - Appends a fresh managed block at the end of the file
+   ====================================================================== */
+
+#define XDEF_BLOCK_BEGIN "! --- BEGIN Exoterm settings-ui ---"
+#define XDEF_BLOCK_END   "! --- END Exoterm settings-ui ---"
+
+static const char *s_managed_keys[] = {
+  "internalBorder", "shading", "lineSpace", "letterSpace", "saveLines",
+  "wheelScrollLines", "scrollBar", "cursorBlink", "cursorUnderline",
+  "scrollTtyOutput", "scrollTtyKeypress", "jumpScroll", "visualBell",
+  "urgentOnBell", "mouseWheelScrollPage", "pointerBlank",
+  "font", "boldFont", "foreground", "background",
+  "color0",  "color1",  "color2",  "color3",  "color4",  "color5",  "color6",  "color7",
+  "color8",  "color9",  "color10", "color11", "color12", "color13", "color14", "color15",
+  nullptr
+};
+
+static bool line_matches_managed_key (const char *line) {
+  while (*line == ' ' || *line == '\t') line++;
+  const char *prefixes[] = { "Exoterm.", "URxvt.", "exoterm.", "urxvt.", nullptr };
+  for (int pi = 0; prefixes[pi]; pi++) {
+    size_t plen = strlen (prefixes[pi]);
+    if (strncmp (line, prefixes[pi], plen) != 0) continue;
+    const char *rest = line + plen;
+    for (int ki = 0; s_managed_keys[ki]; ki++) {
+      size_t klen = strlen (s_managed_keys[ki]);
+      if (strncmp (rest, s_managed_keys[ki], klen) != 0) continue;
+      char c = rest[klen];
+      if (c == ':' || c == ' ' || c == '\t' || c == '\0') return true;
+    }
+  }
+  return false;
+}
+
+static void save_to_xdefaults (rxvt_term *first_term) {
+  const char *home = getenv ("HOME");
+  if (!home) return;
+
+  char path[1024];
+  snprintf (path, sizeof (path), "%s/.Xdefaults", home);
+
+  /* --- read existing file into lines array --- */
+  GPtrArray *lines = g_ptr_array_new_with_free_func (g_free);
+  FILE *fr = fopen (path, "r");
+  if (fr) {
+    char buf[4096];
+    while (fgets (buf, sizeof (buf), fr)) {
+      size_t len = strlen (buf);
+      if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
+      g_ptr_array_add (lines, g_strdup (buf));
+    }
+    fclose (fr);
+  }
+
+  /* --- rebuild: strip existing block, comment conflicting keys --- */
+  GPtrArray *out = g_ptr_array_new_with_free_func (g_free);
+  bool in_block = false;
+  for (guint i = 0; i < lines->len; i++) {
+    const char *line = (const char *) lines->pdata[i];
+    if (strcmp (line, XDEF_BLOCK_BEGIN) == 0) { in_block = true;  continue; }
+    if (strcmp (line, XDEF_BLOCK_END)   == 0) { in_block = false; continue; }
+    if (in_block) continue;
+
+    if (line_matches_managed_key (line))
+      g_ptr_array_add (out, g_strdup_printf ("! %s", line));
+    else
+      g_ptr_array_add (out, g_strdup (line));
+  }
+  g_ptr_array_unref (lines);
+
+  /* --- build the new managed block --- */
+  GString *block = g_string_new (XDEF_BLOCK_BEGIN "\n");
+
+  g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
+  g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_shading);
+  g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
+  g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
+  g_string_append_printf (block, "Exoterm.saveLines:         %d\n",  (int)s_save_lines);
+  g_string_append_printf (block, "Exoterm.wheelScrollLines:  %d\n",  (int)s_scroll_speed);
+
+  g_string_append_printf (block, "Exoterm.scrollBar:          %s\n", s_scrollbar           ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.cursorBlink:        %s\n", s_cursor_blink        ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.cursorUnderline:    %s\n", s_cursor_underline    ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.scrollTtyOutput:    %s\n", s_scroll_on_output    ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.scrollTtyKeypress:  %s\n", s_scroll_on_keypress  ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.jumpScroll:         %s\n", s_jump_scroll         ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.visualBell:         %s\n", s_visual_bell         ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.urgentOnBell:       %s\n", s_urgent_on_bell      ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.mouseWheelScrollPage: %s\n", s_mouse_wheel_page  ? "true" : "false");
+#ifdef POINTER_BLANK
+  g_string_append_printf (block, "Exoterm.pointerBlank:       %s\n", s_pointer_blank       ? "true" : "false");
+#endif
+
+  if (s_active_font_xlfd && *s_active_font_xlfd)
+    g_string_append_printf (block, "Exoterm.font:              %s\n", s_active_font_xlfd);
+  if (s_active_bold_xlfd && *s_active_bold_xlfd)
+    g_string_append_printf (block, "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
+
+  if (first_term) {
+    char col[16];
+    color_to_hex (first_term, Color_fg, col);
+    g_string_append_printf (block, "Exoterm.foreground:        %s\n", col);
+    color_to_hex (first_term, Color_bg, col);
+    g_string_append_printf (block, "Exoterm.background:        %s\n", col);
+    for (int i = 0; i < 16; i++) {
+      color_to_hex (first_term, minCOLOR + i, col);
+      g_string_append_printf (block, "Exoterm.color%-2d:           %s\n", i, col);
+    }
+  }
+
+  g_string_append (block, XDEF_BLOCK_END "\n");
+
+  /* --- trim trailing blank lines before appending block --- */
+  while (out->len > 0) {
+    const char *last = (const char *) out->pdata[out->len - 1];
+    if (last[0] == '\0')
+      g_ptr_array_remove_index (out, out->len - 1);
+    else
+      break;
+  }
+
+  /* --- write file --- */
+  FILE *fw = fopen (path, "w");
+  if (fw) {
+    for (guint i = 0; i < out->len; i++)
+      fprintf (fw, "%s\n", (const char *) out->pdata[i]);
+    if (out->len > 0)
+      fputc ('\n', fw);
+    fputs (block->str, fw);
+    fclose (fw);
+  }
+
+  g_string_free (block, TRUE);
+  g_ptr_array_unref (out);
+}
+
+#undef XDEF_BLOCK_BEGIN
+#undef XDEF_BLOCK_END
+
 void
 rxvt_term::draw_settings_ui ()
 {
@@ -1241,6 +1485,13 @@ rxvt_term::draw_settings_ui ()
   }
 
   if (changed & CHANGED_APPLY) {
+    hide_settings_ui ();
+    return;
+  }
+
+  if (changed & CHANGED_SAVE) {
+    rxvt_term *t = rxvt_term::termlist.empty () ? nullptr : rxvt_term::termlist.front ();
+    save_to_xdefaults (t);
     hide_settings_ui ();
     return;
   }

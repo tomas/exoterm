@@ -222,7 +222,7 @@ rxvt_term::rxvt_term ()
 
   termlist.push_back (this);
   tab_index = termlist.size()-1;
-  printf("pushed new term instance. current term count: %d\n", tab_index);
+  // printf("pushed new term instance. current term count: %d\n", tab_index);
 
 #ifdef KEYSYM_RESOURCE
   keyboard = new keyboard_manager;

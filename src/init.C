@@ -749,6 +749,10 @@ rxvt_term::init_resources (int argc, const char *const *argv)
   set (display);
   extract_resources ();
 
+  /* wheelScrollLines has no optList entry; handle it manually */
+  if (const char *p = x_resource ("wheelScrollLines"))
+    if (*p) wheel_scroll_lines = atoi (p);
+
 #if ENABLE_FRILLS
   if (rs[Rs_visual])
     select_visual (strtol (rs[Rs_visual], 0, 0));
