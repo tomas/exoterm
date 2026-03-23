@@ -207,6 +207,7 @@ rxvt_term::rxvt_term ()
 #endif
   settings_ui_ev.set         <rxvt_term, &rxvt_term::x_settings_ui_cb> (this);
   settings_ui_refresh_ev.set <rxvt_term, &rxvt_term::settings_ui_refresh_cb> (this);
+  context_menu_ev.set        <rxvt_term, &rxvt_term::x_context_menu_cb> (this);
   wheel_scroll_lines = 5;
   bg_shading         = 20;
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);

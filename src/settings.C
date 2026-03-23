@@ -28,9 +28,60 @@ extern "C" {
 /* Current panel height — set dynamically to the parent window height. */
 static int s_panel_h = 600;
 
-/* --- microui context --- */
+/* --- renderer window tracking (shared by settings and context menu) --- */
+static bool   s_renderer_ok  = false;
+static Window s_renderer_win = None;
+
+static void s_switch_renderer (Window win, int w, int h) {
+  if (win != s_renderer_win) {
+    r_switch_window (win, w, h);
+    s_renderer_win = win;
+  }
+}
+
+/* --- microui context (settings panel) --- */
 static mu_Context *mu_ctx = nullptr;
 static int s_mousex = 0, s_mousey = 0;
+
+/* --- context menu --- */
+#define CM_W       220
+#define CM_ITEM_H   30
+#define CM_SEP_H     2   /* separator row height (thin line, no ABSOLUTE trick) */
+#define CM_PAD       8   /* matches mu default style padding */
+#define CM_SPC       6   /* matches mu default style spacing */
+
+static mu_Context  *mu_ctx_menu   = nullptr;
+static rxvt_term   *s_cm_invoker  = nullptr;
+
+enum {
+  CM_NONE = 0,
+  CM_NEW_TAB,
+  CM_NEW_WINDOW,
+  CM_SPLIT_H,
+  CM_SPLIT_V,
+  CM_CLOSE_SPLIT,
+  CM_COPY,
+  CM_PASTE,
+  CM_SHOW_SETTINGS,
+  CM_TOGGLE_MINIMAP,
+  CM_CLOSE_TAB,
+};
+
+/* Height of the context menu window based on state.
+   Formula: 2*CM_PAD + n_items*CM_ITEM_H + n_seps*CM_SEP_H + (n_rows-1)*CM_SPC
+   Items (no-split): New Tab, New Window, Copy, Paste, Split H, Split V,
+                     Show Settings, Close Tab = 8
+   Items (split):    same but (Split H + Split V) → Close Split = 7
+   Each +minimap adds 1 item and 1 separator. */
+static int cm_compute_h (bool has_split, bool has_minimap) {
+  int n_items = has_split ? 7 : 8;
+  if (has_minimap) n_items += 1;
+  int n_seps  = has_minimap ? 5 : 4;
+  return 2 * CM_PAD
+       + n_items * CM_ITEM_H
+       + n_seps  * CM_SEP_H
+       + (n_items + n_seps - 1) * CM_SPC;
+}
 
 /* --- live settings state --- */
 static float s_border_width  = 10.0f;
@@ -1257,25 +1308,30 @@ rxvt_term::show_settings_ui ()
       mu_ctx->font_height = font_height_cb;
     }
 
-    int res = r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
-    if (res != 0) {
-      printf("could not init renderer\n");
-      settings_ui_ev.stop (display);
-      XDestroyWindow (dpy, settings_ui.win);
-      settings_ui.win = None;
-      return;
+    if (!s_renderer_ok) {
+      int res = r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
+      if (res != 0) {
+        printf("could not init renderer\n");
+        settings_ui_ev.stop (display);
+        XDestroyWindow (dpy, settings_ui.win);
+        settings_ui.win = None;
+        return;
+      }
+      s_renderer_ok  = true;
+      s_renderer_win = settings_ui.win;
+    } else {
+      s_switch_renderer (settings_ui.win, panel_w, panel_h);
     }
 
   } else {
     /* Reusing existing windows: update size/position. */
-    r_update_context (dpy, settings_ui.win, settings_ui.gc);
     XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
     if (settings_ui.backdrop_buf != None)
       XFreePixmap (dpy, settings_ui.backdrop_buf);
       settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
 
     XMoveResizeWindow (dpy, settings_ui.win, panel_x, 0, panel_w, panel_h);
-    r_resize (panel_w, panel_h);
+    s_switch_renderer (settings_ui.win, panel_w, panel_h);
   }
 
   settings_ui.width    = panel_w;
@@ -1646,6 +1702,8 @@ rxvt_term::draw_settings_ui ()
 {
   if (!settings_ui.visible || !mu_ctx) return;
 
+  s_switch_renderer (settings_ui.win, settings_ui.width, settings_ui.height);
+
   mu_begin (mu_ctx);
   int changed = build_settings_window (mu_ctx);
   mu_end (mu_ctx);
@@ -1786,5 +1844,322 @@ rxvt_term::settings_ui_refresh_cb (ev::timer &w, int revents)
     draw_settings_ui ();
     XFlush (dpy);
     backdrop_refresh (this);
+  }
+}
+
+/* ======================================================================
+   Context menu — microui popup that appears on right-click
+   ====================================================================== */
+
+/* Build the context menu contents; returns the action id (CM_*) or CM_NONE. */
+static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
+{
+  int action = CM_NONE;
+  bool has_split = (t->split_partner != nullptr);
+
+  int opt = MU_OPT_NORESIZE | MU_OPT_NODRAG | MU_OPT_NOTITLE
+          | MU_OPT_NOFRAME | MU_OPT_NOSCROLL;
+
+  if (!mu_begin_window_ex (ctx, "##ctxmenu", mu_rect (0, 0, w, h), opt))
+    return CM_NONE;
+
+  int col[] = {-1};
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (mu_button_ex (ctx, "New Tab",    0, MU_OPT_BURIED))     action = CM_NEW_TAB;
+  if (mu_button_ex (ctx, "New Window", 0, MU_OPT_BURIED))     action = CM_NEW_WINDOW;
+
+  mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (mu_button_ex (ctx, "Copy",  0, MU_OPT_BURIED))          action = CM_COPY;
+  if (mu_button_ex (ctx, "Paste", 0, MU_OPT_BURIED))          action = CM_PASTE;
+
+  mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (has_split) {
+    if (mu_button_ex (ctx, "Close Split", 0, MU_OPT_BURIED))  action = CM_CLOSE_SPLIT;
+  } else {
+    if (mu_button_ex (ctx, "Split Horizontally", 0, MU_OPT_BURIED)) action = CM_SPLIT_H;
+    if (mu_button_ex (ctx, "Split Vertically",   0, MU_OPT_BURIED)) action = CM_SPLIT_V;
+  }
+
+  mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
+
+#ifdef ENABLE_MINIMAP
+  if (t->minimap.enabled) {
+    mu_menu_separator (ctx);
+    mu_layout_row (ctx, 1, col, CM_ITEM_H);
+    if (mu_button_ex (ctx, "Toggle Minimap", 0, MU_OPT_BURIED)) action = CM_TOGGLE_MINIMAP;
+  }
+#endif
+
+  mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (mu_button_ex (ctx, "Close Tab", 0, MU_OPT_BURIED))      action = CM_CLOSE_TAB;
+
+  mu_end_window (ctx);
+  return action;
+}
+
+void
+rxvt_term::show_context_menu (int x_root, int y_root, rxvt_term *invoker)
+{
+  /* Only the root term owns the context-menu window and microui context. */
+  if (this != termlist.at (0)) {
+    termlist.at (0)->show_context_menu (x_root, y_root, invoker);
+    return;
+  }
+
+  /* Don't overlap with the settings panel. */
+  if (settings_ui.visible) return;
+
+  /* Close any already-open context menu first. */
+  if (context_menu.visible) hide_context_menu ();
+
+  s_cm_invoker = invoker ? invoker : this;
+
+  bool has_split  = (s_cm_invoker->split_partner != nullptr);
+#ifdef ENABLE_MINIMAP
+  bool has_minimap = s_cm_invoker->minimap.enabled;
+#else
+  bool has_minimap = false;
+#endif
+  context_menu.w = CM_W;
+  context_menu.h = cm_compute_h (has_split, has_minimap);
+
+  /* Adjust so the window fits on-screen. */
+  int scr = DefaultScreen (dpy);
+  int sw  = DisplayWidth  (dpy, scr);
+  int sh  = DisplayHeight (dpy, scr);
+  context_menu.x = x_root;
+  context_menu.y = y_root;
+  if (context_menu.x + context_menu.w > sw) context_menu.x = sw - context_menu.w;
+  if (context_menu.y + context_menu.h > sh) context_menu.y = sh - context_menu.h;
+  if (context_menu.x < 0) context_menu.x = 0;
+  if (context_menu.y < 0) context_menu.y = 0;
+
+  if (context_menu.win == None) {
+    /* Create the popup window (override-redirect = no WM interference). */
+    XSetWindowAttributes attr = {};
+    attr.background_pixel  = BlackPixel (dpy, scr);
+    attr.border_pixel      = 0;
+    attr.colormap          = cmap;
+    attr.override_redirect = True;
+
+    context_menu.win = XCreateWindow (
+      dpy, DefaultRootWindow (dpy),
+      context_menu.x, context_menu.y, context_menu.w, context_menu.h, 0,
+      depth, InputOutput, visual,
+      CWBackPixel | CWBorderPixel | CWColormap | CWOverrideRedirect, &attr);
+
+    if (!context_menu.win) return;
+
+    context_menu.gc = XCreateGC (dpy, context_menu.win, 0, nullptr);
+    context_menu_ev.start (display, context_menu.win);
+
+    if (!mu_ctx_menu) {
+      mu_ctx_menu = (mu_Context *) malloc (sizeof (mu_Context));
+      mu_init (mu_ctx_menu);
+      mu_ctx_menu->text_width  = text_width_cb;
+      mu_ctx_menu->font_height = font_height_cb;
+    }
+
+    /* Initialize or switch the shared renderer to this window. */
+    if (!s_renderer_ok) {
+      r_init (dpy, context_menu.win, context_menu.gc, visual, depth,
+              context_menu.w, context_menu.h);
+      s_renderer_ok  = true;
+      s_renderer_win = context_menu.win;
+    } else {
+      s_switch_renderer (context_menu.win, context_menu.w, context_menu.h);
+    }
+
+  } else {
+    /* Reuse existing window — move/resize it. */
+    XMoveResizeWindow (dpy, context_menu.win,
+                       context_menu.x, context_menu.y,
+                       context_menu.w, context_menu.h);
+    s_switch_renderer (context_menu.win, context_menu.w, context_menu.h);
+  }
+
+  context_menu.visible = true;
+
+  XMapRaised (dpy, context_menu.win);
+
+  /* Grab the pointer so out-of-bounds clicks reach our window and close it. */
+  XGrabPointer (dpy, context_menu.win, False,
+                ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+
+  /* Warm up microui mouse position to avoid stale hover. */
+  mu_input_mousemove (mu_ctx_menu, context_menu.w / 2, context_menu.h / 2);
+
+  XFlush (dpy);
+  draw_context_menu ();
+}
+
+void
+rxvt_term::hide_context_menu ()
+{
+  if (!context_menu.visible) return;
+  context_menu.visible = false;
+
+  XUngrabPointer (dpy, CurrentTime);
+
+  if (context_menu.win != None)
+    XUnmapWindow (dpy, context_menu.win);
+
+  /* Reset microui so next open is clean. */
+  if (mu_ctx_menu) {
+    mu_init (mu_ctx_menu);
+    mu_ctx_menu->text_width  = text_width_cb;
+    mu_ctx_menu->font_height = font_height_cb;
+  }
+
+  s_cm_invoker = nullptr;
+
+  /* Return input focus to the active terminal pane. */
+  XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+  XFlush (dpy);
+}
+
+void
+rxvt_term::draw_context_menu ()
+{
+  if (!context_menu.visible || !mu_ctx_menu || !s_cm_invoker) return;
+
+  s_switch_renderer (context_menu.win, context_menu.w, context_menu.h);
+
+  mu_begin (mu_ctx_menu);
+  int action = build_context_menu (mu_ctx_menu, s_cm_invoker,
+                                   context_menu.w, context_menu.h);
+  mu_end (mu_ctx_menu);
+
+  r_clear (mu_color (0x2c, 0x2d, 0x30, 255));
+  render_mu (mu_ctx_menu);
+  r_present ();
+
+  if (action == CM_NONE) return;
+
+  /* An item was clicked — close first, then act. */
+  rxvt_term *t = s_cm_invoker;
+  hide_context_menu ();
+
+  switch (action) {
+    case CM_NEW_TAB:
+      t->new_tab ();
+      break;
+
+    case CM_NEW_WINDOW:
+      t->new_window ();
+      break;
+
+    case CM_COPY:
+      if (t->selection.len > 0) {
+        free (t->selection.clip_text);
+        t->selection.clip_text = (wchar_t *) malloc (
+          (t->selection.len + 1) * sizeof (wchar_t));
+        if (t->selection.clip_text) {
+          wmemcpy (t->selection.clip_text, t->selection.text, t->selection.len);
+          t->selection.clip_text[t->selection.len] = 0;
+          t->selection.clip_len = t->selection.len;
+          t->selection_grab (CurrentTime, true);
+        }
+      }
+      break;
+
+    case CM_PASTE:
+      t->selection_request (CurrentTime, Sel_Clipboard);
+      break;
+
+    case CM_SPLIT_H:
+      t->new_split_pane (false);
+      break;
+
+    case CM_SPLIT_V:
+      t->new_split_pane (true);
+      break;
+
+    case CM_CLOSE_SPLIT: {
+      /* Always destroy the child pane to restore single-pane view. */
+      rxvt_term *child = t->split_is_child ? t : t->split_partner;
+      if (child) child->close_tab ();
+      break;
+    }
+
+    case CM_SHOW_SETTINGS:
+      termlist.at (0)->show_settings_ui ();
+      break;
+
+#ifdef ENABLE_MINIMAP
+    case CM_TOGGLE_MINIMAP:
+      t->minimap.visible = !t->minimap.visible;
+      if (t->minimap.visible)
+        XMapWindow  (t->dpy, t->minimap.win);
+      else
+        XUnmapWindow (t->dpy, t->minimap.win);
+      break;
+#endif
+
+    case CM_CLOSE_TAB:
+      t->close_tab ();
+      break;
+  }
+}
+
+void
+rxvt_term::x_context_menu_cb (XEvent &xev)
+{
+  if (!mu_ctx_menu || !context_menu.visible) return;
+
+  static int cm_mx = 0, cm_my = 0;
+
+  switch (xev.type) {
+    case MotionNotify:
+      cm_mx = xev.xmotion.x;
+      cm_my = xev.xmotion.y;
+      mu_input_mousemove (mu_ctx_menu, cm_mx, cm_my);
+      draw_context_menu ();
+      break;
+
+    case ButtonPress:
+      cm_mx = xev.xbutton.x;
+      cm_my = xev.xbutton.y;
+
+      /* Click outside the menu bounds → dismiss. */
+      if (cm_mx < 0 || cm_mx >= context_menu.w ||
+          cm_my < 0 || cm_my >= context_menu.h) {
+        hide_context_menu ();
+        return;
+      }
+
+      if (xev.xbutton.button == Button1)
+        mu_input_mousedown (mu_ctx_menu, cm_mx, cm_my, MU_MOUSE_LEFT);
+      else if (xev.xbutton.button == Button3)
+        mu_input_mousedown (mu_ctx_menu, cm_mx, cm_my, MU_MOUSE_RIGHT);
+
+      draw_context_menu ();
+      break;
+
+    case ButtonRelease:
+      cm_mx = xev.xbutton.x;
+      cm_my = xev.xbutton.y;
+
+      if (xev.xbutton.button == Button1)
+        mu_input_mouseup (mu_ctx_menu, cm_mx, cm_my, MU_MOUSE_LEFT);
+      else if (xev.xbutton.button == Button3)
+        mu_input_mouseup (mu_ctx_menu, cm_mx, cm_my, MU_MOUSE_RIGHT);
+
+      draw_context_menu ();
+      break;
+
+    default:
+      break;
   }
 }

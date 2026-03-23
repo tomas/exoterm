@@ -325,6 +325,13 @@ struct settings_ui_t {
   int parent_w, parent_h; // cached parent size (for backdrop)
 };
 
+struct context_menu_t {
+  Window win;
+  GC     gc;
+  bool   visible;
+  int    x, y, w, h;
+};
+
 struct tabpopup_t {
     Window win;
     GC gc;
@@ -1445,6 +1452,13 @@ Pixmap icon_mask; //  = None;
   void x_settings_ui_cb (XEvent &xev);
   void settings_ui_refresh_cb (ev::timer &w, int revents);
 
+  context_menu_t context_menu;
+  xevent_watcher context_menu_ev;
+  void show_context_menu (int x_root, int y_root, rxvt_term *invoker);
+  void hide_context_menu ();
+  void draw_context_menu ();
+  void x_context_menu_cb (XEvent &xev);
+
   tabpopup_t tabpopup;
   xevent_watcher tabpopup_ev;
   ev::timer tabpopup_hide_ev;
@@ -1493,6 +1507,7 @@ Pixmap icon_mask; //  = None;
   void flush_cb (ev::timer &w, int revents); ev::timer flush_ev;
   size_t get_current_path(char * buf, int size);
   void new_tab ();
+  void new_window ();
   void new_split_pane (bool vertical);
   void split_focus_other ();
   void apply_split_geometry (int total_w, int total_h);

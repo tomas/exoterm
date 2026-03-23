@@ -2340,6 +2340,19 @@ void mu_end_context_menu(mu_Context * ctx) {
   mu_end_popup(ctx);
 }
 
+void mu_menu_separator(mu_Context *ctx) {
+  // mu_Container * cnt = mu_get_current_container(ctx);
+  // mu_Rect rect = mu_layout_next(ctx)
+  // mu_draw_box(ctx, mu_rect(rect.x, rect.y-2, rect.w, 1), ctx->style->colors[MU_COLOR_BORDER])
+  // rect.y = rect.y + 2
+  // mu_layout_set_next(ctx, rect)
+
+  int w[] = {-1};
+  mu_layout_row(ctx, 1, w, 2);
+  mu_Rect r = mu_layout_next(ctx);
+  mu_draw_box(ctx, mu_rect(r.x, r.y, r.w, 1), ctx->style->colors[MU_COLOR_BORDER]);
+}
+
 void mu_begin_panel_ex(mu_Context *ctx, const char *name, int opt) {
   mu_Container *cnt;
   mu_push_id(ctx, name, strlen(name));
