@@ -2257,12 +2257,14 @@ void mu_open_popup(mu_Context *ctx, const char *name) {
   ctx->hover = 0;
   ctx->hover_type = 0;
   ctx->focus = 0;
+  ctx->needs_redraw = 1;
   mu_bring_to_front(ctx, cnt);
 }
 
 void mu_close_popup(mu_Context *ctx, const char *name) {
   mu_Container *cnt = mu_get_container(ctx, name);
   cnt->open = 0;
+  ctx->needs_redraw = 1;
 
   // if (active_popup_id != 0) {
   //   mu_Id id = mu_get_id(ctx, name, strlen(name));
@@ -2402,11 +2404,34 @@ if (gs_gui_combo_begin(gui, "#snaps", "Snap", 3)) {
 int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item, int32_t max_items, int32_t opt) {
     opt = MU_OPT_NODRAG | MU_OPT_NORESIZE | MU_OPT_NOTITLE | MU_OPT_HIDE_ON_CLICK;
 
-    if (mu_button(ctx, current_item)) {
-        mu_open_popup(ctx, id);
+    /* Check popup open state without creating the container as a side effect.
+       mu_get_container / mu_is_popup_open would create a new container with
+       open=1 if the popup hasn't been seen yet, causing it to render open. */
+    mu_Id popup_id_val = mu_get_id(ctx, id, strlen(id));
+    mu_Container *popup_cnt_check = get_container(ctx, popup_id_val, MU_OPT_CLOSED);
+    int was_open = popup_cnt_check && popup_cnt_check->open && popup_cnt_check->rect.w > 0;
+
+    /* Toggle button: fire on mouse_pressed (mousedown) rather than mouse_up.
+       This opens the popup on the same frame as the click, so it renders
+       immediately.  It also avoids the mousedown-closes / mouseup-reopens
+       race: we check was_open and skip mu_open_popup when the popup is already
+       open (begin_window_ex will close it via the mouse_pressed path anyway).
+       mu_open_popup is called BEFORE drawing so the button renders in
+       normal/hover state rather than the pressed/focus state. */
+    mu_Id button_id = mu_get_id(ctx, current_item, strlen(current_item));
+    mu_Rect button_rect = mu_layout_next(ctx);
+    mu_update_control(ctx, button_id, button_rect, 0);
+    if (ctx->hover == button_id) ctx->hover_type = 1; /* button cursor */
+
+    if (!was_open && ctx->mouse_pressed == MU_MOUSE_LEFT && ctx->focus == button_id) {
+        mu_open_popup(ctx, id); /* also clears ctx->focus and ctx->hover */
     }
 
-    mu_Rect rect = ctx->last_rect;
+    /* draw after potential mu_open_popup so focus/hover reflect the new state */
+    mu_draw_control_frame(ctx, button_id, button_rect, MU_COLOR_BUTTON, 0);
+    mu_draw_control_text(ctx, current_item, button_rect, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER, 0, 0);
+
+    mu_Rect rect = button_rect;
     rect.y += rect.h;
 
 

@@ -499,6 +499,7 @@ enum {
   CHANGED_SAVE           = 1 << 28,
   CHANGED_APPLY          = 1 << 29,
   CHANGED_CANCEL         = 1 << 30,
+  CHANGED_CLOSE          = 1 << 31,
 };
 
 /* --- section header --- */
@@ -517,9 +518,13 @@ static int build_settings_window (mu_Context *ctx) {
   char *bold_display_name = nullptr;
   mu_Rect rect = mu_rect (0, 0, PANEL_WIDTH, s_panel_h);
 
-  int opt = MU_OPT_NOCLOSE | MU_OPT_NORESIZE | MU_OPT_NODRAG; //  | MU_OPT_NOINTERACT;
+  int opt = MU_OPT_NORESIZE | MU_OPT_NODRAG;
 
-  if (mu_begin_window_ex (ctx, "Settings", rect, opt)) {
+  if (!mu_begin_window_ex (ctx, "Settings", rect, opt)) {
+    /* window was closed via the X button */
+    return CHANGED_CLOSE;
+  }
+  if (true) {
     int lw = 120; /* label column width — tuned for PANEL_WIDTH 320 */
 
     // set container to match the window's height
@@ -1473,6 +1478,21 @@ rxvt_term::draw_settings_ui ()
   r_clear (mu_color (0x34, 0x35, 0x38, 255));
   render_mu (mu_ctx);
   r_present ();
+
+  /* If popup state changed this frame (opened/closed), kick the refresh
+     timer to fire immediately so the transition renders without waiting
+     up to ~33ms for the next scheduled tick. Equivalent to sokol's
+     sapp_wait_for_event(false) when needs_redraw is set. */
+  if (mu_ctx->needs_redraw) {
+    settings_ui_refresh_ev.stop ();
+    settings_ui_refresh_ev.set (0.0, 1.0 / 30.0);
+    settings_ui_refresh_ev.start ();
+  }
+
+  if (changed & CHANGED_CLOSE) {
+    destroy_settings_ui ();
+    return;
+  }
 
   if (changed & CHANGED_CANCEL) {
     restore_snapshot ();
