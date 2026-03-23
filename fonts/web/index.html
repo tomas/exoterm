@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitmap Font Previewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
     <style>
         :root {
             /* Default Theme (Material Dark) */
@@ -422,25 +421,295 @@
             margin-top: auto;
             transition: color 0.3s;
         }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        #header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #info-btn {
+            background: none; border: none;
+            color: var(--text-muted); cursor: pointer;
+            padding: 2px 4px; border-radius: 4px;
+            line-height: 1; font-size: 1rem;
+            transition: color 0.15s; flex-shrink: 0;
+            margin-left: auto;
+        }
+        #info-btn:hover { color: var(--accent); }
+
+        /* ── Styled range slider ────────────────────────────────── */
+        .scale-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .scale-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .scale-val {
+            font-size: 0.78rem;
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+            min-width: 16px;
+            text-align: right;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--border);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.1); }
+
+        /* ── Info modal ─────────────────────────────────────────── */
+        #modal-backdrop {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        #modal-backdrop.open { display: flex; }
+        #modal {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px; padding: 28px;
+            max-width: 460px; width: 100%;
+            position: relative;
+        }
+        #modal h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 14px; }
+        #modal p { font-size: 0.83rem; color: var(--text-muted); line-height: 1.65; margin-bottom: 10px; }
+        #modal p:last-of-type { margin-bottom: 0; }
+        #modal strong { color: var(--text-main); }
+        #modal a { color: var(--accent); text-decoration: none; }
+        #modal a:hover { text-decoration: underline; }
+        #modal-close {
+            position: absolute; top: 14px; right: 16px;
+            background: none; border: none; color: var(--text-muted);
+            font-size: 1.3rem; cursor: pointer; line-height: 1;
+            transition: color 0.15s;
+        }
+        #modal-close:hover { color: var(--text-main); }
+        .fmt-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
+        .fmt-tag {
+            font-size: 0.72rem; font-family: monospace;
+            background: var(--bg-color); border: 1px solid var(--border);
+            border-radius: 3px; padding: 2px 7px; color: var(--text-main);
+        }
+
+        /* ── Mobile select (replaces font list on small screens) ─── */
+        #font-select-mobile {
+            display: none;
+            width: 100%;
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 9px 12px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* ── Mobile filter collapse ─────────────────────────────── */
+        #filter-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0;
+            font-size: 0.75rem;
+            font-family: inherit;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: color 0.15s;
+            width: 100%;
+            justify-content: space-between;
+        }
+        #filter-toggle-btn:hover { color: var(--text-main); }
+        #filter-toggle-btn .toggle-chevron {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        #filter-toggle-btn.open .toggle-chevron {
+            transform: rotate(180deg);
+        }
+
+        #filter-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow: hidden;
+            transition: opacity 0.2s ease;
+        }
+        #filter-section.collapsed {
+            display: none;
+        }
+
+        /* ── Responsive ─────────────────────────────────────────── */
+        /* Mobile font bar — always-visible select + filter toggle */
+        /* Unused on mobile now */
+        #mobile-font-bar { display: none; }
+        #sidebar-backdrop { display: none; }
+        #sidebar-toggle { display: none; }
+
+        @media (max-width: 700px) {
+            /* Split-screen: sidebar top half, preview bottom half */
+            body {
+                flex-direction: column;
+                height: 100dvh;
+                overflow: hidden;
+            }
+
+            #sidebar {
+                width: 100%;
+                height: 50dvh;
+                flex-shrink: 0;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+                border-radius: 0;
+                padding: 12px 14px;
+                overflow-y: auto;
+                gap: 8px;
+                /* remove desktop transition interference */
+                transition: background-color 0.3s, border-color 0.3s;
+            }
+
+            /* Compact header on mobile */
+            #header { margin-bottom: 0; }
+            #header h1 { font-size: 1rem; }
+
+            /* Hide things that don't fit in the top half */
+            #sidebar > div[style*="display: none"],
+            #sidebar > .control-group,
+            #sidebar > div[style*="grid-template-columns"],
+            #sidebar > .status { display: none !important; }
+
+            /* Font browser fills remaining sidebar space */
+            .font-browser {
+                flex: 1 1 0;
+                min-height: 0;
+            }
+
+            /* Filters: same toggle behaviour on mobile, just tighter */
+            .filter-row label { font-size: 0.72rem; }
+
+            /* Compact pills */
+            .pill { padding: 3px 8px; font-size: 0.72rem; }
+            .pill-group { gap: 3px; margin-bottom: 4px; }
+
+            /* Font list — full width, tight rows */
+            #font-list { border-radius: 4px; }
+            .font-item { padding: 8px 10px; }
+
+            /* Bottom half: preview area */
+            #main {
+                flex: 1 1 0;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            #canvas-container {
+                flex: 1 1 0;
+                min-height: 0;
+                margin-left: 0;
+                overflow: auto;
+            }
+
+            /* View options: compact row along top of preview area */
+            .view-options {
+                position: absolute;
+                top: 8px; left: 8px; right: 8px;
+                min-width: 0;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 6px;
+                align-items: flex-start;
+            }
+            .view-options .control-group { flex: 1 1 120px; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- Info modal -->
+    <div id="modal-backdrop">
+        <div id="modal">
+            <button id="modal-close" aria-label="Close">&#x2715;</button>
+            <h2>pixelfonts</h2>
+            <p>A browser-based <strong>bitmap &amp; pixel font previewer</strong>. Browse, filter, preview, and export fonts — no install required.</p>
+            <p><strong>Supported formats</strong></p>
+            <div class="fmt-tags">
+                <span class="fmt-tag">.bdf</span>
+                <span class="fmt-tag">.pcf</span>
+                <span class="fmt-tag">.pcf.gz</span>
+                <span class="fmt-tag">.ttf</span>
+                <span class="fmt-tag">.otf</span>
+                <span class="fmt-tag">.fon</span>
+                <span class="fmt-tag">.fnt</span>
+            </div>
+            <p>Drop any supported font onto the page to load it. TTF/OTF fonts are automatically analyzed for pixel-perfect sizing — non-bitmap fonts are rejected.</p>
+            <p>Fonts can be <strong>exported as BDF or PCF</strong>, with optional embolden and scale transformations applied.</p>
+            <p>Font library sourced from <a href="https://github.com/Tecate/bitmap-fonts" target="_blank">Tecate/bitmap-fonts</a> and other open sources.</p>
+        </div>
+    </div>
+
     <div id="sidebar">
-        <h1>Bitmap fonts</h1>
+        <div id="header">
+            <h1>pixelfonts</h1>
+            <button id="info-btn" aria-label="About" title="About">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12.01" y2="8" stroke-width="3"/><line x1="12" y1="12" x2="12" y2="17"/></svg>
+            </button>
+        </div>
 
         <div class="font-browser">
-            <div class="filter-row">
-                <label>Width (px)</label>
-                <div class="pill-group" id="w-pills"></div>
+            <button id="filter-toggle-btn" aria-expanded="false">
+                <span>Filters</span>
+                <svg class="toggle-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div id="filter-section" class="collapsed">
+                <div class="filter-row">
+                    <label>Width (px)</label>
+                    <div class="pill-group" id="w-pills"></div>
+                </div>
+                <div class="filter-row">
+                    <label>Height (px)</label>
+                    <div class="pill-group" id="h-pills"></div>
+                </div>
             </div>
 
-            <div class="filter-row">
-                <label>Height (px)</label>
-                <div class="pill-group" id="h-pills"></div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label>Font</label>
                 <div id="font-count"></div>
             </div>
@@ -520,8 +789,11 @@
         <div id="canvas-container">
             <div class="view-options">
                 <div class="control-group">
-                    <label for="scale">Pixel Scale</label>
-                    <input type="range" id="scale" value="1" min="1" max="3">
+                    <div class="scale-row">
+                        <label for="scale">Scale</label>
+                        <input type="range" id="scale" value="1" min="1" max="3">
+                        <span class="scale-val" id="scale-val">1×</span>
+                    </div>
                 </div>
                 <div class="control-group">
                     <label>Preview Mode</label>
@@ -550,7 +822,7 @@
             </div>
             <canvas id="preview-canvas"></canvas>
         </div>
-        <div id="drop-overlay">Drop .bdf, .pcf, .ttf, .otf or .fon font here</div>
+        <div id="drop-overlay">Drop .bdf or .pcf font here</div>
     </div>
 
     <script>
@@ -1685,16 +1957,14 @@
         function renderFontList() {
             const filtered = getFilteredFonts();
             fontCount.textContent = filtered.length + ' / ' + FONT_DB.length + ' fonts';
-            fontList.innerHTML = '';
 
+            // Desktop list
+            fontList.innerHTML = '';
             for (const f of filtered) {
                 const item = document.createElement('div');
                 item.className = 'font-item' + (f.index === activeFontIndex ? ' active' : '');
                 var html = '<span class="font-name">' + f.name + '</span>';
-
-                if (f.w)
-                    html += '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
-
+                if (f.w) html += '<span class="font-dims">' + f.w + '×' + f.h + '</span>';
                 item.innerHTML = html;
                 item.addEventListener('click', () => { loadFontFromDB(f.index); fontList.focus(); });
                 fontList.appendChild(item);
@@ -1797,388 +2067,6 @@
         }
 
         themeSelect.addEventListener('change', e => applyTheme(e.target.value));
-
-        // =====================================================================
-        // TTF/OTF Parser → internal font structure
-        // =====================================================================
-        // Uses opentype.js to parse the font, then:
-        //   1. Runs the geometry analysis (GCD of coordinate steps) to find the
-        //      smallest pixel-perfect size — the size where every outline vertex
-        //      maps to an integer pixel coordinate.
-        //   2. Rasterizes each printable glyph at that size by drawing its path
-        //      onto a small canvas and thresholding to a 1-bit bitmap row array.
-        //   3. Packages everything into the same structure parseBDF produces.
-
-        function parseTTF(arrayBuffer) {
-            const otFont  = opentype.parse(arrayBuffer);
-            const upm     = otFont.unitsPerEm;
-            const ascPx_f = otFont.ascender;   // in font units
-            const dscPx_f = otFont.descender;  // in font units (negative)
-
-            // ── Step 1: find best pixel size via coordinate geometry ──────────
-            const allCoords = new Set();
-            for (let code = 33; code < 127; code++) {
-                const gi = otFont.charToGlyphIndex(String.fromCharCode(code));
-                if (!gi) continue;
-                const g = otFont.glyphs.get(gi);
-                if (!g) continue;
-                if (g.advanceWidth) allCoords.add(g.advanceWidth);
-                if (!g.path) continue;
-                for (const cmd of g.path.commands) {
-                    if (cmd.x  !== undefined) { allCoords.add(Math.abs(cmd.x));  allCoords.add(Math.abs(cmd.y)); }
-                    if (cmd.x1 !== undefined) { allCoords.add(Math.abs(cmd.x1)); allCoords.add(Math.abs(cmd.y1)); }
-                    if (cmd.x2 !== undefined) { allCoords.add(Math.abs(cmd.x2)); allCoords.add(Math.abs(cmd.y2)); }
-                }
-            }
-
-            const sorted = [...allCoords].filter(v => v > 0).sort((a, b) => a - b);
-            let gridUnit = upm; // fallback
-            if (sorted.length > 1) {
-                let minStep = Infinity;
-                for (let i = 1; i < sorted.length; i++) {
-                    const d = sorted[i] - sorted[i - 1];
-                    if (d > 0 && d < minStep) minStep = d;
-                }
-                if (isFinite(minStep)) gridUnit = minStep;
-            }
-
-            // Score each candidate pixel size (1–64): fraction of coordinates
-            // that land within 0.06px of an integer at that scale.
-            const EPSILON = 0.06;
-            let bestSize = 1, bestScore = -1;
-            for (let px = 1; px <= 64; px++) {
-                const scale = px / upm;
-                let total = 0, crisp = 0;
-                for (const coord of sorted) {
-                    const mapped = coord * scale;
-                    total++;
-                    if (Math.abs(mapped - Math.round(mapped)) <= EPSILON) crisp++;
-                }
-                const score = total > 0 ? crisp / total : 0;
-                if (score > bestScore) { bestScore = score; bestSize = px; }
-            }
-
-            // A genuine pixel/bitmap font scores close to 1.0 at its native size.
-            // Vector fonts have many off-grid coordinates and score ~0.1–0.2 even
-            // at their "best" size. Threshold: must score ≥ 0.85 within 1–32px.
-            const BITMAP_SCORE_THRESHOLD = 0.85;
-            const BITMAP_MAX_SIZE        = 32;
-            const bestInRange = (() => {
-                let bScore = 0, bSize = 0;
-                for (let px = 1; px <= BITMAP_MAX_SIZE; px++) {
-                    const scale = px / upm;
-                    let total = 0, crisp = 0;
-                    for (const coord of sorted) {
-                        const mapped = coord * scale;
-                        total++;
-                        if (Math.abs(mapped - Math.round(mapped)) <= EPSILON) crisp++;
-                    }
-                    const score = total > 0 ? crisp / total : 0;
-                    if (score > bScore) { bScore = score; bSize = px; }
-                }
-                return { score: bScore, size: bSize };
-            })();
-
-            if (bestInRange.score < BITMAP_SCORE_THRESHOLD) {
-                // alert("This doesn't look like a bitmap font.");
-                throw new Error(
-                    'Not a bitmap font — best grid-fit score within 1–32px is ' +
-                    (bestInRange.score * 100).toFixed(1) + '% (need ≥85%). ' +
-                    'Only pixel/bitmap TTF fonts are supported.'
-                );
-            }
-
-            const sizePx  = bestInRange.size;
-            const scale   = sizePx / upm;
-
-            // ── Step 2: rasterize each glyph ─────────────────────────────────
-            // ascender/descender in pixels at the chosen size
-            const ascPx  = Math.round(ascPx_f  * scale);
-            const dscPx  = Math.round(-dscPx_f * scale);  // descender is negative
-            const lineH  = ascPx + dscPx;
-
-            // Off-screen canvas for rasterizing — reused per glyph
-            const offCanvas = document.createElement('canvas');
-            offCanvas.height = lineH + 2;
-            const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-
-            function rasterizeGlyph(g) {
-                const advW  = Math.round((g.advanceWidth || upm) * scale);
-                const W     = Math.max(advW + 2, 1);
-                offCanvas.width = W;
-                offCtx.clearRect(0, 0, W, offCanvas.height);
-
-                // Draw path: font Y is up, canvas Y is down
-                // baseline = ascPx (pixels from canvas top)
-                if (g.path && g.path.commands && g.path.commands.length > 0) {
-                    offCtx.fillStyle = '#fff';
-                    offCtx.beginPath();
-                    for (const cmd of g.path.commands) {
-                        switch (cmd.type) {
-                            case 'M': offCtx.moveTo(cmd.x * scale,              ascPx - cmd.y  * scale); break;
-                            case 'L': offCtx.lineTo(cmd.x * scale,              ascPx - cmd.y  * scale); break;
-                            case 'Q': offCtx.quadraticCurveTo(
-                                cmd.x1 * scale, ascPx - cmd.y1 * scale,
-                                cmd.x  * scale, ascPx - cmd.y  * scale); break;
-                            case 'C': offCtx.bezierCurveTo(
-                                cmd.x1 * scale, ascPx - cmd.y1 * scale,
-                                cmd.x2 * scale, ascPx - cmd.y2 * scale,
-                                cmd.x  * scale, ascPx - cmd.y  * scale); break;
-                            case 'Z': offCtx.closePath(); break;
-                        }
-                    }
-                    offCtx.fill('evenodd');
-                }
-
-                // Threshold and convert to binary row strings
-                const imgData = offCtx.getImageData(0, 0, W, offCanvas.height);
-                const d       = imgData.data;
-                const bitmap  = [];
-                for (let row = 0; row < lineH; row++) {
-                    let rowStr = '';
-                    for (let col = 0; col < advW; col++) {
-                        rowStr += d[(row * W + col) * 4] > 127 ? '1' : '0';
-                    }
-                    bitmap.push(rowStr);
-                }
-
-                // Trim blank rows from bottom (descent might be zero for most glyphs)
-                // but keep full height so all glyphs align on the same baseline.
-                return bitmap;
-            }
-
-            // ── Step 3: build font object matching parseBDF output ────────────
-            const glyphs   = {};
-            let   maxW     = 0;
-            let   minBbxX  = 0;
-
-            for (let code = 0; code < 65536; code++) {
-                const gi = otFont.charToGlyphIndex(String.fromCharCode(code));
-                if (!gi) continue;
-                const g = otFont.glyphs.get(gi);
-                if (!g) continue;
-
-                const advW = Math.round((g.advanceWidth || upm) * scale);
-                if (advW === 0 && code > 32) continue;
-
-                // Compute ink bounding box from path commands
-                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                if (g.path && g.path.commands) {
-                    for (const cmd of g.path.commands) {
-                        const xs = [cmd.x, cmd.x1, cmd.x2].filter(v => v !== undefined);
-                        const ys = [cmd.y, cmd.y1, cmd.y2].filter(v => v !== undefined);
-                        for (const x of xs) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
-                        for (const y of ys) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
-                    }
-                }
-                const hasInk = isFinite(minX);
-                const bbxW   = hasInk ? Math.round((maxX - minX) * scale) : 0;
-                const bbxH   = lineH;
-                const bbxX   = hasInk ? Math.round(minX * scale) : 0;
-                // BDF bbx y = offset from baseline downward (negative = below baseline)
-                const bbxY   = hasInk ? -dscPx : 0;
-
-                const bitmap = (code === 32 || !hasInk) ? [] : rasterizeGlyph(g);
-
-                glyphs[code] = {
-                    encoding: code,
-                    charName: code >= 0x21 && code <= 0x7e
-                        ? String.fromCharCode(code)
-                        : 'uni' + code.toString(16).toUpperCase().padStart(4, '0'),
-                    dwidth:  advW,
-                    dwidth2: 0,
-                    swidth:  Math.round(advW / scale),
-                    swidth2: 0,
-                    bbx:     { w: Math.max(bbxW, advW), h: bbxH, x: bbxX, y: bbxY },
-                    bitmap,
-                };
-                if (advW > maxW) maxW = advW;
-            }
-
-            // Font display name
-            const nameRec  = otFont.names.fullName;
-            const fontName = nameRec ? (nameRec.en || Object.values(nameRec)[0]) : 'unknown';
-
-            return {
-                glyphs,
-                bounds:     { w: maxW, h: lineH, x: minBbxX, y: -dscPx },
-                ascent:     ascPx,
-                descent:    dscPx,
-                fontLine:   '-ttf-' + fontName.toLowerCase().replace(/\s+/g, '-') + '--' + sizePx,
-                sizeLine:   sizePx + ' 72 72',
-                properties: [
-                    'FONT_ASCENT '  + ascPx,
-                    'FONT_DESCENT ' + dscPx,
-                ],
-                _ttfSizePx: sizePx,   // keep for status message
-            };
-        }
-
-        // =====================================================================
-        // FON / FNT Parser
-        // =====================================================================
-        // FON = Windows NE (New Executable) container holding RT_FONT resources.
-        // Each resource is an FNT (Windows bitmap font) v2 or v3 structure.
-        // We parse the NE resource table to find all RT_FONT entries, then
-        // decode each FNT into our internal font structure.
-        // References: https://jeffpar.github.io/kbarchive/kb/065/Q65123/
-        //             Wine source: dlls/gdi32/freetype.c
-
-        function parseFNT(buf, offset) {
-            // buf = DataView over the whole file, offset = start of this FNT
-            const r = (off, size) => {
-                const abs = offset + off;
-                if (size === 1) return buf.getUint8(abs);
-                if (size === 2) return buf.getUint16(abs, true);
-                if (size === 4) return buf.getUint32(abs, true);
-            };
-
-            const version    = r(0x00, 2);
-            if (version !== 0x0200 && version !== 0x0300)
-                throw new Error('Unsupported FNT version: 0x' + version.toString(16));
-
-            const fntType    = r(0x42, 2);  // 0=bitmap
-            if (fntType & 1) throw new Error('Vector FNT not supported');
-
-            const pixHeight  = r(0x58, 2);
-            const pixWidth   = r(0x56, 2);  // 0 = proportional
-            const ascent     = r(0x4A, 2);
-            const firstChar  = r(0x5F, 1);
-            const lastChar   = r(0x60, 1);
-            const defaultCh  = r(0x61, 1);
-            const widthBytes = r(0x63, 2);  // bytes per row in the glyph bitmap
-
-            // Face name is a null-terminated string at dfFace offset
-            const faceOff    = r(0x69, 4);
-            let faceName     = '';
-            if (faceOff > 0) {
-                let i = offset + faceOff;
-                const raw = new Uint8Array(buf.buffer);
-                while (i < raw.length && raw[i] !== 0) faceName += String.fromCharCode(raw[i++]);
-            }
-
-            // Bitmap data starts at dfBitsOffset
-            const bitsOff    = r(0x71, 4);
-
-            // Glyph table immediately follows the header.
-            // v2: WORD width + WORD offset  per char
-            // v3: WORD width + DWORD offset per char
-            const glyphEntrySize = version === 0x0300 ? 6 : 4;
-            const glyphTableOff  = 0x76; // for v2; same for v3
-            const numGlyphs      = lastChar - firstChar + 2; // +1 sentinel
-
-            const glyphs   = {};
-            let   maxW     = 0;
-            const descent  = pixHeight - ascent;
-
-            for (let i = 0; i < numGlyphs; i++) {
-                const entOff   = glyphTableOff + i * glyphEntrySize;
-                const charW    = r(entOff, 2);
-                const glyphOff = version === 0x0300 ? r(entOff + 2, 4) : r(entOff + 2, 2);
-
-                const code = firstChar + i;
-                if (code > lastChar) break; // sentinel
-                if (charW === 0) continue;
-
-                // The FNT bitmap is stored column-major: columns of pixHeight bits,
-                // each column padded to whole bytes, grouped widthBytes wide per row.
-                // Glyph bitmap: charW columns × pixHeight rows, stored column by column.
-                const raw = new Uint8Array(buf.buffer);
-                const absGlyphOff = offset + bitsOff + glyphOff;
-
-                // Build bitmap rows (binary strings)
-                const bitmap = [];
-                const colBytes = Math.ceil(pixHeight / 8); // bytes per column
-                for (let row = 0; row < pixHeight; row++) {
-                    let rowStr = '';
-                    for (let col = 0; col < charW; col++) {
-                        // Column-major: each column is colBytes bytes
-                        const byteIdx = absGlyphOff + col * colBytes + Math.floor(row / 8);
-                        const bitIdx  = 7 - (row % 8);
-                        const byte    = byteIdx < raw.length ? raw[byteIdx] : 0;
-                        rowStr += (byte >> bitIdx) & 1;
-                    }
-                    bitmap.push(rowStr);
-                }
-
-                glyphs[code] = {
-                    encoding: code,
-                    charName: code >= 0x21 && code <= 0x7e
-                        ? String.fromCharCode(code)
-                        : String(code),
-                    dwidth: charW, dwidth2: 0,
-                    swidth: 0,     swidth2: 0,
-                    bbx: { w: charW, h: pixHeight, x: 0, y: -descent },
-                    bitmap,
-                };
-                if (charW > maxW) maxW = charW;
-            }
-
-            return {
-                glyphs,
-                bounds:     { w: maxW || pixWidth || 8, h: pixHeight, x: 0, y: -descent },
-                ascent,
-                descent,
-                fontLine:   '-fon-' + faceName.toLowerCase().replace(/\s+/g,'-') + '--' + pixHeight,
-                sizeLine:   pixHeight + ' 96 96',
-                properties: ['FONT_ASCENT ' + ascent, 'FONT_DESCENT ' + descent],
-                _fntFaceName: faceName,
-                _fntHeight:   pixHeight,
-            };
-        }
-
-        function parseFON(arrayBuffer) {
-            const buf = new DataView(arrayBuffer);
-            const raw = new Uint8Array(arrayBuffer);
-
-            // Check MZ signature (DOS header)
-            if (buf.getUint16(0, true) !== 0x5A4D)  // 'MZ'
-                throw new Error('Not a valid FON/NE file (missing MZ header)');
-
-            // Offset to NE header is at 0x3C in the DOS stub
-            const neOff = buf.getUint32(0x3C, true);
-
-            // Check NE signature
-            const neSig = buf.getUint16(neOff, true);
-            if (neSig !== 0x454E)  // 'NE'
-                throw new Error('Not a NE executable (got 0x' + neSig.toString(16) + '). PE FON not yet supported.');
-
-            // Resource table offset (relative to NE header)
-            const resTableOff = neOff + buf.getUint16(neOff + 0x24, true);
-
-            // Alignment shift count
-            const alignShift  = buf.getUint16(resTableOff, true);
-            let   pos         = resTableOff + 2;
-
-            // Walk resource type blocks
-            const fnts = [];
-            while (true) {
-                const typeId = buf.getUint16(pos, true);
-                if (typeId === 0) break; // end of resource table
-                const count  = buf.getUint16(pos + 2, true);
-                pos += 8; // skip typeId, count, reserved
-
-                for (let i = 0; i < count; i++) {
-                    const dataOff  = buf.getUint16(pos,     true) << alignShift;
-                    const dataLen  = buf.getUint16(pos + 2, true) << alignShift;
-                    pos += 12; // each entry is 12 bytes
-
-                    // RT_FONT = 0x8008
-                    if (typeId === 0x8008 && dataOff > 0 && dataLen > 0) {
-                        try {
-                            fnts.push(parseFNT(buf, dataOff));
-                        } catch(e) { /* skip bad entries */ }
-                    }
-                }
-            }
-
-            if (fnts.length === 0)
-                throw new Error('No bitmap font resources found in FON file');
-
-            // If multiple sizes, pick the smallest
-            fnts.sort((a, b) => a._fntHeight - b._fntHeight);
-            return fnts[0];
-        }
 
         // =====================================================================
         // BDF Parser
@@ -2993,52 +2881,32 @@
                 };
                 reader.readAsArrayBuffer(file);
 
-            } else if (name.endsWith('.ttf') || name.endsWith('.otf') ||
-                       name.endsWith('.woff') || name.endsWith('.woff2')) {
-                reader.onload = (ev) => {
-                    try {
-                        statusMsg.innerText = 'Analyzing ' + file.name + '…';
-                        currentFont = parseTTF(ev.target.result);
-                        setFontLoaded(file.name);
-                        const px = currentFont._ttfSizePx;
-                        statusMsg.innerText = `Loaded TTF: ${file.name} (best size: ${px}px)`;
-                        activeFontIndex = -1; renderFontList();
-                        renderText();
-                    } catch (err) {
-                        statusMsg.innerText = `Error parsing TTF: ${err.message}`;
-                        alert('Invalid or non bitmap font');
-                        console.error(err);
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-
-            } else if (name.endsWith('.fon') || name.endsWith('.fnt')) {
-                reader.onload = (ev) => {
-                    try {
-                        currentFont = parseFON(ev.target.result);
-                        setFontLoaded(file.name);
-                        const h = currentFont._fntHeight;
-                        const fn = currentFont._fntFaceName || file.name;
-                        statusMsg.innerText = `Loaded FON: ${fn} (${h}px)`;
-                        activeFontIndex = -1; renderFontList();
-                        renderText();
-                    } catch (err) {
-                        statusMsg.innerText = `Error parsing FON: ${err.message}`;
-                        console.error(err);
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-
             } else {
-                statusMsg.innerText = 'Unsupported file. Drop a .bdf, .pcf, .ttf, .otf, or .fon file.';
+                statusMsg.innerText = 'Unsupported file. Drop a .bdf or .pcf file.';
             }
         });
 
         // =====================================================================
         // Init
         // =====================================================================
+        // ── Filter toggle ─────────────────────────────────────────────────────
+        const filterToggleBtn = document.getElementById('filter-toggle-btn');
+        const filterSection   = document.getElementById('filter-section');
+
+        function setFiltersOpen(open) {
+            filterSection.classList.toggle('collapsed', !open);
+            filterToggleBtn.classList.toggle('open', open);
+            filterToggleBtn.setAttribute('aria-expanded', String(open));
+        }
+
+        filterToggleBtn.addEventListener('click', () => {
+            setFiltersOpen(filterSection.classList.contains('collapsed'));
+        });
+
         applyTheme('default');
         refreshPills();
+        // Expanded by default on wide screens, collapsed on mobile
+        setFiltersOpen(window.innerWidth > 600);
         var count = renderFontList();
 
         var match = (location.hash || '').match(/#(\d+)/);
@@ -3048,6 +2916,27 @@
             var random = Math.floor(Math.random() * count);
             loadFontFromDB(random);
         }
+
+        // ── Scale value display ───────────────────────────────────────────────
+        const scaleValEl = document.getElementById('scale-val');
+        function updateScaleVal() {
+            scaleValEl.textContent = scaleInput.value + '×';
+        }
+        scaleInput.addEventListener('input', updateScaleVal);
+        updateScaleVal();
+
+        // ── Info modal ────────────────────────────────────────────────────────
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        document.getElementById('info-btn').addEventListener('click',
+            () => modalBackdrop.classList.add('open'));
+        document.getElementById('modal-close').addEventListener('click',
+            () => modalBackdrop.classList.remove('open'));
+        modalBackdrop.addEventListener('click', e => {
+            if (e.target === modalBackdrop) modalBackdrop.classList.remove('open');
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') modalBackdrop.classList.remove('open');
+        });
     </script>
     <script src="index.js"></script>
 </body>
