@@ -2133,6 +2133,19 @@ void rxvt_term::close_tab () {
   destroy();
 }
 
+void rxvt_term::new_window () {
+  if (fork () == 0) {
+    setsid ();
+    char exe[4096];
+    ssize_t len = readlink ("/proc/self/exe", exe, sizeof (exe) - 1);
+    if (len > 0) {
+      exe[len] = '\0';
+      execl (exe, exe, (char *) nullptr);
+    }
+    _exit (1);
+  }
+}
+
 // Apply half-size geometry to the two panes of a split.
 // Called with the total available pixel dimensions (root->szHint.width/height).
 // `this` must be the PRIMARY (non-child) pane.
@@ -3921,11 +3934,17 @@ rxvt_term::button_press (XButtonEvent &ev)
                 break;
 
               case Button3:
-                if (MEvent.button == Button3 && clickintime)
-                  selection_rotate (ev.x, ev.y);
-                else
-                  selection_extend (ev.x, ev.y, 1);
-
+                if (ev.state & ShiftMask) {
+                  /* Shift+Button3 preserves old selection-extend behaviour. */
+                  if (MEvent.button == Button3 && clickintime)
+                    selection_rotate (ev.x, ev.y);
+                  else
+                    selection_extend (ev.x, ev.y, 1);
+                } else {
+                  /* Plain right-click → context menu. */
+                  rxvt_term *root = termlist.at (0);
+                  root->show_context_menu (ev.x_root, ev.y_root, this);
+                }
                 MEvent.button = Button3;
                 break;
             }
