@@ -54,6 +54,12 @@ static int   s_pending_scheme     = -1;
 static int   s_active_font        = -1;
 static int   s_pending_font       = -1;
 static char *s_active_font_xlfd   = nullptr;
+static int   s_login_shell        = 0;
+static int   s_skip_builtin_glyphs = 0;
+static int   s_transparent        = 0;
+static int   s_auto_copy_sel      = 1;
+static char  s_cursor_color[16]   = "";
+static char  s_geometry[32]       = "";
 
 /* ======================================================================
    Snapshot — saved on open, restored on Cancel
@@ -67,6 +73,9 @@ struct settings_snapshot_t {
   char  colors[18][16]; /* "[alpha]#rrggbb\0" for fg, bg, ANSI 0-15 */
   char *font;          /* owned copy of rs[Rs_font], may be NULL */
   int   active_scheme, active_font;
+  int   login_shell, skip_builtin_glyphs, transparent, auto_copy_sel;
+  char  cursor_color[16];
+  char  geometry[32];
 };
 
 static settings_snapshot_t s_snapshot = {};
@@ -100,6 +109,12 @@ static void save_snapshot (rxvt_term *t) {
   s_snapshot.pointer_blank      = s_pointer_blank;
   s_snapshot.active_scheme      = s_active_scheme;
   s_snapshot.active_font        = s_active_font;
+  s_snapshot.login_shell        = s_login_shell;
+  s_snapshot.skip_builtin_glyphs = s_skip_builtin_glyphs;
+  s_snapshot.transparent        = s_transparent;
+  s_snapshot.auto_copy_sel      = s_auto_copy_sel;
+  memcpy (s_snapshot.cursor_color, s_cursor_color, sizeof (s_cursor_color));
+  memcpy (s_snapshot.geometry,     s_geometry,     sizeof (s_geometry));
 
   color_to_hex (t, Color_fg, s_snapshot.colors[0]);
   color_to_hex (t, Color_bg, s_snapshot.colors[1]);
@@ -497,6 +512,12 @@ enum {
   CHANGED_COLOR_SCHEME   = 1 << 17,
   CHANGED_FONT           = 1 << 18,
   CHANGED_BOLD_FONT      = 1 << 19,
+  CHANGED_LOGIN_SHELL         = 1 << 20,
+  CHANGED_SKIP_BUILTIN_GLYPHS = 1 << 21,
+  CHANGED_TRANSPARENT         = 1 << 22,
+  CHANGED_AUTO_COPY_SEL       = 1 << 23,
+  CHANGED_CURSOR_COLOR        = 1 << 24,
+  CHANGED_GEOMETRY            = 1 << 25,
   CHANGED_SAVE           = 1 << 28,
   CHANGED_APPLY          = 1 << 29,
   CHANGED_CANCEL         = 1 << 30,
@@ -544,6 +565,9 @@ static int build_settings_window (mu_Context *ctx) {
     mu_label (ctx, "Line spacing:", 0);
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
+    mu_label (ctx, "Geometry:", 0);
+    if (mu_textbox (ctx, s_geometry, sizeof (s_geometry)) & MU_RES_CHANGE)
+      changed |= CHANGED_GEOMETRY;
 
     /* ---- Color Scheme ---- */
     section_header (ctx, "Color Scheme");
@@ -648,6 +672,9 @@ static int build_settings_window (mu_Context *ctx) {
     mu_label (ctx, "Underline:", 0);
     if (mu_checkbox (ctx, "##cul", &s_cursor_underline) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_UL;
+    mu_label (ctx, "Color:", 0);
+    if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
+      changed |= CHANGED_CURSOR_COLOR;
 
     /* ---- Scrolling ---- */
     section_header (ctx, "Scrolling");
@@ -689,16 +716,47 @@ static int build_settings_window (mu_Context *ctx) {
     if (mu_checkbox (ctx, "##pblank", &s_pointer_blank) & MU_RES_CHANGE)
       changed |= CHANGED_PTR_BLANK;
 
+    /* ---- Terminal ---- */
+    section_header (ctx, "Terminal");
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+    mu_label (ctx, "Login shell:", 0);
+    if (mu_checkbox (ctx, "##lshell", &s_login_shell) & MU_RES_CHANGE)
+      changed |= CHANGED_LOGIN_SHELL;
+    mu_label (ctx, "Auto-copy sel:", 0);
+    if (mu_checkbox (ctx, "##acopy", &s_auto_copy_sel) & MU_RES_CHANGE)
+      changed |= CHANGED_AUTO_COPY_SEL;
+#ifdef BUILTIN_GLYPHS
+    mu_label (ctx, "Skip builtins:", 0);
+    if (mu_checkbox (ctx, "##sbg", &s_skip_builtin_glyphs) & MU_RES_CHANGE)
+      changed |= CHANGED_SKIP_BUILTIN_GLYPHS;
+#endif
+#ifdef HAVE_BG_PIXMAP
+    mu_label (ctx, "Transparent:", 0);
+    if (mu_checkbox (ctx, "##transp", &s_transparent) & MU_RES_CHANGE)
+      changed |= CHANGED_TRANSPARENT;
+#endif
 
-    /* ---- Buttons ---- */
-    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 10); }
+    /* ---- Bottom spacer (reserves room so content scrolls above buttons) ---- */
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 32); }
     mu_label (ctx, "", 0);
-    // { int c[] = {-160, -80, -1}; mu_layout_row (ctx, 3, c, 0); }
-    { int c[] = {-200, 60, 60, 60}; mu_layout_row (ctx, 4, c, 0); }
-    mu_label (ctx, "", 0);
-    if (mu_button (ctx, "Cancel")) changed |= CHANGED_CANCEL;
-    if (mu_button (ctx, "Apply"))  changed |= CHANGED_APPLY;
-    if (mu_button (ctx, "Save"))   changed |= CHANGED_SAVE;
+
+    /* ---- Buttons — pinned to bottom via absolute positioning ---- */
+    {
+      int btn_h = ctx->style->size.y + ctx->style->padding * 2;
+      int btn_w = 60;
+      int spc   = ctx->style->spacing;
+      int pad   = ctx->style->padding;
+      int y     = s_panel_h - btn_h - pad;
+      int x3    = PANEL_WIDTH - (pad * 3) - btn_w;
+      int x2    = x3 - spc - btn_w;
+      int x1    = x2 - spc - btn_w;
+      mu_layout_set_next (ctx, mu_rect (x1, y, btn_w, btn_h), 0);
+      if (mu_button (ctx, "Cancel")) changed |= CHANGED_CANCEL;
+      mu_layout_set_next (ctx, mu_rect (x2, y, btn_w, btn_h), 0);
+      if (mu_button (ctx, "Apply"))  changed |= CHANGED_APPLY;
+      mu_layout_set_next (ctx, mu_rect (x3, y, btn_w, btn_h), 0);
+      if (mu_button (ctx, "Save"))   changed |= CHANGED_SAVE;
+    }
 
     mu_end_window (ctx);
   }
@@ -902,6 +960,28 @@ static void apply_settings (int changed) {
     if (changed & CHANGED_PTR_BLANK)
       t->set_option (Opt_pointerBlank, s_pointer_blank);
 #endif
+    if (changed & CHANGED_LOGIN_SHELL)
+      t->set_option (Opt_loginShell, s_login_shell);
+    if (changed & CHANGED_AUTO_COPY_SEL)
+      t->set_option (Opt_autoCopySelection, s_auto_copy_sel);
+#ifdef BUILTIN_GLYPHS
+    if (changed & CHANGED_SKIP_BUILTIN_GLYPHS) {
+      t->set_option (Opt_skipBuiltinGlyphs, s_skip_builtin_glyphs);
+      t->set_fonts ();
+      t->scr_remap_chars ();
+    }
+#endif
+#ifdef HAVE_BG_PIXMAP
+    if (changed & CHANGED_TRANSPARENT) {
+      t->set_option (Opt_transparent, s_transparent);
+      t->bg_init ();
+      t->bg_render ();
+    }
+#endif
+    if (changed & CHANGED_CURSOR_COLOR) {
+      if (s_cursor_color[0])
+        t->set_window_color (Color_cursor, s_cursor_color);
+    }
   }
 }
 
@@ -924,6 +1004,12 @@ static void restore_snapshot () {
   s_mouse_wheel_page   = s_snapshot.mouse_wheel_page;
   s_pointer_blank      = s_snapshot.pointer_blank;
   s_active_scheme      = s_snapshot.active_scheme;
+  s_login_shell        = s_snapshot.login_shell;
+  s_skip_builtin_glyphs = s_snapshot.skip_builtin_glyphs;
+  s_transparent        = s_snapshot.transparent;
+  s_auto_copy_sel      = s_snapshot.auto_copy_sel;
+  memcpy (s_cursor_color, s_snapshot.cursor_color, sizeof (s_cursor_color));
+  memcpy (s_geometry,     s_snapshot.geometry,     sizeof (s_geometry));
 
   free(s_active_font_xlfd);
   s_active_font_xlfd = s_snapshot.font ? strdup(s_snapshot.font) : nullptr;
@@ -937,7 +1023,8 @@ static void restore_snapshot () {
             CHANGED_SAVE_LINES | CHANGED_CURSOR_UL | CHANGED_SCROLLBAR |
             CHANGED_SCROLL_OUTPUT | CHANGED_SCROLL_KEY | CHANGED_JUMP_SCROLL |
             CHANGED_VISUAL_BELL | CHANGED_URGENT_BELL | CHANGED_WHEEL_PAGE |
-            CHANGED_PTR_BLANK;
+            CHANGED_PTR_BLANK | CHANGED_LOGIN_SHELL | CHANGED_AUTO_COPY_SEL |
+            CHANGED_SKIP_BUILTIN_GLYPHS | CHANGED_TRANSPARENT | CHANGED_CURSOR_COLOR;
   apply_settings (all);
 
   for (rxvt_term *t : rxvt_term::termlist) {
@@ -972,6 +1059,33 @@ static void read_settings_from_term (rxvt_term *t) {
 #ifdef POINTER_BLANK
   s_pointer_blank      = t->option (Opt_pointerBlank)         ? 1 : 0;
 #endif
+  s_login_shell        = t->option (Opt_loginShell)           ? 1 : 0;
+  s_auto_copy_sel      = t->option (Opt_autoCopySelection)    ? 1 : 0;
+#ifdef BUILTIN_GLYPHS
+  s_skip_builtin_glyphs = t->option (Opt_skipBuiltinGlyphs)  ? 1 : 0;
+#endif
+#ifdef HAVE_BG_PIXMAP
+  s_transparent        = t->option (Opt_transparent)          ? 1 : 0;
+#endif
+
+  /* cursor color */
+  {
+    char cc[16] = "";
+#ifndef NO_CURSORCOLOR
+    if (t->rs[Rs_color + Color_cursor])
+      snprintf (cc, sizeof (cc), "%s", t->rs[Rs_color + Color_cursor]);
+    else
+      color_to_hex (t, Color_cursor, cc);
+#endif
+    memcpy (s_cursor_color, cc, sizeof (s_cursor_color));
+  }
+
+  /* geometry: prefer stored rs[Rs_geometry], else derive from current size */
+  if (t->rs[Rs_geometry] && t->rs[Rs_geometry][0])
+    snprintf (s_geometry, sizeof (s_geometry), "%s", t->rs[Rs_geometry]);
+  else
+    snprintf (s_geometry, sizeof (s_geometry), "%dx%d", t->ncol, t->nrow);
+
   free(s_active_font_xlfd);
   s_active_font_xlfd = t->rs[Rs_font] ? strdup(t->rs[Rs_font]) : nullptr;
 
@@ -1385,6 +1499,8 @@ static const char *s_managed_keys[] = {
   "font", "boldFont", "foreground", "background",
   "color0",  "color1",  "color2",  "color3",  "color4",  "color5",  "color6",  "color7",
   "color8",  "color9",  "color10", "color11", "color12", "color13", "color14", "color15",
+  "loginShell", "geometry", "cursorColor", "skipBuiltinGlyphs",
+  "inheritPixmap", "transparent", "autoCopySelection",
   nullptr
 };
 
@@ -1469,6 +1585,20 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     g_string_append_printf (block, "Exoterm.font:              %s\n", s_active_font_xlfd);
   if (s_active_bold_xlfd && *s_active_bold_xlfd)
     g_string_append_printf (block, "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
+
+  g_string_append_printf (block, "Exoterm.loginShell:         %s\n", s_login_shell     ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel   ? "true" : "false");
+#ifdef BUILTIN_GLYPHS
+  g_string_append_printf (block, "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
+#endif
+#ifdef HAVE_BG_PIXMAP
+  g_string_append_printf (block, "Exoterm.inheritPixmap:      %s\n", s_transparent     ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.transparent:        %s\n", s_transparent     ? "true" : "false");
+#endif
+  if (s_cursor_color[0])
+    g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
+  if (s_geometry[0])
+    g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
 
   if (first_term) {
     char col[16];
