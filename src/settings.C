@@ -1434,11 +1434,12 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     if (strcmp (line, XDEF_BLOCK_END)   == 0) { in_block = false; continue; }
     if (in_block) continue;
 
-    if (line_matches_managed_key (line))
-      g_ptr_array_add (out, g_strdup_printf ("! %s", line));
-    else
+    // if (line_matches_managed_key (line))
+    //   g_ptr_array_add (out, g_strdup_printf ("! %s", line));
+    // else
       g_ptr_array_add (out, g_strdup (line));
   }
+
   g_ptr_array_unref (lines);
 
   /* --- build the new managed block --- */
