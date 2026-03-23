@@ -1374,8 +1374,8 @@ rxvt_term::destroy_settings_ui ()
    - Appends a fresh managed block at the end of the file
    ====================================================================== */
 
-#define XDEF_BLOCK_BEGIN "! --- BEGIN Exoterm settings-ui ---"
-#define XDEF_BLOCK_END   "! --- END Exoterm settings-ui ---"
+#define XDEF_BLOCK_BEGIN "! --- BEGIN Exoterm settings ---"
+#define XDEF_BLOCK_END   "! --- END Exoterm settings ---"
 
 static const char *s_managed_keys[] = {
   "internalBorder", "shading", "lineSpace", "letterSpace", "saveLines",
