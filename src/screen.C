@@ -4288,11 +4288,11 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
       rend_t r = OVERLAY_RSTYLE;
 
       if (y == 0)
-        t0 = 0x2554, t1 = 0x2550, t2 = 0x2557;
+        t0 = 0x2580, t1 = 0x2580, t2 = 0x2580;
       else if (y < h - 1)
-        t0 = 0x2551, t1 = 0x0020, t2 = 0x2551;
+        t0 = 0x0020, t1 = 0x0020, t2 = 0x0020;
       else
-        t0 = 0x255a, t1 = 0x2550, t2 = 0x255d;
+        t0 = 0x2584, t1 = 0x2584, t2 = 0x2584;
 
       *tp++ = t0;
       *rp++ = r;

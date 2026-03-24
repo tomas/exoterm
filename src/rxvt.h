@@ -534,7 +534,7 @@ enum {
 #define RS_attrMask             ((rend_t) (RS_baseattrMask | RS_fontMask))
 
 #define DEFAULT_RSTYLE  (RS_None | (Color_fg    << RS_fgShift) | (Color_bg     << RS_bgShift))
-#define OVERLAY_RSTYLE  (RS_None | (Color_Black << RS_fgShift) | (Color_Yellow << RS_bgShift))
+#define OVERLAY_RSTYLE  (RS_None | (Color_Black << RS_fgShift) | (Color_Cyan << RS_bgShift))
 
 enum {
   C0_NUL = 0x00,
