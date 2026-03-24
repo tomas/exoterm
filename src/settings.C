@@ -499,7 +499,16 @@ static void init_font_list(Display *dpy) {
     }
   }
 
-  if (s_active_font >= 0 && s_active_font < s_num_fonts) {
+  if (s_active_bold_xlfd) {
+    /* Explicit bold font set — find it in the list (don't auto-detect). */
+    for (int i = 0; i < s_num_fonts; i++) {
+      if (strcmp(s_font_entries[i].xlfd, s_active_bold_xlfd) == 0) {
+        s_active_bold_font = i;
+        break;
+      }
+    }
+  } else if (s_active_font >= 0 && s_active_font < s_num_fonts) {
+    /* No explicit bold — auto-detect from the regular font. */
     char *bold = bold_xlfd(s_font_entries[s_active_font].xlfd);
     if (bold) {
       int bold_idx = find_bold_font_idx(bold);
@@ -507,10 +516,6 @@ static void init_font_list(Display *dpy) {
         s_active_bold_font = bold_idx;
         free(s_active_bold_xlfd);
         s_active_bold_xlfd = strdup(bold);
-      } else {
-        s_active_bold_font = -1;
-        free(s_active_bold_xlfd);
-        s_active_bold_xlfd = nullptr;
       }
       free(bold);
     }
@@ -1163,6 +1168,8 @@ static void read_settings_from_term (rxvt_term *t) {
   free(s_active_font_xlfd);
   s_active_font_xlfd = t->rs[Rs_font] ? strdup(t->rs[Rs_font]) : nullptr;
 
+  free(s_active_bold_xlfd);
+  s_active_bold_xlfd = t->rs[Rs_boldFont] ? strdup(t->rs[Rs_boldFont]) : nullptr;
   /* Detect which (if any) named scheme matches the terminal's current colors. */
   auto rgb_of = [&](int cidx) -> const char * {
     /* color_to_hex produces "#rrggbb" or "[n]#rrggbb" — we only need the "#..." part */
@@ -1535,28 +1542,35 @@ rxvt_term::destroy_settings_ui ()
       XDestroyWindow (dpy, settings_ui.backdrop_win);
       settings_ui.backdrop_win = None;
     }
+    /* Detach renderer before destroying the window it's bound to, so that
+       r_switch_window() won't try to XRenderFreePicture a stale picture ID
+       after the window is gone (which causes RenderBadPicture). */
+    if (s_renderer_ok && s_renderer_win == settings_ui.win) {
+      r_detach ();
+      s_renderer_win = None;
+    }
     XDestroyWindow (dpy, settings_ui.win);
     settings_ui.win = None;
 
     if (mu_ctx) { free (mu_ctx); mu_ctx = nullptr; }
+
+    for (int i = 0; i < s_num_fonts; i++) {
+      free (s_font_entries[i].name);
+      free (s_font_entries[i].xlfd);
+    }
+    free (s_font_entries);
+    s_font_entries = nullptr;
+    s_num_fonts = 0;
+    free(s_active_font_xlfd);
+    s_active_font_xlfd = nullptr;
+    s_active_font = -1;
+    s_pending_font = -1;
+    free(s_active_bold_xlfd);
+    s_active_bold_xlfd = nullptr;
+    s_active_bold_font = -1;
+    s_pending_bold_font = -1;
   }
   settings_ui.visible = false;
-
-  for (int i = 0; i < s_num_fonts; i++) {
-    free (s_font_entries[i].name);
-    free (s_font_entries[i].xlfd);
-  }
-  free (s_font_entries);
-  s_font_entries = nullptr;
-  s_num_fonts = 0;
-  free(s_active_font_xlfd);
-  s_active_font_xlfd = nullptr;
-  s_active_font = -1;
-  s_pending_font = -1;
-  free(s_active_bold_xlfd);
-  s_active_bold_xlfd = nullptr;
-  s_active_bold_font = -1;
-  s_pending_bold_font = -1;
 }
 
 /* ======================================================================
@@ -2050,6 +2064,37 @@ rxvt_term::hide_context_menu ()
   /* Return input focus to the active terminal pane. */
   XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
   XFlush (dpy);
+}
+
+void
+rxvt_term::destroy_context_menu ()
+{
+  /* Only meaningful on the root term (the only one that owns context_menu.win). */
+  if (context_menu.win == None) return;
+
+  context_menu_ev.stop (display);
+
+  if (context_menu.visible) {
+    XUngrabPointer (dpy, CurrentTime);
+    context_menu.visible = false;
+  }
+
+  s_cm_invoker = nullptr;
+
+  if (mu_ctx_menu) { free (mu_ctx_menu); mu_ctx_menu = nullptr; }
+
+  if (context_menu.gc != None) {
+    XFreeGC (dpy, context_menu.gc);
+    context_menu.gc = None;
+  }
+
+  if (s_renderer_ok && s_renderer_win == context_menu.win) {
+    r_detach ();
+    s_renderer_win = None;
+  }
+
+  XDestroyWindow (dpy, context_menu.win);
+  context_menu.win = None;
 }
 
 void

@@ -249,6 +249,17 @@ rxvt_term::~rxvt_term ()
   termlist.erase (find (termlist.begin(), termlist.end(), this));
   // printf("destroying term instance. current term count: %d\n", termlist.size());
 
+  /* Context menu cleanup:
+     - If we ARE the root (context_menu.win != None): fully destroy the context
+       menu window and stop the event watcher so callbacks don't fire on freed memory.
+     - If we are NOT the root: tell the root to hide the context menu in case
+       this tab was s_cm_invoker, preventing a dangling pointer from being
+       dereferenced in draw_context_menu(). */
+  if (context_menu.win != None)
+    destroy_context_menu ();
+  else if (!termlist.empty ())
+    termlist.at (0)->hide_context_menu ();
+
   // Destroy the split divider bar (owned by primary pane only)
   if (split_bar_win != None && display)
     destroy_split_bar ();

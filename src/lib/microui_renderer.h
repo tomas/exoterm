@@ -8,6 +8,9 @@
 int r_init(Display *display, Window window, GC context, Visual *visual, int depth, int width, int height);
 /* Update the display/window/GC without touching the pixel buffer or image. */
 void r_update_context(Display *display, Window window, GC context);
+/* Detach the renderer from its current window (free window_picture, set win=None).
+   Call before destroying the window the renderer is bound to. */
+void r_detach(void);
 /* Switch the renderer to a different window, recreating XRender pictures. */
 void r_switch_window(Window new_win, int width, int height);
 void r_draw_rect(mu_Rect rect, mu_Color color);

@@ -137,6 +137,14 @@ void r_update_context(Display * display, Window window, GC context) {
   gc = context;
 }
 
+void r_detach(void) {
+  if (window_picture) {
+    XRenderFreePicture(dpy, window_picture);
+    window_picture = None;
+  }
+  win = None;
+}
+
 void r_switch_window(Window new_win, int width, int height) {
   if (window_picture) {
     XRenderFreePicture(dpy, window_picture);

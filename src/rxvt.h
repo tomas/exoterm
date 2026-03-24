@@ -1456,6 +1456,7 @@ Pixmap icon_mask; //  = None;
   xevent_watcher context_menu_ev;
   void show_context_menu (int x_root, int y_root, rxvt_term *invoker);
   void hide_context_menu ();
+  void destroy_context_menu ();
   void draw_context_menu ();
   void x_context_menu_cb (XEvent &xev);
 
