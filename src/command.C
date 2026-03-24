@@ -916,6 +916,14 @@ rxvt_term::key_press (XKeyEvent &ev)
             if (stop) return;
           }
 
+          if (keysym == XK_Escape && !termlist.empty ()) {
+            rxvt_term *root = termlist.at (0);
+            if (root->context_menu.visible) {
+              root->hide_context_menu ();
+              return;
+            }
+          }
+
           switch (keysym) {
 #ifndef NO_BACKSPACE_KEY
               case XK_BackSpace:
