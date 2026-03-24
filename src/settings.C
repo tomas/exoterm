@@ -21,6 +21,9 @@ extern "C" {
 
 #include <sys/stat.h>
 #include <algorithm>
+#if XFT
+# include <fontconfig/fontconfig.h>
+#endif
 
 /* Panel sits flush on the right edge, full parent height. */
 #define PANEL_WIDTH 320
@@ -106,6 +109,17 @@ static int   s_pending_scheme     = -1;
 static int   s_active_font        = -1;
 static int   s_pending_font       = -1;
 static char *s_active_font_xlfd   = nullptr;
+#if XFT
+static int   s_use_xft            = 0;
+struct xft_font_entry_t { char *name; char *spec; };
+static xft_font_entry_t *s_xft_font_entries  = nullptr;
+static int   s_num_xft_fonts      = 0;
+static int   s_active_xft_font    = -1;
+static int   s_pending_xft_font   = -1;
+static int   s_active_xft_bold_font  = -1;
+static int   s_pending_xft_bold_font = -1;
+static float s_xft_font_size_f       = 12.0f;
+#endif
 static int   s_login_shell        = 0;
 static int   s_skip_builtin_glyphs = 0;
 static int   s_transparent        = 0;
@@ -320,7 +334,7 @@ static const color_scheme_t color_schemes[] = {
 static const int NUM_SCHEMES = (int)(sizeof (color_schemes) / sizeof (color_schemes[0]));
 
 /* ======================================================================
-   Font list — loaded dynamically from ~/.local/share/exoterm/fonts
+   Font list — loaded dynamically from ~/.local/share/fonts/exoterm
    ====================================================================== */
 struct font_entry_t {
   char *name;
@@ -465,9 +479,22 @@ static void ensure_font_dir(Display *dpy, const char *dir) {
   system(cmd);
   g_free(cmd);
 
-  cmd = g_strdup_printf("xset +fp '%s'; xset fp rehash 2>/dev/null", dir);
-  system(cmd);
-  g_free(cmd);
+  /* Only add to X font path when the directory actually contains fonts. */
+  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
+  char *fdir_contents = NULL;
+  gsize fdir_len = 0;
+  bool has_fonts = false;
+  if (g_file_get_contents(fdir_path, &fdir_contents, &fdir_len, NULL)) {
+    has_fonts = atoi(fdir_contents) > 0;
+    g_free(fdir_contents);
+  }
+  g_free(fdir_path);
+
+  if (has_fonts) {
+    cmd = g_strdup_printf("xset +fp '%s'; xset fp rehash 2>/dev/null", dir);
+    system(cmd);
+    g_free(cmd);
+  }
 }
 
 static void init_font_list(Display *dpy) {
@@ -479,14 +506,14 @@ static void init_font_list(Display *dpy) {
   s_font_entries = nullptr;
   s_num_fonts = 0;
 
-  char *user_dir = g_build_filename(g_get_user_data_dir(), "fonts", "bitmap", NULL);
+  char *user_dir = g_build_filename(g_get_user_data_dir(), "fonts", "exoterm", NULL);
   ensure_font_dir(dpy, user_dir);
   scan_fonts_dir(user_dir);
   g_free(user_dir);
 
   if (s_num_fonts == 0) {
     s_font_entries = (font_entry_t *)calloc(1, sizeof(font_entry_t));
-    s_font_entries[0].name = strdup("(no fonts in .local/share/fonts/bitmap)");
+    s_font_entries[0].name = strdup("(no fonts in .local/share/fonts/exoterm)");
     s_font_entries[0].xlfd = strdup("fixed");
     s_num_fonts = 1;
   }
@@ -522,6 +549,101 @@ static void init_font_list(Display *dpy) {
     }
   }
 }
+
+#if XFT
+/* Re-scan s_active_font_xlfd / s_active_bold_xlfd against the already-built list.
+   Matching: the entry spec must be a prefix of the content after "xft:", followed
+   by ':' or end-of-string (so "Input Mono" matches "Input Mono:pixelsize=14" but
+   not "Input Mono Bold:…"). */
+static void find_xft_active_fonts () {
+  s_active_xft_font = -1;
+  s_active_xft_bold_font = -1;
+
+  auto match = [&] (const char *xlfd) -> int {
+    if (!xlfd || strncmp (xlfd, "xft:", 4) != 0) return -1;
+    const char *content = xlfd + 4;
+    for (int i = 0; i < s_num_xft_fonts; i++) {
+      int slen = (int)strlen (s_xft_font_entries[i].spec);
+      if (strncmp (content, s_xft_font_entries[i].spec, slen) == 0
+          && (content[slen] == '\0' || content[slen] == ':'))
+        return i;
+    }
+    return -1;
+  };
+
+  s_active_xft_font      = match (s_active_font_xlfd);
+  s_active_xft_bold_font = match (s_active_bold_xlfd);
+}
+
+/* Build the XFT font list from fontconfig (expensive — called once then cached). */
+static void init_xft_font_list () {
+  if (s_num_xft_fonts > 0) {
+    /* List already built — just re-match the active fonts. */
+    find_xft_active_fonts ();
+    return;
+  }
+
+  FcPattern   *pat = FcPatternCreate ();
+  FcPatternAddInteger (pat, FC_SPACING, FC_MONO);
+  FcObjectSet *os  = FcObjectSetBuild (FC_FAMILY, FC_STYLE, NULL);
+  FcFontSet   *fs  = FcFontList (NULL, pat, os);
+  FcPatternDestroy (pat);
+  FcObjectSetDestroy (os);
+  if (!fs) return;
+
+  /* Collect (family, style) pairs; deduplicate by spec string. */
+  struct raw_entry { char *name; char *spec; };
+  raw_entry *raw = (raw_entry *) calloc (fs->nfont, sizeof (raw_entry));
+  int n = 0;
+  for (int i = 0; i < fs->nfont; i++) {
+    FcChar8 *fam = NULL, *sty = NULL;
+    if (FcPatternGetString (fs->fonts[i], FC_FAMILY, 0, &fam) != FcResultMatch)
+      continue;
+    FcPatternGetString (fs->fonts[i], FC_STYLE, 0, &sty);
+
+    const char *style = sty ? (const char *)sty : "Regular";
+    bool is_regular   = strcmp (style, "Regular") == 0;
+
+    char name_buf[512], spec_buf[512];
+    if (is_regular)
+      snprintf (name_buf, sizeof (name_buf), "%s", (char *)fam);
+    else
+      snprintf (name_buf, sizeof (name_buf), "%s %s", (char *)fam, style);
+
+    if (is_regular)
+      snprintf (spec_buf, sizeof (spec_buf), "%s", (char *)fam);
+    else
+      snprintf (spec_buf, sizeof (spec_buf), "%s:style=%s", (char *)fam, style);
+
+    raw[n].name = strdup (name_buf);
+    raw[n].spec = strdup (spec_buf);
+    n++;
+  }
+  FcFontSetDestroy (fs);
+
+  /* Sort by display name. */
+  std::sort (raw, raw + n, [] (const raw_entry &a, const raw_entry &b) {
+    return strcmp (a.name, b.name) < 0;
+  });
+
+  /* Deduplicate by spec. */
+  s_xft_font_entries = (xft_font_entry_t *) calloc (n, sizeof (xft_font_entry_t));
+  for (int i = 0; i < n; i++) {
+    bool dup = i > 0 && strcmp (raw[i].spec, raw[i - 1].spec) == 0;
+    if (!dup) {
+      s_xft_font_entries[s_num_xft_fonts].name = raw[i].name;
+      s_xft_font_entries[s_num_xft_fonts].spec = raw[i].spec;
+      s_num_xft_fonts++;
+    } else {
+      free (raw[i].name);
+      free (raw[i].spec);
+    }
+  }
+  free (raw);
+
+  find_xft_active_fonts ();
+}
+#endif
 
 /* --- microui callbacks --- */
 static int text_width_cb (mu_Font font, const char *text, int len) {
@@ -575,6 +697,10 @@ enum {
   CHANGED_AUTO_COPY_SEL       = 1 << 23,
   CHANGED_CURSOR_COLOR        = 1 << 24,
   CHANGED_GEOMETRY            = 1 << 25,
+#if XFT
+  CHANGED_XFT_FONT            = 1 << 26,
+  CHANGED_XFT_BOLD_FONT       = 1 << 27,
+#endif
   CHANGED_SAVE           = 1 << 28,
   CHANGED_APPLY          = 1 << 29,
   CHANGED_CANCEL         = 1 << 30,
@@ -704,11 +830,23 @@ static int build_settings_window (mu_Context *ctx) {
 #endif
 
     /* ---- Fonts ---- */
+#if XFT
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+    input_label (ctx, "Use XFT fonts");
+    {
+      int prev = s_use_xft;
+      mu_checkbox (ctx, NULL, &s_use_xft);
+      if (s_use_xft && !prev && s_num_xft_fonts == 0)
+        init_xft_font_list ();
+    }
+
+    if (!s_use_xft) {
+#endif
     input_label (ctx, "Main Font");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     font_display_name = (s_active_font == -1)
-      ? xlfd_to_name (s_active_font_xlfd)  /* loaded font not in list, derive a display name */
+      ? xlfd_to_name (s_active_font_xlfd)
       : nullptr;
     const char *current = (s_active_font != -1)
       ? s_font_entries[s_active_font].name
@@ -754,6 +892,59 @@ static int build_settings_window (mu_Context *ctx) {
       }
       mu_end_combo(ctx);
     }
+#if XFT
+    } else { /* s_use_xft */
+    input_label (ctx, "Main Font");
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+
+    const char *xft_cur = (s_active_xft_font >= 0 && s_active_xft_font < s_num_xft_fonts)
+      ? s_xft_font_entries[s_active_xft_font].name : "Choose one";
+    if (mu_begin_combo_ex(ctx, "##xftfonts", xft_cur, s_num_xft_fonts * 34, 0)) {
+      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+      for (int i = 0; i < s_num_xft_fonts; i++) {
+        char label[128];
+        snprintf (label, sizeof (label), "%s%s",
+            (s_active_xft_font == i) ? ">  " : "   ", s_xft_font_entries[i].name);
+        if (mu_button (ctx, label)) {
+          s_pending_xft_font = i;
+          changed |= CHANGED_XFT_FONT;
+          mu_close_popup (ctx, "##xftfonts");
+        }
+      }
+      mu_end_combo (ctx);
+    }
+
+    input_label (ctx, "Bold Font");
+
+    const char *xft_bold_cur = (s_active_xft_bold_font >= 0 && s_active_xft_bold_font < s_num_xft_fonts)
+      ? s_xft_font_entries[s_active_xft_bold_font].name : "Auto-detect";
+    if (mu_begin_combo_ex(ctx, "##xftboldfonts", xft_bold_cur, s_num_xft_fonts * 34, 0)) {
+      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+      if (mu_button (ctx, "   Auto-detect (from main font)")) {
+        s_pending_xft_bold_font = -1;
+        changed |= CHANGED_XFT_BOLD_FONT;
+        mu_close_popup (ctx, "##xftboldfonts");
+      }
+      for (int i = 0; i < s_num_xft_fonts; i++) {
+        char label[128];
+        snprintf (label, sizeof (label), "%s%s",
+            (s_active_xft_bold_font == i) ? ">  " : "   ", s_xft_font_entries[i].name);
+        if (mu_button (ctx, label)) {
+          s_pending_xft_bold_font = i;
+          changed |= CHANGED_XFT_BOLD_FONT;
+          mu_close_popup (ctx, "##xftboldfonts");
+        }
+      }
+      mu_end_combo (ctx);
+    }
+
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+    input_label (ctx, "Size (px)");
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+    if (float_slider (ctx, &s_xft_font_size_f, 8.0f, 32.0f, 1.0f, "%.0f") & MU_RES_CHANGE)
+      changed |= CHANGED_XFT_FONT;
+    } /* end s_use_xft */
+#endif
 
     /* ---- Cursor ---- */
     section_header (ctx, "Cursor & selection");
@@ -981,6 +1172,53 @@ static void apply_settings (int changed) {
     s_pending_bold_font = -1;
   }
 
+#if XFT
+  if (changed & CHANGED_XFT_FONT) {
+    int idx = s_pending_xft_font >= 0 ? s_pending_xft_font : s_active_xft_font;
+    if (idx >= 0 && idx < s_num_xft_fonts) {
+      char xlfd[512];
+      int sz = (int) s_xft_font_size_f;
+      if (sz > 0)
+        snprintf (xlfd, sizeof (xlfd), "xft:%s:pixelsize=%d", s_xft_font_entries[idx].spec, sz);
+      else
+        snprintf (xlfd, sizeof (xlfd), "xft:%s", s_xft_font_entries[idx].spec);
+      for (rxvt_term *t : rxvt_term::termlist) {
+        Window root;
+        unsigned int w, h, bw, d;
+        XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
+        replace_rs_str (t, Rs_font, xlfd);
+        t->set_fonts ();
+        XResizeWindow(t->dpy, t->parent, w, h);
+      }
+      free (s_active_font_xlfd);
+      s_active_font_xlfd = strdup (xlfd);
+      s_active_xft_font = idx;
+      s_active_font = -1;
+    }
+    s_pending_xft_font = -1;
+  }
+
+  if (changed & CHANGED_XFT_BOLD_FONT) {
+    int idx = s_pending_xft_bold_font;
+    char xlfd[512] = "";
+    if (idx >= 0 && idx < s_num_xft_fonts)
+      snprintf (xlfd, sizeof (xlfd), "xft:%s", s_xft_font_entries[idx].spec);
+    for (rxvt_term *t : rxvt_term::termlist) {
+      Window root;
+      unsigned int w, h, bw, d;
+      XGetGeometry(t->dpy, t->parent, &root, &t->window_vt_x, &t->window_vt_y, &w, &h, &bw, &d);
+      replace_rs_str (t, Rs_boldFont, xlfd[0] ? xlfd : nullptr);
+      t->set_fonts ();
+      XResizeWindow(t->dpy, t->parent, w, h);
+    }
+    free (s_active_bold_xlfd);
+    s_active_bold_xlfd = xlfd[0] ? strdup (xlfd) : nullptr;
+    s_active_xft_bold_font = idx >= 0 ? idx : -1;
+    s_active_bold_font = -1;
+    s_pending_xft_bold_font = -1;
+  }
+#endif
+
   for (rxvt_term *t : rxvt_term::termlist) {
     if (changed & CHANGED_BORDER) {
       t->int_bwidth = (int) s_border_width;
@@ -1097,6 +1335,11 @@ static void restore_snapshot () {
   s_active_bold_xlfd = nullptr;
   s_active_bold_font = -1;
 
+#if XFT
+  s_use_xft = (s_active_font_xlfd && strncmp (s_active_font_xlfd, "xft:", 4) == 0) ? 1 : 0;
+  find_xft_active_fonts ();
+#endif
+
   int all = CHANGED_BORDER | CHANGED_SCROLL | CHANGED_CURSOR_BLINK |
             CHANGED_SHADING | CHANGED_LINE_SPACE | CHANGED_LETTER_SPACE |
             CHANGED_SAVE_LINES | CHANGED_CURSOR_UL | CHANGED_SCROLLBAR |
@@ -1171,6 +1414,20 @@ static void read_settings_from_term (rxvt_term *t) {
 
   free(s_active_bold_xlfd);
   s_active_bold_xlfd = t->rs[Rs_boldFont] ? strdup(t->rs[Rs_boldFont]) : nullptr;
+
+#if XFT
+  s_use_xft = (s_active_font_xlfd && strncmp (s_active_font_xlfd, "xft:", 4) == 0) ? 1 : 0;
+  s_xft_font_size_f = 12.0f;
+  if (s_active_font_xlfd) {
+    const char *ps = strstr (s_active_font_xlfd, ":pixelsize=");
+    if (!ps) ps = strstr (s_active_font_xlfd, ":size=");
+    if (ps) {
+      ps = strchr (ps, '=') + 1;
+      float v = (float) atof (ps);
+      if (v >= 1.0f) s_xft_font_size_f = v;
+    }
+  }
+#endif
 
   /* Detect which (if any) named scheme matches the terminal's current colors. */
   auto rgb_of = [&](int cidx) -> const char * {
@@ -1373,6 +1630,10 @@ rxvt_term::show_settings_ui ()
 
   read_settings_from_term (this);
   init_font_list(dpy);
+#if XFT
+  if (s_use_xft)
+    init_xft_font_list ();
+#endif
 
   save_snapshot (this);
 
@@ -1571,6 +1832,19 @@ rxvt_term::destroy_settings_ui ()
     s_active_bold_xlfd = nullptr;
     s_active_bold_font = -1;
     s_pending_bold_font = -1;
+#if XFT
+    for (int i = 0; i < s_num_xft_fonts; i++) {
+      free (s_xft_font_entries[i].name);
+      free (s_xft_font_entries[i].spec);
+    }
+    free (s_xft_font_entries);
+    s_xft_font_entries = nullptr;
+    s_num_xft_fonts = 0;
+    s_active_xft_font = -1;
+    s_pending_xft_font = -1;
+    s_active_xft_bold_font = -1;
+    s_pending_xft_bold_font = -1;
+#endif
   }
   settings_ui.visible = false;
 }
