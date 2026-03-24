@@ -6427,11 +6427,7 @@ rxvt_term::tt_write_user_input (const char *data, unsigned int len)
     return;
 
   if (option (Opt_scrollTtyKeypress))
-    if (view_start)
-      {
-        view_start = 0;
-        want_refresh = 1;
-      }
+    scr_changeview (0);
 
   tt_write_ (data, len);
 }
