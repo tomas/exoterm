@@ -928,6 +928,12 @@ struct line_t
 
 /****************************************************************************/
 
+// string terminator for OSC/DCS sequences (BEL, 8-bit ST, or 7-bit ST = ESC \)
+struct string_term
+{
+  char v[3]; // actual terminator bytes, NUL-terminated
+};
+
 // primitive wrapper around mbstate_t to ensure initialisation
 struct mbstate
 {
@@ -1632,11 +1638,11 @@ Pixmap icon_mask; //  = None;
   void process_escape_seq ();
   void process_csi_seq ();
   void process_window_ops (const int *args, unsigned int nargs);
-  char *get_to_st (unicode_t &ends_how);
+  char *get_to_st (string_term &st);
   void process_dcs_seq ();
   void process_osc_seq ();
-  void process_color_seq (int report, int color, const char *str, char resp);
-  void process_xterm_seq (int op, char *str, char resp);
+  void process_color_seq (int report, int color, const char *str, string_term &st);
+  void process_xterm_seq (int op, char *str, string_term &st);
   unsigned int map_rgb24_color (unsigned int r, unsigned int g, unsigned int b, unsigned int a);
   int privcases (int mode, unsigned long bit);
   void process_terminal_mode (int mode, int priv, unsigned int nargs, const int *arg);
