@@ -479,14 +479,14 @@ static void init_font_list(Display *dpy) {
   s_font_entries = nullptr;
   s_num_fonts = 0;
 
-  char *user_dir = g_build_filename(g_get_user_data_dir(), "exoterm", "fonts", NULL);
+  char *user_dir = g_build_filename(g_get_user_data_dir(), "fonts", "bitmap", NULL);
   ensure_font_dir(dpy, user_dir);
   scan_fonts_dir(user_dir);
   g_free(user_dir);
 
   if (s_num_fonts == 0) {
     s_font_entries = (font_entry_t *)calloc(1, sizeof(font_entry_t));
-    s_font_entries[0].name = strdup("(no fonts — see ~/.local/share/exoterm/fonts)");
+    s_font_entries[0].name = strdup("(no fonts in .local/share/fonts/bitmap)");
     s_font_entries[0].xlfd = strdup("fixed");
     s_num_fonts = 1;
   }
