@@ -3103,12 +3103,43 @@ rxvt_term::x_minimap_cb (XEvent &ev)
           minimap.visible = false;
           XUnmapWindow (dpy, minimap.win);
       } else if (ev.xbutton.button == Button4 || ev.xbutton.button == Button5) {
-        int lines;
-        page_dirn dirn;
-        dirn = ev.xbutton.button == Button4 ? UP : DN;
-        lines = nrow - 1;
-        scr_page (dirn, lines);
-        // scrollBar.show (1);
+        if (ev.xbutton.state & ControlMask) {
+          // Ctrl + scroll wheel: navigate between prompt markers
+          if (ev.xbutton.button == Button4) {
+            // Ctrl + scroll up → previous prompt marker
+            for (int r = view_start - 1; r >= top_row; r--) {
+              line_t &l = ROW(r);
+              if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+                scr_changeview (r);
+                want_refresh = 1;
+                break;
+              }
+            }
+          } else {
+            // Ctrl + scroll down → next prompt marker
+            bool found = false;
+            for (int r = view_start + 1; r < nrow; r++) {
+              line_t &l = ROW(r);
+              if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+                scr_changeview (r);
+                want_refresh = 1;
+                found = true;
+                break;
+              }
+            }
+            if (!found) {
+              scr_changeview (screen.cur.row);
+              want_refresh = 1;
+            }
+          }
+        } else {
+          int lines;
+          page_dirn dirn;
+          dirn = ev.xbutton.button == Button4 ? UP : DN;
+          lines = nrow - 1;
+          scr_page (dirn, lines);
+          // scrollBar.show (1);
+        }
       }
 
       break;
