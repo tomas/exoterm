@@ -76,8 +76,9 @@ enum {
 static int cm_compute_h (bool has_split, bool has_minimap) {
   int n_items = has_split ? 7 : 8;
   if (has_minimap) n_items += 1;
-  int n_seps  = has_minimap ? 5 : 4;
-  return 2 * CM_PAD
+  // int n_seps  = has_minimap ? 5 : 4;
+  int n_seps  = 4;
+  return CM_PAD
        + n_items * CM_ITEM_H
        + n_seps  * CM_SEP_H
        + (n_items + n_seps - 1) * CM_SPC;
@@ -759,7 +760,7 @@ static int build_settings_window (mu_Context *ctx) {
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
 
     input_label (ctx, "Autocopy selection");
-    if (mu_checkbox (ctx, "##acopy", &s_auto_copy_sel) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_auto_copy_sel) & MU_RES_CHANGE)
       changed |= CHANGED_AUTO_COPY_SEL;
     input_label (ctx, "Cursor Color");
     if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
@@ -1933,20 +1934,18 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
     if (mu_button_ex (ctx, "Split Vertically",   0, MU_OPT_BURIED)) action = CM_SPLIT_V;
   }
 
-  mu_menu_separator (ctx);
-
-  mu_layout_row (ctx, 1, col, CM_ITEM_H);
-  if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
-
 #ifdef ENABLE_MINIMAP
   if (t->minimap.enabled) {
-    mu_menu_separator (ctx);
-    mu_layout_row (ctx, 1, col, CM_ITEM_H);
+    // mu_menu_separator (ctx);
+    // mu_layout_row (ctx, 1, col, CM_ITEM_H);
     if (mu_button_ex (ctx, "Toggle Minimap", 0, MU_OPT_BURIED)) action = CM_TOGGLE_MINIMAP;
   }
 #endif
 
   mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, CM_ITEM_H);
+  if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
   if (mu_button_ex (ctx, "Close Tab", 0, MU_OPT_BURIED))      action = CM_CLOSE_TAB;

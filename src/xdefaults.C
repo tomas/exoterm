@@ -284,7 +284,7 @@ optList[] = {
 #ifdef KEYSYM_RESOURCE
               RINFO ("keysym.sym", "keysym"),
 #endif
-              BOOL (Rs_autoCopySelection, "autoCopySelection", "acs", Opt_autoCopySelection, 0, "automatically copy selection to clipboard"),
+              BOOL (Rs_autoCopySelection, "autoCopySelection", "acs", Opt_autoCopySelection, 1, "automatically copy selection to clipboard"),
               INFO ("e", "command arg ...", "command to execute")
             };
 
