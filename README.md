@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tomas/exoterm/master/doc/screenshot.png" alt="Exoterm Window" />
+</p>
+
 # Exoterm
 
 A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt), kept in sync with upstream and improved with a few tricks. X11 only.
@@ -141,3 +145,11 @@ Make sure `$fonts_dir` is listed in the `FontPath` section of `/etc/X11/xorg.con
       <Option>noborder</Option>
       <Option>notitle</Option>
     </Group>
+
+## Credits
+
+To the rxvt and unicode-rxvt developers, of course. I'm just a humble servant.
+
+## License
+
+GPLv3, as the original source.
