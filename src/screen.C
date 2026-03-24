@@ -4258,7 +4258,7 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
 
 #ifdef ENABLE_MINIMAP
   if (x == -1 && minimap.enabled && minimap.visible) {
-    int pad = ceil((float)ncol/(Col2Pixel(1)*minimap.char_width) + 3);
+    int pad = ceil((float)ncol/(Col2Pixel(1)*minimap.char_width) + 1);
     x = ncol - w - pad;
   }
 #endif
@@ -4270,7 +4270,7 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
   w += 2; min_it (w, ncol);
   h += 2; min_it (h, nrow);
 
-  x -= 1; clamp_it (x, 0, ncol - w);
+  x -= 3; clamp_it (x, 0, ncol - w);
   y -= 1; clamp_it (y, 0, nrow - h);
 
   ov.x = x; ov.y = y;
@@ -4285,14 +4285,25 @@ rxvt_term::scr_overlay_new (int x, int y, int w, int h) NOTHROW
       rend_t *rp = ov.rend[y] = new rend_t[w];
 
       text_t t0, t1, t2;
-      rend_t r = OVERLAY_RSTYLE;
+      rend_t r;
 
       if (y == 0)
-        t0 = 0x2580, t1 = 0x2580, t2 = 0x2580;
+        {
+          // ▄ lower half block: fg (lower half) = overlay color, bg (upper half) = transparent
+          t0 = t1 = t2 = 0x2584;
+          r = RS_None | (Color_Cyan << RS_fgShift) | (Color_bg << RS_bgShift);
+        }
       else if (y < h - 1)
-        t0 = 0x0020, t1 = 0x0020, t2 = 0x0020;
+        {
+          t0 = t1 = t2 = 0x0020;
+          r = OVERLAY_RSTYLE;
+        }
       else
-        t0 = 0x2584, t1 = 0x2584, t2 = 0x2584;
+        {
+          // ▀ upper half block: fg (upper half) = overlay color, bg (lower half) = transparent
+          t0 = t1 = t2 = 0x2580;
+          r = RS_None | (Color_Cyan << RS_fgShift) | (Color_bg << RS_bgShift);
+        }
 
       *tp++ = t0;
       *rp++ = r;
