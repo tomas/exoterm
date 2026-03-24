@@ -19,9 +19,7 @@ A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxv
 - **Auto copy selection** — copies text to clipboard on selection (xterm-style, configurable)
 - **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
 
-### Notes on upstream overlap
-
-The following features exist in upstream urxvt and are also present here (sometimes improved):
+### Stuff ported from upstream
 
 - Wide glyph rendering (`ENABLE_WIDE_GLYPHS`) — always enabled in this build
 - SGR mouse mode (1006), extended mouse reporting (1015), DECRQM (mode query)
@@ -69,7 +67,7 @@ Example:
     URxvt.background: rgba:0000/0000/0800/c800
 
     ! borders
-    URxvt.internalBorder: 0
+    URxvt.internalBorder: 10
     URxvt.externalBorder: 0
     URxvt.borderLess: false
 
