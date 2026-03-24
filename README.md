@@ -1,10 +1,36 @@
 # Exoterm
 
-An up-to-date fork of rxvt-unicode. In progress but usable.
+A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt), kept in sync with upstream and extended with additional features.
 
-## Build Instructions
+## Features beyond upstream urxvt
 
-Install the following if on Ubuntu or use equivalent on other OSes:
+- **Native tabs** — tab bar with mouse support, fully managed in C (no Perl)
+- **Split panes** — horizontal/vertical pane splitting
+- **Minimap** — scrollback overview panel with viewport indicator
+- **Sixel image support** — inline image rendering via DCS sixel sequences
+- **True 24-bit color** — full RGB888 support beyond the standard 256-color cube
+- **Native URL detection and click-to-open** — no Perl extension required
+- **Drag-and-drop** — XDND protocol support for dropping files/text into the terminal
+- **Native searchable scrollback** — incremental search bar implemented in C
+- **Settings pane** — graphical settings panel accessible at runtime
+- **Right-click context menu** — context-sensitive actions on selected text
+- **Shift+Enter** — sends line feed (`\n`) separately from Enter (`\r`), useful in some TUI applications
+- **Prompt markers** — tracks shell prompt positions for navigation with keyboard shortcuts
+- **Auto copy selection** — copies text to clipboard on selection (xterm-style, configurable)
+- **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
+
+### Notes on upstream overlap
+
+The following features exist in upstream urxvt and are also present here (sometimes improved):
+
+- Wide glyph rendering (`ENABLE_WIDE_GLYPHS`) — always enabled in this build
+- SGR mouse mode (1006), extended mouse reporting (1015), DECRQM (mode query)
+- Bracketed paste mode
+- Background image support with compositing
+
+## Build
+
+Install dependencies (Ubuntu/Debian):
 
     sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
@@ -13,61 +39,32 @@ Initialize submodules:
     git submodule init
     git submodule update
 
-Configure with:
+Configure and build:
 
     ./configure
-    
-To see all configure options, run:
-
-    ./configure -h
-
-Compile with
-
     make
-    (sudo) make install
+    sudo make install
 
-See `README.configure` for more details and configuration options.
+Run `./configure -h` to see all options. See `README.configure` for details.
 
 ## Configuration
 
-Goes in `~/.Xdefaults`. Just make sure to run `xrdb ~/.Xdefaults` after you update it.
+Configuration goes in `~/.Xdefaults`. Run `xrdb ~/.Xdefaults` after changes.
 
-Here's an example:
+Example:
 
-    ! main
-    ! URxvt.display: :0
-    ! URxvt.termName: rxvt-unicode
-    ! URxvt.chdir: /home/tomas 
-    ! URxvt.locale: true
     URxvt.loginShell: true
 
     ! geometry and cursor
     URxvt.foreground: #fff
     URxvt.geometry: 100x25
     URxvt.cursorColor: #ff6600
-    ! URxvt.skipBuiltinGlyphs: true
 
-    ! font: tamzen 8x16
-    URxvt.font: -misc-tamzen-medium-r-normal--16-116-100-100-c-80-iso8859-1
-    URxvt.boldFont: -misc-tamzen-bold-r-normal--16-116-100-100-c-80-iso8859-1
-
-    ! or terminus 8x16
+    ! font (Terminus 8x16)
     URxvt.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
     URxvt.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
-    ! or terminus 8x16 powerline
-    URxvt.font: -xos4-terminesspowerline-medium-r-normal--16-160-72-72-c-80-iso10646-1
-    URxvt.boldFont: -xos4-terminesspowerline-bold-r-normal--16-160-72-72-c-80-iso10646-1
-
-    ! fake transparent background    
-    URxvt.inheritPixmap: true
-    URxvt.transparent: true
-    URxvt.tintColor: #00ffff
-    URxvt.shading: 30
-
-    ! for real transparency
-    URxvt.inheritPixmap: false
-    URxvt.transparent: false
+    ! real transparency (requires compositor)
     URxvt.depth: 32
     URxvt.background: rgba:0000/0000/0800/c800
 
@@ -76,82 +73,54 @@ Here's an example:
     URxvt.externalBorder: 0
     URxvt.borderLess: false
 
-    ! scrolling 
+    ! scrollback
     URxvt.saveLines: 10000
     URxvt.scrollBar: false
-    URxvt.scrollstyle: plain
-    URxvt.jumpScroll: true                                                   
+    URxvt.jumpScroll: true
     URxvt.skipScroll: true
-    URxvt.mouseWheelScrollPage: false
-    URxvt.secondaryScroll: true
-    URxvt.secondaryScreen: false
-
-    ! do not scroll with output
     URxvt.scrollTtyOutput: false
-
-    ! scroll in relation to buffer (with mouse scroll or Shift+Page Up)
     URxvt.scrollWithBuffer: true
-
-    ! scroll back to the bottom on keypress
     URxvt.scrollTtyKeypress: true
 
 ## Colors
 
-Also are defined in `.Xdefaults`. Here's a custom version of the Dracula theme:
+Example using a Dracula-based palette (in `~/.Xdefaults`):
 
-    ! Dracula Xresources palette
-    !URxvt.foreground: #F8F8F2
-    !URxvt.background: #282A36
-    URxvt.color0:     #000000
-    URxvt.color8:     #4D4D4D
-    URxvt.color1:     #FF5555
-    ! URxvt.color9:     #FF6E67
-    URxvt.color9:     #FF798C
-    ! URxvt.color2:     #50FA7B
-    URxvt.color2:     #50FAB2
-    URxvt.color10:    #5AF78E
-    URxvt.color3:     #F1FA8C
-    URxvt.color11:    #F4F99D
-    URxvt.color4:     #BD93F9
-    URxvt.color12:    #CAA9FA
-    URxvt.color5:     #FF79C6
-    ! URxvt.color13:    #FF92D0
-    URxvt.color13:    #FF9AF4
-    URxvt.color6:     #8BE9FD
-    URxvt.color14:    #9AEDFE
-    URxvt.color7:     #BFBFBF
-    URxvt.color15:    #E6E6E6
+    URxvt.color0:  #000000
+    URxvt.color8:  #4D4D4D
+    URxvt.color1:  #FF5555
+    URxvt.color9:  #FF798C
+    URxvt.color2:  #50FAB2
+    URxvt.color10: #5AF78E
+    URxvt.color3:  #F1FA8C
+    URxvt.color11: #F4F99D
+    URxvt.color4:  #BD93F9
+    URxvt.color12: #CAA9FA
+    URxvt.color5:  #FF79C6
+    URxvt.color13: #FF9AF4
+    URxvt.color6:  #8BE9FD
+    URxvt.color14: #9AEDFE
+    URxvt.color7:  #BFBFBF
+    URxvt.color15: #E6E6E6
 
-## Misc tweaks
+## Misc
 
-### Installing fonts
-
-To fetch Terminus Powerline fonts:
+### Installing Terminus Powerline fonts
 
     wget https://github.com/powerline/fonts/raw/master/Terminus/PCF/ter-powerline-x16b.pcf.gz
     wget https://github.com/powerline/fonts/raw/master/Terminus/PCF/ter-powerline-x16n.pcf.gz
-
-To install them:
 
     fonts_dir=/usr/share/fonts/X11/misc
     sudo cp ter-powerline-x16b.pcf.gz ter-powerline-x16n.pcf.gz $fonts_dir
     sudo mkfontdir $fonts_dir
     xset +fp $fonts_dir
 
-And make sure that $fonts_dir is in /etc/X11/xorg.conf in the FontPath section.
+Make sure `$fonts_dir` is listed in the `FontPath` section of `/etc/X11/xorg.conf`.
 
-### Borderless in JWM
-
-To remove borders if using JWM, add this to your jwmrc:
+### Borderless window in JWM
 
     <Group>
       <Class>Exoterm</Class>
       <Option>noborder</Option>
       <Option>notitle</Option>
     </Group>
-
-## Interesting forks to follow
-
- - https://github.com/theKlanc/rxvt-unicode-fa-patched
- - https://github.com/rayburgemeestre/rxvt-unicode
- - https://github.com/RauliL/raxvt
