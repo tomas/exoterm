@@ -1,6 +1,6 @@
 # Exoterm
 
-A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt), kept in sync with upstream and extended with additional features.
+A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt), kept in sync with upstream and improved with a few tricks. X11 only.
 
 ## Features beyond upstream urxvt
 
@@ -19,6 +19,8 @@ A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxv
 - **Auto copy selection** — copies text to clipboard on selection (xterm-style, configurable)
 - **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
 
+All this, while still using less than 20 MB of RAM. :)
+
 ### Stuff ported from upstream
 
 - Wide glyph rendering (`ENABLE_WIDE_GLYPHS`) — always enabled in this build
@@ -26,9 +28,26 @@ A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxv
 - Bracketed paste mode
 - Background image support with compositing
 
-## Build
+## Why not just use ____?
 
-Install dependencies (Ubuntu/Debian):
+Because a terminal should not require over 50 MB of RAM, period.
+I want mine to open up in less than a second. And urxvt delivers exactly that.
+
+Plus, it doesn't rely on the GPU for rendering, so it can be used virtually anywhere.
+
+## How can I use this in Wayland?
+
+You can't, sorry.
+
+But I hear that [foot](https://codeberg.org/dnkl/foot) is pretty lightweight and minimal.
+
+## Install
+
+No binary packages available at the moment. But you can build it in a second or two.
+
+## How to build
+
+First, install dependencies. For Ubuntu/Debian, the command would be:
 
     sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
@@ -47,7 +66,7 @@ Run `./configure -h` to see all options. See `README.configure` for details.
 
 ## Configuration
 
-Configuration goes in `~/.Xdefaults`. Run `xrdb ~/.Xdefaults` after changes.
+Configuration goes in `~/.Xdefaults`. Run `xrdb ~/.Xdefaults` after changing it.
 
 Example:
 
