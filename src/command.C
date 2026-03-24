@@ -2744,11 +2744,11 @@ rxvt_term::mouse_report (XButtonEvent &ev)
       sgr_button_value += 32;
     }
 
-  if (ev.button == AnyButton)
+  if (MEvent.button == AnyButton)
     button_number = 3;
   else
     {
-      button_number = ev.button - Button1;
+      button_number = MEvent.button - Button1;
       if (button_number > 10)
         return;
       else if (button_number >= 7)
@@ -4174,8 +4174,9 @@ rxvt_term::button_release (XButtonEvent &ev)
               mouse_report (ev);
             }
 #else				/* MOUSE_REPORT_DOUBLECLICK */
-          MEvent.button = AnyButton;
+          MEvent.button = ev.button;
           mouse_report (ev);
+          MEvent.button = AnyButton;
 #endif /* MOUSE_REPORT_DOUBLECLICK */
           return;
         }
