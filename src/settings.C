@@ -762,9 +762,11 @@ static int build_settings_window (mu_Context *ctx) {
     input_label (ctx, "Autocopy selection");
     if (mu_checkbox (ctx, NULL, &s_auto_copy_sel) & MU_RES_CHANGE)
       changed |= CHANGED_AUTO_COPY_SEL;
-    input_label (ctx, "Cursor Color");
-    if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
-      changed |= CHANGED_CURSOR_COLOR;
+
+    // input_label (ctx, "Cursor Color");
+    // if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
+    //   changed |= CHANGED_CURSOR_COLOR;
+
     input_label (ctx, "Cursor blink");
     if (mu_checkbox (ctx, NULL, &s_cursor_blink) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_BLINK;
