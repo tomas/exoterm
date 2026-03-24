@@ -2749,8 +2749,11 @@ rxvt_term::mouse_report (XButtonEvent &ev)
   else
     {
       button_number = ev.button - Button1;
-      /* add 0x3D for wheel events, like xterm does */
-      if (button_number >= 3)
+      if (button_number > 10)
+        return;
+      else if (button_number >= 7)
+        button_number += 128 - 7;
+      else if (button_number >= 3)
         button_number += 64 - 3;
     }
 
@@ -2814,10 +2817,20 @@ rxvt_term::mouse_report (XButtonEvent &ev)
               y,
               release ? 'm' : 'M');
   else if (priv_modes & PrivMode_ExtModeMouse)
-    tt_printf ("\033[M%c%lc%lc",
-              code + button_number + key_state,
-              wint_t (32 + x),
-              wint_t (32 + y));
+    {
+      int code2 = code + button_number + key_state;
+      if (code2 < 128)
+        tt_printf ("\033[M%c%lc%lc",
+                  code2,
+                  wint_t (32 + x),
+                  wint_t (32 + y));
+      else
+        tt_printf ("\033[M%c%c%lc%lc",
+                  0xc0 + (code2 >> 6),
+                  0x80 + (code2 & 0x3f),
+                  wint_t (32 + x),
+                  wint_t (32 + y));
+    }
   else
 #endif
     tt_printf ("\033[M%c%c%c",
@@ -4147,7 +4160,7 @@ rxvt_term::button_release (XButtonEvent &ev)
         {
           /* mouse report from vt window */
           /* don't report release of wheel "buttons" */
-          if (ev.button >= 4)
+          if (ev.button >= 4 && ev.button <= 7)
             return;
 #ifdef MOUSE_REPORT_DOUBLECLICK
           /* only report the release of 'slow' single clicks */
