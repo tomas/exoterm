@@ -1057,10 +1057,10 @@ static void apply_settings (int changed) {
       t->bg_render ();
     }
 #endif
-    if (changed & CHANGED_CURSOR_COLOR) {
-      if (s_cursor_color[0])
-        t->set_window_color (Color_cursor, s_cursor_color);
-    }
+    // if (changed & CHANGED_CURSOR_COLOR) {
+    //   if (s_cursor_color[0])
+    //     t->set_window_color (Color_cursor, s_cursor_color);
+    // }
   }
 }
 
@@ -1149,16 +1149,16 @@ static void read_settings_from_term (rxvt_term *t) {
 #endif
 
   /* cursor color */
-  {
-    char cc[16] = "";
-#ifndef NO_CURSORCOLOR
-    if (t->rs[Rs_color + Color_cursor])
-      snprintf (cc, sizeof (cc), "%s", t->rs[Rs_color + Color_cursor]);
-    else
-      color_to_hex (t, Color_cursor, cc);
-#endif
-    memcpy (s_cursor_color, cc, sizeof (s_cursor_color));
-  }
+//   {
+//     char cc[16] = "";
+// #ifndef NO_CURSORCOLOR
+//     if (t->rs[Rs_color + Color_cursor])
+//       snprintf (cc, sizeof (cc), "%s", t->rs[Rs_color + Color_cursor]);
+//     else
+//       color_to_hex (t, Color_cursor, cc);
+// #endif
+//     memcpy (s_cursor_color, cc, sizeof (s_cursor_color));
+//   }
 
   /* geometry: prefer stored rs[Rs_geometry], else derive from current size */
   if (t->rs[Rs_geometry] && t->rs[Rs_geometry][0])
