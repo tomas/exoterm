@@ -295,7 +295,7 @@ optList[] = {
 #undef SWCH
 #undef BOOL
 
-static const char releasestring[] = "rxvt-unicode (" RXVTNAME ") v" VERSION " - released: " DATE "\n";
+static const char releasestring[] = "exoterm (" RXVTNAME ") v" VERSION " - released: " DATE "\n";
 static const char optionsstring[] = "options: "
 #if ENABLE_PERL
                                     "perl,"
