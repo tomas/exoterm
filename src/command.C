@@ -2730,8 +2730,8 @@ rxvt_term::mouse_report (XButtonEvent &ev)
   bool release = ev.type == ButtonRelease;
   int sgr_button_value = 0;
 
-  x = Pixel2Col (ev.x) + 1;
-  y = Pixel2Row (ev.y) + 1;
+  x = 1 + clamp (Pixel2Col (ev.x), 0, ncol - 1);
+  y = 1 + clamp (Pixel2Row (ev.y), 0, nrow - 1);
 
   if (ev.type == MotionNotify)
     {
