@@ -1584,6 +1584,7 @@ rxvt_term::destroy_settings_ui ()
 #define XDEF_BLOCK_BEGIN "! --- BEGIN Exoterm settings ---"
 #define XDEF_BLOCK_END   "! --- END Exoterm settings ---"
 
+/*
 static const char *s_managed_keys[] = {
   "internalBorder", "shading", "lineSpace", "letterSpace", "saveLines",
   "wheelScrollLines", "scrollBar", "cursorBlink", "cursorUnderline",
@@ -1613,6 +1614,7 @@ static bool line_matches_managed_key (const char *line) {
   }
   return false;
 }
+*/
 
 static void save_to_xdefaults (rxvt_term *first_term) {
   const char *home = getenv ("HOME");
@@ -1621,7 +1623,7 @@ static void save_to_xdefaults (rxvt_term *first_term) {
   char path[1024];
   snprintf (path, sizeof (path), "%s/.Xdefaults", home);
 
-  /* --- read existing file into lines array --- */
+  // read existing file into lines array
   GPtrArray *lines = g_ptr_array_new_with_free_func (g_free);
   FILE *fr = fopen (path, "r");
   if (fr) {
@@ -1634,7 +1636,7 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     fclose (fr);
   }
 
-  /* --- rebuild: strip existing block, comment conflicting keys --- */
+  // rebuild: strip existing block, comment conflicting keys
   GPtrArray *out = g_ptr_array_new_with_free_func (g_free);
   bool in_block = false;
   for (guint i = 0; i < lines->len; i++) {
@@ -1676,8 +1678,9 @@ static void save_to_xdefaults (rxvt_term *first_term) {
 
   // cursor and selection
   g_string_append_printf (block, "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel   ? "true" : "false");
-  if (s_cursor_color[0])
-    g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
+
+  // if (s_cursor_color[0])
+  //   g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
 
   g_string_append_printf (block, "Exoterm.cursorBlink:        %s\n", s_cursor_blink        ? "true" : "false");
   g_string_append_printf (block, "Exoterm.cursorUnderline:    %s\n", s_cursor_underline    ? "true" : "false");
