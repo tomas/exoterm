@@ -477,7 +477,7 @@ bool find_word_in_line(line_t * l, int rownum, const char * word, uint8_t word_l
         match.index = search_matches.size();
         search_matches.push_back(match);
 
-        printf("added match %d at %d/%d (%d)\n", match.index, match.row, match.col, match.length);
+        // printf("added match %d at %d/%d (%d)\n", match.index, match.row, match.col, match.length);
         highlight_line(l, i, word_len, false);
 
         found = true;
@@ -609,10 +609,10 @@ rxvt_term::update_search(void) {
     bool found = find_previous_match();
     if (found) {
       int num_matches = search_matches.size();
-      printf("found %d matches\n", num_matches);
+      // printf("found %d matches\n", num_matches);
       // struct search_match match = search_matches[num_matches-1];
       struct search_match match = search_matches[0];
-      printf("found match %d, moving to %d\n", match.index, match.row);
+      // printf("found match %d, moving to %d\n", match.index, match.row);
       scr_changeview(match.row - 1);
     }
   }
@@ -651,7 +651,7 @@ rxvt_term::append_to_search (char * buf, int len) {
   if (buf[0] > 30 && buf[0] < 130) {
     search_chars.push_back(tolower(buf[0]));
   } else {
-    printf("Not appending char %d\n", buf[0]);
+    // printf("Not appending char %d\n", buf[0]);
     // close search bar with ctrl-c, enter or escape
     if (len == 1 && (buf[0] == 3 || buf[0] == 13 || buf[0] == 27)) hide_search_bar();
     return;
@@ -728,7 +728,7 @@ void ecb_cold rxvt_term::prev_search_result() {
 
     if (found) {
       match = search_matches[selected_search];
-      printf("found match %d, moving to %d\n", match.index, match.row);
+      // printf("found match %d, moving to %d\n", match.index, match.row);
       scr_changeview(match.row - 1);
 
       line_t * l = &ROW(match.row);
@@ -2129,7 +2129,6 @@ void rxvt_term::next_tab(unsigned int closing) {
 }
 
 void rxvt_term::close_tab () {
-  // printf("close_tab, calling destroy()!\n");
   destroy();
 }
 

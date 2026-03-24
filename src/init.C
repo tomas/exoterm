@@ -958,7 +958,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
 
   if (const char *path = rs[Rs_chdir])
     if (*path) {
-        printf("changing to path: %s\n", path);
+        // printf("changing to path: %s\n", path);
 
         if (*path != '/')
           rxvt_fatal ("specified shell working directory must start with a slash, aborting.\n");

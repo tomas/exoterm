@@ -373,7 +373,6 @@ rxvt_term::~rxvt_term ()
 
       // destroy all windows
       if (parent) {
-        // printf("destroying parent window\n");
         XDestroyWindow (dpy, parent);
       }
 
@@ -387,7 +386,6 @@ rxvt_term::~rxvt_term ()
 #endif
           }
 
-      // printf("clear/flush\n");
       clear ();
       display->flush (); /* ideally .put should do this */
       displays.put (display);
@@ -421,7 +419,6 @@ rxvt_term::~rxvt_term ()
   XrmDestroyDatabase (option_db);
 #endif
 
-  // printf("SET_R!\n");
   // SET_R ((rxvt_term *)0);
 }
 
@@ -430,7 +427,6 @@ void
 rxvt_term::child_cb (ev::child &w, int status)
 {
 
-  // printf("Child exit db!\n");
   HOOK_INVOKE ((this, HOOK_CHILD_EXIT, DT_INT, status, DT_END));
 
   cmd_pid = 0;
@@ -446,7 +442,6 @@ rxvt_term::destroy ()
   if (destroy_ev.is_active ())
     return;
 
-  // printf("calling destroy hook!\n");
   HOOK_INVOKE ((this, HOOK_DESTROY, DT_END));
 
   scr_overlay_off ();
@@ -486,7 +481,6 @@ rxvt_term::destroy ()
   pointer_ev.stop ();
 #endif
 
-  // printf("stopped callbacks!\n");
   destroy_ev.start ();
 }
 
@@ -949,7 +943,6 @@ char **rxvt_environ; // startup environment
 void
 rxvt_init () {
 
-  // printf("main rxvt_init()\n");
   assert (("fontMask must not overlap other RS masks",
            0 == (RS_fontMask & (RS_Sel | RS_baseattrMask | RS_customMask | RS_bgMask | RS_fgMask))));
 
@@ -1598,7 +1591,6 @@ rxvt_term::resize_all_windows (unsigned int newwidth, unsigned int newheight, in
   recenter_settings_ui ();
 
   if (fix_screen || old_height == 0) {
-    // printf("scr_reset on resizing\n");
     scr_reset ();
   }
 
