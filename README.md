@@ -51,11 +51,19 @@ No binary packages available at the moment. But you can build it in a second or 
 
 ## How to build
 
-First, install dependencies. For Ubuntu/Debian, the command would be:
+First, install dependencies. These are
+
+- libxrender-dev 
+- libxmu-dev 
+- libxpm-dev 
+- libxft-dev (for xft fonts, not needed if you use bitmap fonts)
+- libstartup-notification0-dev
+
+For Ubuntu/Debian, the command would be:
 
     sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
-Initialize submodules:
+Then, initialize submodules:
 
     git submodule init
     git submodule update
@@ -66,63 +74,68 @@ Configure and build:
     make
     sudo make install
 
-Run `./configure -h` to see all options. See `README.configure` for details.
+Run `./configure -h` to see all options. See `README.configure` for details. 
+For instance, to enable true 24 bit color support and disable xft, you'd run:
 
-## Configuration
+    ./configure --enable-24-bit-color --disable-xft
 
-Configuration goes in `~/.Xdefaults`. Run `xrdb ~/.Xdefaults` after changing it.
+## Settings
 
-Example:
+Exoterm provides a GUI for changing (some of) the available options. In the same
+spirit as urxvt, Exoterm reads the values from  `~/.Xdefaults`. You can use either
+`Exoterm` or `Urxvt` as a prefix for each option. 
 
-    URxvt.loginShell: true
+If you edit the `.Xdefaults` file, run `xrdb ~/.Xdefaults` to ensure new values are 
+read. Here's an example configuration:
 
-    ! geometry and cursor
-    URxvt.foreground: #fff
-    URxvt.geometry: 100x25
-    URxvt.cursorColor: #ff6600
+    ! main
+    Exoterm.loginShell: true
+    Exoterm.foreground: #fff
+    Exoterm.geometry: 100x25
+    Exoterm.cursorColor: #ff6600
 
     ! font (Terminus 8x16)
-    URxvt.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
-    URxvt.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
+    Exoterm.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
+    Exoterm.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
     ! real transparency (requires compositor)
-    URxvt.depth: 32
-    URxvt.background: rgba:0000/0000/0800/c800
+    Exoterm.depth: 32
+    Exoterm.background: rgba:0000/0000/0800/c800
 
     ! borders
-    URxvt.internalBorder: 10
-    URxvt.externalBorder: 0
-    URxvt.borderLess: false
+    Exoterm.internalBorder: 10
+    Exoterm.externalBorder: 0
+    Exoterm.borderLess: false
 
     ! scrollback
-    URxvt.saveLines: 10000
-    URxvt.scrollBar: false
-    URxvt.jumpScroll: true
-    URxvt.skipScroll: true
-    URxvt.scrollTtyOutput: false
-    URxvt.scrollWithBuffer: true
-    URxvt.scrollTtyKeypress: true
+    Exoterm.saveLines: 10000
+    Exoterm.scrollBar: false
+    Exoterm.jumpScroll: true
+    Exoterm.skipScroll: true
+    Exoterm.scrollTtyOutput: false
+    Exoterm.scrollWithBuffer: true
+    Exoterm.scrollTtyKeypress: true
 
 ## Colors
 
 Example using a Dracula-based palette (in `~/.Xdefaults`):
 
-    URxvt.color0:  #000000
-    URxvt.color8:  #4D4D4D
-    URxvt.color1:  #FF5555
-    URxvt.color9:  #FF798C
-    URxvt.color2:  #50FAB2
-    URxvt.color10: #5AF78E
-    URxvt.color3:  #F1FA8C
-    URxvt.color11: #F4F99D
-    URxvt.color4:  #BD93F9
-    URxvt.color12: #CAA9FA
-    URxvt.color5:  #FF79C6
-    URxvt.color13: #FF9AF4
-    URxvt.color6:  #8BE9FD
-    URxvt.color14: #9AEDFE
-    URxvt.color7:  #BFBFBF
-    URxvt.color15: #E6E6E6
+    Exoterm.color0:  #000000
+    Exoterm.color8:  #4D4D4D
+    Exoterm.color1:  #FF5555
+    Exoterm.color9:  #FF798C
+    Exoterm.color2:  #50FAB2
+    Exoterm.color10: #5AF78E
+    Exoterm.color3:  #F1FA8C
+    Exoterm.color11: #F4F99D
+    Exoterm.color4:  #BD93F9
+    Exoterm.color12: #CAA9FA
+    Exoterm.color5:  #FF79C6
+    Exoterm.color13: #FF9AF4
+    Exoterm.color6:  #8BE9FD
+    Exoterm.color14: #9AEDFE
+    Exoterm.color7:  #BFBFBF
+    Exoterm.color15: #E6E6E6
 
 ## Misc
 
