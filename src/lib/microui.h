@@ -360,6 +360,7 @@ void mu_image_ex(mu_Context *ctx, mu_Image image);
 void mu_text_ex(mu_Context *ctx, const char *text, mu_Font font);
 void mu_text(mu_Context *ctx, const char *text);
 void mu_label(mu_Context *ctx, const char *text, int opt);
+void mu_label_ex(mu_Context *ctx, const char *text, mu_Color color, int xoff, int yoff, float scale, int opt);
 int mu_button_ex(mu_Context *ctx, const char *label, int icon, int opt);
 int mu_color_button_ex(mu_Context *ctx, const char *label, mu_Color color, int opt);
 int mu_checkbox(mu_Context *ctx, const char *label, int *state);

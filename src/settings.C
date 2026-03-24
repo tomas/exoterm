@@ -576,13 +576,20 @@ enum {
 };
 
 /* --- section header --- */
+
+static void input_label(mu_Context *ctx, const char *text) {
+  mu_label_ex(ctx, text, ctx->style->colors[MU_COLOR_TEXT], -ctx->style->padding, 0, 1, 0);
+}
+
+
 static void section_header (mu_Context *ctx, const char *label) {
   { int c[] = {-1}; mu_layout_row (ctx, 1, c, 6); }
   mu_label (ctx, "", 0);
   { int c[] = {-1}; mu_layout_row (ctx, 1, c, 20); }
-  mu_label (ctx, label, 0);
+  // mu_label (ctx, label, 0);
+  int scale = 1;
+  mu_label_ex(ctx, label, mu_color (150, 150, 150, 255), -ctx->style->padding, 0, scale, 0);
 }
-
 
 /* --- build settings panel, return CHANGED_* bitmask --- */
 static int build_settings_window (mu_Context *ctx) {
@@ -604,32 +611,44 @@ static int build_settings_window (mu_Context *ctx) {
     mu_Container *win = mu_get_current_container(ctx);
     win->rect.h = s_panel_h;
 
-    /* ---- Appearance ---- */
-    section_header (ctx, "Appearance");
+
+    /* ---- Terminal ---- */
+    section_header (ctx, "General");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Shading:", 0);
-    if (float_slider (ctx, &s_shading, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
-      changed |= CHANGED_SHADING;
-    mu_label (ctx, "Border:", 0);
-    if (float_slider (ctx, &s_border_width, 0.0f, 30.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
-      changed |= CHANGED_BORDER;
-    mu_label (ctx, "Line spacing:", 0);
-    if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
-      changed |= CHANGED_LINE_SPACE;
-    mu_label (ctx, "Geometry:", 0);
+
+    input_label (ctx, "Login shell");
+    if (mu_checkbox (ctx, "##lshell", &s_login_shell) & MU_RES_CHANGE)
+      changed |= CHANGED_LOGIN_SHELL;
+
+    input_label (ctx, "Geometry");
     if (mu_textbox (ctx, s_geometry, sizeof (s_geometry)) & MU_RES_CHANGE)
       changed |= CHANGED_GEOMETRY;
 
+    input_label (ctx, "Inner margin");
+    if (float_slider (ctx, &s_border_width, 0.0f, 30.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
+      changed |= CHANGED_BORDER;
+
+// #ifdef HAVE_BG_PIXMAP
+//     mu_label (ctx, "Transparent:", 0);
+//     if (mu_checkbox (ctx, "##transp", &s_transparent) & MU_RES_CHANGE)
+//       changed |= CHANGED_TRANSPARENT;
+// #endif
+
+    // mu_label (ctx, "Shading:", 0);
+    // if (float_slider (ctx, &s_shading, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
+    //   changed |= CHANGED_SHADING;
+
     /* ---- Color Scheme ---- */
-    section_header (ctx, "Color Scheme");
+    input_label (ctx, "Color Scheme");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
     const char *scheme_label = (s_active_scheme >= 0 && s_active_scheme < NUM_SCHEMES)
       ? color_schemes[s_active_scheme].name : "Custom";
+
     if (mu_begin_combo_ex (ctx, "##schemes", scheme_label, NUM_SCHEMES * 32, 0)) {
       for (int i = 0; i < NUM_SCHEMES; i++) {
         const color_scheme_t &s = color_schemes[i];
         char label[64];
-        snprintf (label, sizeof (label), "%s%s", (s_active_scheme == i) ? ">  " : "   ", s.name);
+        snprintf (label, sizeof (label), "%s%s", s.name, (s_active_scheme == i) ? " (active)" : "", s.name);
         /* reset to full-width single column before each name button */
         { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
         bool clicked = (bool) mu_button (ctx, label);
@@ -663,8 +682,23 @@ static int build_settings_window (mu_Context *ctx) {
       }
     }
 
+    section_header (ctx, "Text");
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+
+    input_label (ctx, "Line spacing");
+    if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
+      changed |= CHANGED_LINE_SPACE;
+
+
+#ifdef BUILTIN_GLYPHS
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+    input_label (ctx, "Skip built-in glyphs");
+    if (mu_checkbox (ctx, "##sbg", &s_skip_builtin_glyphs) & MU_RES_CHANGE)
+      changed |= CHANGED_SKIP_BUILTIN_GLYPHS;
+#endif
+
     /* ---- Fonts ---- */
-    section_header (ctx, "Font");
+    input_label (ctx, "Regular Font");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     font_display_name = (s_active_font == -1)
@@ -687,7 +721,8 @@ static int build_settings_window (mu_Context *ctx) {
       mu_end_combo(ctx);
     }
 
-    mu_label (ctx, "Bold:", 0);
+    input_label (ctx, "Bold Font");
+
     bold_display_name = (s_active_bold_font == -1)
       ? xlfd_to_name (s_active_bold_xlfd)
       : nullptr;
@@ -714,78 +749,66 @@ static int build_settings_window (mu_Context *ctx) {
       mu_end_combo(ctx);
     }
 
+
+
+
     /* ---- Cursor ---- */
-    section_header (ctx, "Cursor");
+    section_header (ctx, "Cursor & selection");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Blink:", 0);
-    if (mu_checkbox (ctx, "##cblink", &s_cursor_blink) & MU_RES_CHANGE)
-      changed |= CHANGED_CURSOR_BLINK;
-    mu_label (ctx, "Underline:", 0);
-    if (mu_checkbox (ctx, "##cul", &s_cursor_underline) & MU_RES_CHANGE)
-      changed |= CHANGED_CURSOR_UL;
-    mu_label (ctx, "Color:", 0);
+
+    input_label (ctx, "Autocopy selection");
+    if (mu_checkbox (ctx, "##acopy", &s_auto_copy_sel) & MU_RES_CHANGE)
+      changed |= CHANGED_AUTO_COPY_SEL;
+    input_label (ctx, "Cursor Color");
     if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_COLOR;
+    input_label (ctx, "Cursor blink");
+    if (mu_checkbox (ctx, "##cblink", &s_cursor_blink) & MU_RES_CHANGE)
+      changed |= CHANGED_CURSOR_BLINK;
+    input_label (ctx, "Underline");
+    if (mu_checkbox (ctx, "##cul", &s_cursor_underline) & MU_RES_CHANGE)
+      changed |= CHANGED_CURSOR_UL;
 
     /* ---- Scrolling ---- */
     section_header (ctx, "Scrolling");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Speed:", 0);
+    input_label (ctx, "Speed");
     if (float_slider (ctx, &s_scroll_speed, 1.0f, 20.0f, 1.0f, "%.0f lines") & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL;
-    mu_label (ctx, "Scrollback:", 0);
+    input_label (ctx, "Scrollback");
     if (float_slider (ctx, &s_save_lines, 100.0f, 50000.0f, 100.0f, "%.0f") & MU_RES_CHANGE)
       changed |= CHANGED_SAVE_LINES;
 
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Scrollbar:", 0);
+    input_label (ctx, "Scrollbar");
     if (mu_checkbox (ctx, "##sbar", &s_scrollbar) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLLBAR;
-    mu_label (ctx, "Jump scroll:", 0);
+    input_label (ctx, "Jump scroll");
     if (mu_checkbox (ctx, "##jscroll", &s_jump_scroll) & MU_RES_CHANGE)
       changed |= CHANGED_JUMP_SCROLL;
-    mu_label (ctx, "On output:", 0);
+    input_label (ctx, "On output");
     if (mu_checkbox (ctx, "##sout", &s_scroll_on_output) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_OUTPUT;
-    mu_label (ctx, "On keypress:", 0);
+    input_label (ctx, "On keypress");
     if (mu_checkbox (ctx, "##skey", &s_scroll_on_keypress) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_KEY;
-    mu_label (ctx, "Page on wheel:", 0);
+    input_label (ctx, "Page on wheel");
     if (mu_checkbox (ctx, "##wpage", &s_mouse_wheel_page) & MU_RES_CHANGE)
       changed |= CHANGED_WHEEL_PAGE;
 
     /* ---- Alerts & misc ---- */
     section_header (ctx, "Alerts & Misc");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Visual bell:", 0);
+    input_label (ctx, "Visual bell");
     if (mu_checkbox (ctx, "##vbell", &s_visual_bell) & MU_RES_CHANGE)
       changed |= CHANGED_VISUAL_BELL;
-    mu_label (ctx, "Urgent on bell:", 0);
+    input_label (ctx, "Urgent on bell");
     if (mu_checkbox (ctx, "##urgbell", &s_urgent_on_bell) & MU_RES_CHANGE)
       changed |= CHANGED_URGENT_BELL;
-    mu_label (ctx, "Blank pointer:", 0);
+    input_label (ctx, "Blank pointer");
     if (mu_checkbox (ctx, "##pblank", &s_pointer_blank) & MU_RES_CHANGE)
       changed |= CHANGED_PTR_BLANK;
 
-    /* ---- Terminal ---- */
-    section_header (ctx, "Terminal");
-    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    mu_label (ctx, "Login shell:", 0);
-    if (mu_checkbox (ctx, "##lshell", &s_login_shell) & MU_RES_CHANGE)
-      changed |= CHANGED_LOGIN_SHELL;
-    mu_label (ctx, "Auto-copy sel:", 0);
-    if (mu_checkbox (ctx, "##acopy", &s_auto_copy_sel) & MU_RES_CHANGE)
-      changed |= CHANGED_AUTO_COPY_SEL;
-#ifdef BUILTIN_GLYPHS
-    mu_label (ctx, "Skip builtins:", 0);
-    if (mu_checkbox (ctx, "##sbg", &s_skip_builtin_glyphs) & MU_RES_CHANGE)
-      changed |= CHANGED_SKIP_BUILTIN_GLYPHS;
-#endif
-#ifdef HAVE_BG_PIXMAP
-    mu_label (ctx, "Transparent:", 0);
-    if (mu_checkbox (ctx, "##transp", &s_transparent) & MU_RES_CHANGE)
-      changed |= CHANGED_TRANSPARENT;
-#endif
 
     /* ---- Bottom spacer (reserves room so content scrolls above buttons) ---- */
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 32); }
@@ -798,7 +821,7 @@ static int build_settings_window (mu_Context *ctx) {
       int spc   = ctx->style->spacing;
       int pad   = ctx->style->padding;
       int y     = s_panel_h - btn_h - pad;
-      int x3    = PANEL_WIDTH - (pad * 3) - btn_w;
+      int x3    = PANEL_WIDTH - (pad * 2.5) - btn_w;
       int x2    = x3 - spc - btn_w;
       int x1    = x2 - spc - btn_w;
       mu_layout_set_next (ctx, mu_rect (x1, y, btn_w, btn_h), 0);

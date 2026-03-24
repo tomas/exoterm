@@ -73,7 +73,7 @@ static mu_Style default_style = {
     { 40,  40,  40,  255 }, /* MU_COLOR_BASEFOCUS */
     { 43,  43,  43,  255 }, /* MU_COLOR_SCROLLBASE */
     { 30,  30,  30,  255 }, /* MU_COLOR_SCROLLTHUMB */
-    { 50,  50,  50,  255 }, /* MU_COLOR_SCROLLFOCUS */
+    { 20,  20,  20,  255 }, /* MU_COLOR_SCROLLFOCUS */
     { 75,  75,  75,  255 }, /* MU_COLOR_HANDLE */
     { 95,  95,  95,  255 }, /* MU_COLOR_HANDLEHOVER */
     { 115, 115, 115, 255 }, /* MU_COLOR_HANDLEFOCUS */
@@ -1147,7 +1147,6 @@ int mu_mouse_over(mu_Context *ctx, mu_Rect rect) {
     in_hover_root(ctx);
 }
 
-
 void mu_update_control(mu_Context *ctx, mu_Id id, mu_Rect rect, int opt) {
   int mouseover = mu_mouse_over(ctx, rect);
 
@@ -1212,12 +1211,12 @@ void mu_text(mu_Context *ctx, const char *text) {
   mu_text_ex(ctx, text, ctx->style->font);
 }
 
-void mu_text_with_shadow_ex(mu_Context *ctx, const char *text, unsigned char xoff, unsigned char yoff, unsigned char shadow_opacity, mu_Font font) {
+void mu_text_with_shadow_ex(mu_Context *ctx, const char *text, int xoff, int yoff, unsigned char shadow_opacity, mu_Font font) {
   mu_text_with_color(ctx, text, font, mu_color(0,0,0,shadow_opacity), xoff, yoff);
   mu_text_with_color(ctx, text, font, ctx->style->colors[MU_COLOR_TEXT], 0, 0);
 }
 
-void mu_text_with_shadow(mu_Context *ctx, const char *text, unsigned char xoff, unsigned char yoff, unsigned char shadow_opacity) {
+void mu_text_with_shadow(mu_Context *ctx, const char *text, int xoff, int yoff, unsigned char shadow_opacity) {
   mu_text_with_shadow_ex(ctx, text, xoff, yoff, shadow_opacity, ctx->style->font);
 }
 
@@ -1225,18 +1224,17 @@ void mu_label(mu_Context *ctx, const char *text, int opt) {
   mu_draw_control_text(ctx, text, mu_layout_next(ctx), MU_COLOR_TEXT, opt, 0, 0);
 }
 
-void mu_label_ex(mu_Context *ctx, const char *text, mu_Color color, unsigned char xoff, unsigned char yoff, float scale, int opt) {
-  mu_Rect r = mu_layout_next(ctx);
-  mu_draw_control_text_ex(ctx, text, r, color, opt, xoff, yoff, scale);
+void mu_label_ex(mu_Context *ctx, const char *text, mu_Color color, int xoff, int yoff, float scale, int opt) {
+  mu_draw_control_text_ex(ctx, text, mu_layout_next(ctx), color, opt, xoff, yoff, scale);
 }
 
-void mu_label_with_shadow(mu_Context *ctx, const char *text, unsigned char xoff, unsigned char yoff, unsigned char shadow_opacity, int opt) {
+void mu_label_with_shadow(mu_Context *ctx, const char *text, int xoff, int yoff, unsigned char shadow_opacity, int opt) {
   mu_Rect r = mu_layout_next(ctx);
   if (shadow_opacity > 0) mu_draw_control_text_ex(ctx, text, r, mu_color(0, 0, 0, shadow_opacity), opt, xoff, yoff, 1);
   mu_draw_control_text(ctx, text, r, MU_COLOR_TEXT, opt, 0, 0);
 }
 
-int mu_button_ex_with_shadow(mu_Context *ctx, const char *label, int icon, int opt, unsigned char xoff, unsigned char yoff, unsigned char shadow_opacity) {
+int mu_button_ex_with_shadow(mu_Context *ctx, const char *label, int icon, int opt, int xoff, int yoff, unsigned char shadow_opacity) {
   int res = 0;
   mu_Id id = label ? mu_get_id(ctx, label, strlen(label)) : mu_get_id(ctx, &icon, sizeof(icon));
   mu_Rect r = mu_layout_next(ctx);
@@ -2447,17 +2445,14 @@ int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item,
     mu_Rect rect = button_rect;
     rect.y += rect.h;
 
-
     mu_Container *root = ctx->root_list.items[ctx->root_list.idx - 1];
     int window_bottom = root->rect.y + root->rect.h;
     int space_below = window_bottom - rect.y - ctx->style->padding;
     int max_height = mu_max(space_below, ctx->style->size.y * 2); // at least 2 items tall
     // int max_height = 300;
 
-
-
     if (max_items > 40) {
-      rect.h = max_items;
+      rect.h = max_items; // assume given number is the menu height
     } else if (max_items > 0) {
       rect.h = (max_items * (ctx->style->size.y + ctx->style->spacing))
                + (ctx->style->padding * 2)
