@@ -1107,6 +1107,7 @@ static void restore_snapshot () {
   for (rxvt_term *t : rxvt_term::termlist) {
     t->set_window_color (Color_fg, s_snapshot.colors[0]);
     t->set_window_color (Color_bg, s_snapshot.colors[1]);
+    t->set_window_color (Color_border, s_snapshot.colors[1]); // border tracks bg
     for (int i = 0; i < 16; i++)
       t->set_window_color (minCOLOR + i, s_snapshot.colors[2 + i]);
     if (s_snapshot.font) {
