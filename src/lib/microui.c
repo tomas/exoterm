@@ -1348,7 +1348,7 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
   int res = 0;
   mu_Id id = mu_get_id(ctx, &state, sizeof(state));
   mu_Rect r = mu_layout_next(ctx);
-  mu_Rect box = mu_rect(r.x, r.y, r.h, r.h);
+  mu_Rect box = mu_rect(r.x, r.y+2, r.h-4, r.h-4);
   mu_update_control(ctx, id, r, 0);
   if (ctx->hover == id) ctx->hover_type = 1; // button
 
@@ -1363,7 +1363,7 @@ int mu_checkbox(mu_Context *ctx, const char *label, int *state) {
     mu_draw_icon(ctx, MU_ICON_CHECK, box, ctx->style->colors[MU_COLOR_TEXT]);
   }
   r = mu_rect(r.x + box.w, r.y, r.w - box.w, r.h);
-  mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, 0, 0, 0);
+  if (label != NULL) mu_draw_control_text(ctx, label, r, MU_COLOR_TEXT, 0, 0, 0);
   return res;
 }
 

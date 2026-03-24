@@ -622,7 +622,7 @@ static int build_settings_window (mu_Context *ctx) {
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
 
     input_label (ctx, "Login shell");
-    if (mu_checkbox (ctx, "##lshell", &s_login_shell) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_login_shell) & MU_RES_CHANGE)
       changed |= CHANGED_LOGIN_SHELL;
 
     input_label (ctx, "Geometry");
@@ -698,12 +698,12 @@ static int build_settings_window (mu_Context *ctx) {
 #ifdef BUILTIN_GLYPHS
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
     input_label (ctx, "Skip built-in glyphs");
-    if (mu_checkbox (ctx, "##sbg", &s_skip_builtin_glyphs) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_skip_builtin_glyphs) & MU_RES_CHANGE)
       changed |= CHANGED_SKIP_BUILTIN_GLYPHS;
 #endif
 
     /* ---- Fonts ---- */
-    input_label (ctx, "Regular Font");
+    input_label (ctx, "Main Font");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     font_display_name = (s_active_font == -1)
@@ -728,15 +728,15 @@ static int build_settings_window (mu_Context *ctx) {
 
     input_label (ctx, "Bold Font");
 
-    bold_display_name = (s_active_bold_font == -1)
+    bold_display_name = (s_active_bold_font == -1 && s_active_bold_xlfd)
       ? xlfd_to_name (s_active_bold_xlfd)
       : nullptr;
     const char *bold_current = (s_active_bold_font != -1)
       ? s_font_entries[s_active_bold_font].name
-      : (bold_display_name && *bold_display_name ? bold_display_name : "(auto)");
+      : (bold_display_name ? bold_display_name : "Auto-detect");
     if (mu_begin_combo_ex(ctx, "##boldfonts", bold_current, s_num_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
-      if (mu_button(ctx, "   (auto-detect)")) {
+      if (mu_button(ctx, "   Auto-detect (from main font)")) {
         s_pending_bold_font = -1;
         changed |= CHANGED_BOLD_FONT;
         mu_close_popup(ctx, "##boldfonts");
@@ -754,9 +754,6 @@ static int build_settings_window (mu_Context *ctx) {
       mu_end_combo(ctx);
     }
 
-
-
-
     /* ---- Cursor ---- */
     section_header (ctx, "Cursor & selection");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
@@ -768,10 +765,10 @@ static int build_settings_window (mu_Context *ctx) {
     if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_COLOR;
     input_label (ctx, "Cursor blink");
-    if (mu_checkbox (ctx, "##cblink", &s_cursor_blink) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_cursor_blink) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_BLINK;
     input_label (ctx, "Underline");
-    if (mu_checkbox (ctx, "##cul", &s_cursor_underline) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_cursor_underline) & MU_RES_CHANGE)
       changed |= CHANGED_CURSOR_UL;
 
     /* ---- Scrolling ---- */
@@ -786,32 +783,32 @@ static int build_settings_window (mu_Context *ctx) {
 
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
     input_label (ctx, "Scrollbar");
-    if (mu_checkbox (ctx, "##sbar", &s_scrollbar) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_scrollbar) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLLBAR;
     input_label (ctx, "Jump scroll");
-    if (mu_checkbox (ctx, "##jscroll", &s_jump_scroll) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_jump_scroll) & MU_RES_CHANGE)
       changed |= CHANGED_JUMP_SCROLL;
     input_label (ctx, "On output");
-    if (mu_checkbox (ctx, "##sout", &s_scroll_on_output) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_scroll_on_output) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_OUTPUT;
     input_label (ctx, "On keypress");
-    if (mu_checkbox (ctx, "##skey", &s_scroll_on_keypress) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_scroll_on_keypress) & MU_RES_CHANGE)
       changed |= CHANGED_SCROLL_KEY;
     input_label (ctx, "Page on wheel");
-    if (mu_checkbox (ctx, "##wpage", &s_mouse_wheel_page) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_mouse_wheel_page) & MU_RES_CHANGE)
       changed |= CHANGED_WHEEL_PAGE;
 
     /* ---- Alerts & misc ---- */
     section_header (ctx, "Alerts & Misc");
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
     input_label (ctx, "Visual bell");
-    if (mu_checkbox (ctx, "##vbell", &s_visual_bell) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_visual_bell) & MU_RES_CHANGE)
       changed |= CHANGED_VISUAL_BELL;
     input_label (ctx, "Urgent on bell");
-    if (mu_checkbox (ctx, "##urgbell", &s_urgent_on_bell) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_urgent_on_bell) & MU_RES_CHANGE)
       changed |= CHANGED_URGENT_BELL;
     input_label (ctx, "Blank pointer");
-    if (mu_checkbox (ctx, "##pblank", &s_pointer_blank) & MU_RES_CHANGE)
+    if (mu_checkbox (ctx, NULL, &s_pointer_blank) & MU_RES_CHANGE)
       changed |= CHANGED_PTR_BLANK;
 
 
@@ -1170,6 +1167,7 @@ static void read_settings_from_term (rxvt_term *t) {
 
   free(s_active_bold_xlfd);
   s_active_bold_xlfd = t->rs[Rs_boldFont] ? strdup(t->rs[Rs_boldFont]) : nullptr;
+
   /* Detect which (if any) named scheme matches the terminal's current colors. */
   auto rgb_of = [&](int cidx) -> const char * {
     /* color_to_hex produces "#rrggbb" or "[n]#rrggbb" — we only need the "#..." part */
@@ -1654,24 +1652,19 @@ static void save_to_xdefaults (rxvt_term *first_term) {
   /* --- build the new managed block --- */
   GString *block = g_string_new (XDEF_BLOCK_BEGIN "\n");
 
-  g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
-  g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_shading);
-  g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
-  g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
-  g_string_append_printf (block, "Exoterm.saveLines:         %d\n",  (int)s_save_lines);
-  g_string_append_printf (block, "Exoterm.wheelScrollLines:  %d\n",  (int)s_scroll_speed);
+  g_string_append_printf (block, "Exoterm.loginShell:         %s\n", s_login_shell     ? "true" : "false");
 
-  g_string_append_printf (block, "Exoterm.scrollBar:          %s\n", s_scrollbar           ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.cursorBlink:        %s\n", s_cursor_blink        ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.cursorUnderline:    %s\n", s_cursor_underline    ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.scrollTtyOutput:    %s\n", s_scroll_on_output    ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.scrollTtyKeypress:  %s\n", s_scroll_on_keypress  ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.jumpScroll:         %s\n", s_jump_scroll         ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.visualBell:         %s\n", s_visual_bell         ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.urgentOnBell:       %s\n", s_urgent_on_bell      ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.mouseWheelScrollPage: %s\n", s_mouse_wheel_page  ? "true" : "false");
-#ifdef POINTER_BLANK
-  g_string_append_printf (block, "Exoterm.pointerBlank:       %s\n", s_pointer_blank       ? "true" : "false");
+  if (s_geometry[0])
+    g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
+
+  g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
+  // g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_shading);
+
+  g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
+  // g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
+
+#ifdef BUILTIN_GLYPHS
+  g_string_append_printf (block, "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
 #endif
 
   if (s_active_font_xlfd && *s_active_font_xlfd)
@@ -1679,19 +1672,37 @@ static void save_to_xdefaults (rxvt_term *first_term) {
   if (s_active_bold_xlfd && *s_active_bold_xlfd)
     g_string_append_printf (block, "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
 
-  g_string_append_printf (block, "Exoterm.loginShell:         %s\n", s_login_shell     ? "true" : "false");
+  // cursor and selection
   g_string_append_printf (block, "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel   ? "true" : "false");
-#ifdef BUILTIN_GLYPHS
-  g_string_append_printf (block, "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
-#endif
-#ifdef HAVE_BG_PIXMAP
-  g_string_append_printf (block, "Exoterm.inheritPixmap:      %s\n", s_transparent     ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.transparent:        %s\n", s_transparent     ? "true" : "false");
-#endif
   if (s_cursor_color[0])
     g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
-  if (s_geometry[0])
-    g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
+
+  g_string_append_printf (block, "Exoterm.cursorBlink:        %s\n", s_cursor_blink        ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.cursorUnderline:    %s\n", s_cursor_underline    ? "true" : "false");
+
+  // scroll
+  g_string_append_printf (block, "Exoterm.saveLines:         %d\n",  (int)s_save_lines);
+  g_string_append_printf (block, "Exoterm.wheelScrollLines:  %d\n",  (int)s_scroll_speed);
+  g_string_append_printf (block, "Exoterm.scrollBar:          %s\n", s_scrollbar           ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.scrollTtyOutput:    %s\n", s_scroll_on_output    ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.scrollTtyKeypress:  %s\n", s_scroll_on_keypress  ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.jumpScroll:         %s\n", s_jump_scroll         ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.mouseWheelScrollPage: %s\n", s_mouse_wheel_page  ? "true" : "false");
+
+  // alerts
+  g_string_append_printf (block, "Exoterm.visualBell:         %s\n", s_visual_bell         ? "true" : "false");
+  g_string_append_printf (block, "Exoterm.urgentOnBell:       %s\n", s_urgent_on_bell      ? "true" : "false");
+
+#ifdef POINTER_BLANK
+  g_string_append_printf (block, "Exoterm.pointerBlank:       %s\n", s_pointer_blank       ? "true" : "false");
+#endif
+
+
+// #ifdef HAVE_BG_PIXMAP
+//   g_string_append_printf (block, "Exoterm.inheritPixmap:      %s\n", s_transparent     ? "true" : "false");
+//   g_string_append_printf (block, "Exoterm.transparent:        %s\n", s_transparent     ? "true" : "false");
+// #endif
+
 
   if (first_term) {
     char col[16];
