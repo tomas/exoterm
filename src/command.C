@@ -5928,7 +5928,7 @@ rxvt_term::process_xterm_seq (int op, char *str, string_term &st)
         if (query)
           tt_printf ("\33]%d;%d;%d;%d%c", saveop,
                      fwidth, fheight, fbase,
-                     resp);
+                     st.v);
         break;
 
 #if !ENABLE_MINIMAL
