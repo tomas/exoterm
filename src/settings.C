@@ -561,12 +561,28 @@ static void find_xft_active_fonts () {
 
   auto match = [&] (const char *xlfd) -> int {
     if (!xlfd || strncmp (xlfd, "xft:", 4) != 0) return -1;
-    const char *content = xlfd + 4;
+    const char *content       = xlfd + 4;
+    const char *content_style = strstr (content, ":style=");
+
     for (int i = 0; i < s_num_xft_fonts; i++) {
-      int slen = (int)strlen (s_xft_font_entries[i].spec);
-      if (strncmp (content, s_xft_font_entries[i].spec, slen) == 0
-          && (content[slen] == '\0' || content[slen] == ':'))
-        return i;
+      const char *spec       = s_xft_font_entries[i].spec;
+      const char *spec_style = strstr (spec, ":style=");
+
+      /* Family part ends at the first ':' (or end of string). */
+      int flen = spec_style ? (int)(spec_style - spec) : (int)strlen (spec);
+      if (strncmp (content, spec, flen) != 0) continue;
+      if (content[flen] != '\0' && content[flen] != ':') continue;
+
+      /* Style must match: both absent, or both present with equal value. */
+      if (!spec_style && !content_style) return i;           /* both regular */
+      if (!spec_style || !content_style) continue;           /* one has style, other doesn't */
+
+      /* Compare style values (up to next ':' or end). */
+      const char *sv = spec_style    + 7;  /* skip ":style=" */
+      const char *cv = content_style + 7;
+      int svlen = (int)(strchr (sv, ':') ? strchr (sv, ':') - sv : (int)strlen (sv));
+      int cvlen = (int)(strchr (cv, ':') ? strchr (cv, ':') - cv : (int)strlen (cv));
+      if (svlen == cvlen && strncmp (sv, cv, svlen) == 0) return i;
     }
     return -1;
   };
@@ -654,9 +670,9 @@ static int font_height_cb (mu_Font font) { return r_get_text_height (); }
 
 /* --- slider helper --- */
 static int float_slider (mu_Context *ctx, float *value, float lo, float hi,
-                         float step, const char *fmt) {
+                         float step, const char *fmt, int opt = 0) {
   mu_push_id (ctx, &value, sizeof (value));
-  int res = mu_slider_ex (ctx, value, lo, hi, step, fmt, MU_OPT_ALIGNCENTER);
+  int res = mu_slider_ex (ctx, value, lo, hi, step, fmt, MU_OPT_ALIGNCENTER | opt);
   mu_pop_id (ctx);
   return res;
 }
@@ -821,9 +837,9 @@ static int build_settings_window (mu_Context *ctx) {
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
 
-    // input_label (ctx, "Letter spacing");
-    // if (float_slider (ctx, &s_letter_space, 0.0f, 4.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
-    //   changed |= CHANGED_LETTER_SPACE;
+    input_label (ctx, "Letter spacing");
+    if (float_slider (ctx, &s_letter_space, 0.0f, 4.0f, 1.0f, "%.0f px", MU_OPT_CHANGE_ON_RELEASE) & MU_RES_CHANGE)
+      changed |= CHANGED_LETTER_SPACE;
 
 #ifdef BUILTIN_GLYPHS
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
@@ -900,7 +916,7 @@ static int build_settings_window (mu_Context *ctx) {
 
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
     input_label (ctx, "Font Size (px)");
-    if (float_slider (ctx, &s_xft_font_size_f, 10.0f, 32.0f, 1.0f, "%.0f") & MU_RES_CHANGE)
+    if (float_slider (ctx, &s_xft_font_size_f, 8.0f, 32.0f, 1.0f, "%.0f", MU_OPT_CHANGE_ON_RELEASE) & MU_RES_CHANGE)
       changed |= CHANGED_XFT_FONT;
 
     input_label (ctx, "Main Font (XFT)");
@@ -924,6 +940,7 @@ static int build_settings_window (mu_Context *ctx) {
     }
 
     input_label (ctx, "Bold Font (XFT)");
+    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     const char *xft_bold_cur = (s_active_xft_bold_font >= 0 && s_active_xft_bold_font < s_num_xft_fonts)
       ? s_xft_font_entries[s_active_xft_bold_font].name : "Auto-detect (from main font)";
