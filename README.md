@@ -15,17 +15,17 @@ On top of it, adds:
 - **Native tabs** — tab bar with mouse support, fully managed in C (no Perl)
 - **Split panes** — horizontal/vertical pane splitting
 - **Minimap** — scrollback overview panel with viewport indicator
-- **Sixel image support** — inline image rendering via DCS sixel sequences
+- **Prompt markers** — tracks shell prompt positions for navigation with keyboard shortcuts
 - **True 24-bit color** — full RGB888 support beyond the standard 256-color cube
-- **Native URL detection and click-to-open** — no Perl extension required
-- **Drag-and-drop** — XDND protocol support for dropping files/text into the terminal
 - **Native searchable scrollback** — incremental search bar implemented in C
+- **Sixel image support** — inline image rendering via DCS sixel sequences
+- **Native URL detection and click-to-open** — no Perl extension required
+- **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
+- **Drag-and-drop** — XDND protocol support for dropping files/text into the terminal
 - **Settings pane** — graphical settings panel accessible at runtime
 - **Right-click context menu** — context-sensitive actions on selected text
-- **Shift+Enter** — sends line feed (`\n`) separately from Enter (`\r`), useful in some TUI applications
-- **Prompt markers** — tracks shell prompt positions for navigation with keyboard shortcuts
 - **Auto copy selection** — copies text to clipboard on selection (xterm-style, configurable)
-- **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
+- **Shift+Enter** — sends line feed (`\n`) separately from Enter (`\r`), useful in some TUI applications
 
 It's also synced with these changes from the upstream repo:
 
@@ -48,7 +48,7 @@ Because a terminal should not consume RAM like a browser tab does, period.
 I want mine to open up in less than a second. And urxvt delivers exactly that.
 
 Plus, being light on resources and not requiring a GPU means you can use it anywhere,
-even in your old laptop from back in the day.
+even in your old laptop from yesteryear.
 
 ## How can I use this in Wayland?
 
@@ -76,7 +76,7 @@ First, install dependencies. These are
 - libxrender-dev
 - libstartup-notification0-dev
 
-For Ubuntu/Debian, the command would be:
+For Ubuntu/Debian, this command does it:
 
     sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
@@ -93,28 +93,27 @@ Configure and build:
     make
     sudo make install
 
-Run `./configure -h` to see all options. See `README.configure` for details. 
-For instance, to enable true 24 bit color support, you'd run:
+Run `./configure -h` to see all options. See `README.configure` for details. A few quick examples:
 
-    ./configure --enable-24-bit-color
-
-Or if you don't need XFT and can do without full transparency:
-
-    ./configure --disable-xft
+    ./configure --disable-24-bit-color (if you prefer 256 color)
+    ./configure --disable-xft (if you don't need XFT and can do without full transparency)
+    ./configure --enable-perl (if you want support for perl extensions)
 
 ## Settings
 
-Exoterm provides a GUI for changing (some of) the available options. In the same
+Exoterm provides a GUI for changing (most of) the available options. In the same
 spirit as urxvt, Exoterm reads the values from  `~/.Xdefaults`. You can use either
 `Exoterm` or `Urxvt` as a prefix for each option. 
 
-If you edit the `.Xdefaults` file, run `xrdb ~/.Xdefaults` to ensure new values are 
-read. Here's an example configuration:
+If you edit the `.Xdefaults` file, make sure to run `xrdb ~/.Xdefaults` so new values 
+are read. 
+
+Here's an example configuration:
 
     ! main
     Exoterm.loginShell: true
-    Exoterm.foreground: #fff
     Exoterm.geometry: 100x25
+    Exoterm.foreground: #fff
     Exoterm.cursorColor: #ff6600
 
     ! font (Terminus 8x16)
@@ -147,7 +146,7 @@ read. Here's an example configuration:
 
 ## Colors
 
-Example using a Dracula-based palette (in `~/.Xdefaults`):
+Example using a Dracula-based palette:
 
     Exoterm.color0:  #000000
     Exoterm.color8:  #4D4D4D
