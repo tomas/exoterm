@@ -4,9 +4,13 @@
 
 # Exoterm
 
-A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt), kept in sync with upstream and improved with a few tricks. X11 only.
+A fork of the great [[rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt)] plus a few extras.
+Still lean, X11 only.
 
-## Features beyond upstream urxvt
+## What Exoterm does
+
+It includes everything what makes urxvt great: low CPU usage, low latency, fast output, daemon mode, etc.
+On top of it, adds:
 
 - **Native tabs** — tab bar with mouse support, fully managed in C (no Perl)
 - **Split panes** — horizontal/vertical pane splitting
@@ -23,29 +27,36 @@ A fork of [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxv
 - **Auto copy selection** — copies text to clipboard on selection (xterm-style, configurable)
 - **Improved input handling** — key encoding closer to xterm for better TUI/Vim/tmux compatibility
 
-All this, while still using less than 20 MB of RAM. :)
-
-### Stuff ported from upstream
+It's also synced with these changes from the upstream repo:
 
 - Wide glyph rendering (`ENABLE_WIDE_GLYPHS`) — always enabled in this build
 - SGR mouse mode (1006), extended mouse reporting (1015), DECRQM (mode query)
 - Bracketed paste mode
 - Background image support with compositing
 
+## What Exoterm does not:
+
+- Include the perl stuff from urxvt by default (you must enable it via `--enable-perl`)
+- Use 150MB of RAM just to show you a prompt, like other new terminals
+- Touch your precious GPU at any moment
+- Bundle stuff like a "Markdown editor" just because
+- Require you to launch a daemon on boot so it can start fast
+
 ## Why not just use ____?
 
-Because a terminal should not require over 50 MB of RAM, period.
+Because a terminal should not consume RAM like a browser tab does, period.
 I want mine to open up in less than a second. And urxvt delivers exactly that.
 
-Plus, it doesn't rely on the GPU for rendering, so it can be used virtually anywhere.
+Plus, being light on resources and not requiring a GPU means you can use it anywhere,
+even in your old laptop from back in the day.
 
 ## How can I use this in Wayland?
 
 You can't, sorry.
 
-But I hear that [foot](https://codeberg.org/dnkl/foot) is pretty lightweight and minimal.
+But I hear that [foot](https://codeberg.org/dnkl/foot) is pretty lightweight and minimal. ;)
 
-## Install
+## Download/Install
 
 No binary packages available at the moment. But you can build it in a second or two.
 
@@ -53,18 +64,20 @@ No binary packages available at the moment. But you can build it in a second or 
 
 First, install dependencies. These are
 
-- libxrender-dev 
 - libxmu-dev 
 - libxpm-dev 
-- libxft-dev (for xft fonts, not needed if you use bitmap fonts)
+- libxft-dev (for xft fonts and/or full transparency)
+- libxrender-dev
 - libstartup-notification0-dev
 
 For Ubuntu/Debian, the command would be:
 
     sudo apt install libxpm-dev libxft-dev libxrender-dev libxmu-dev libstartup-notification0-dev
 
-Then, initialize submodules:
+Then, clone the repo and initialize submodules:
 
+    git clone https://github.com/tomas/exoterm
+    cd exoterm
     git submodule init
     git submodule update
 
@@ -75,9 +88,13 @@ Configure and build:
     sudo make install
 
 Run `./configure -h` to see all options. See `README.configure` for details. 
-For instance, to enable true 24 bit color support and disable xft, you'd run:
+For instance, to enable true 24 bit color support, you'd run:
 
-    ./configure --enable-24-bit-color --disable-xft
+    ./configure --enable-24-bit-color
+
+Or if you don't need XFT and can do without full transparency:
+
+    ./configure --disable-xft
 
 ## Settings
 
@@ -105,8 +122,6 @@ read. Here's an example configuration:
     ! Exoterm.shading: 30
 
     ! for real transparency (requires compositor)
-    Exoterm.inheritPixmap: false
-    Exoterm.transparent: false
     Exoterm.depth: 32
     Exoterm.background: rgba:0000/0000/0800/c800
 
@@ -117,9 +132,9 @@ read. Here's an example configuration:
 
     ! scrollback
     Exoterm.saveLines: 10000
-    Exoterm.scrollBar: false
     Exoterm.jumpScroll: true
     Exoterm.skipScroll: true
+    Exoterm.scrollBar: false
     Exoterm.scrollTtyOutput: false
     Exoterm.scrollWithBuffer: true
     Exoterm.scrollTtyKeypress: true
