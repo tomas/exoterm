@@ -1258,13 +1258,13 @@ static void apply_settings (int changed) {
       t->set_option (Opt_cursorUnderline, s_cursor_underline);
       t->want_refresh = 1;
     }
-    if (changed & CHANGED_SHADING) {
-      t->bg_shading = (int) s_shading;
-#ifdef HAVE_BG_PIXMAP
-      t->bg_init ();
-      t->bg_render ();
-#endif
-    }
+//     if (changed & CHANGED_SHADING) {
+//       t->bg_shading = (int) s_shading;
+// #ifdef HAVE_BG_PIXMAP
+//       t->bg_init ();
+//       t->bg_render ();
+// #endif
+//     }
     if (changed & CHANGED_LINE_SPACE) {
       t->lineSpace = (int) s_line_space;
       t->set_fonts ();
@@ -1821,8 +1821,10 @@ rxvt_term::recenter_settings_ui ()
 void
 rxvt_term::destroy_settings_ui ()
 {
+
   /* Restore focus before any window is destroyed so the WM sees a clean
      focus handoff.  Mirrors hide_settings_ui's explicit focus_in() call. */
+
   // if (settings_ui.visible && GET_R && dpy)
   //   {
   //     XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
