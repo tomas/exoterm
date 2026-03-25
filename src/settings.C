@@ -1706,6 +1706,11 @@ rxvt_term::hide_settings_ui ()
 
   /* Return focus to whichever pane is currently active. */
   XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+  /* Explicitly update internal focus state now rather than waiting for the
+     async FocusIn event.  Without this, scr_touch below repaints with the
+     hollow cursor, and WMs that suppress XSetInputFocus (focus-steal
+     prevention) may never deliver the FocusIn at all. */
+  GET_R->focus_in ();
 
   XUnmapWindow (dpy, settings_ui.win);
   if (settings_ui.backdrop_win != None)
@@ -1816,6 +1821,14 @@ rxvt_term::recenter_settings_ui ()
 void
 rxvt_term::destroy_settings_ui ()
 {
+  /* Restore focus before any window is destroyed so the WM sees a clean
+     focus handoff.  Mirrors hide_settings_ui's explicit focus_in() call. */
+  // if (settings_ui.visible && GET_R && dpy)
+  //   {
+  //     XSetInputFocus (dpy, GET_R->parent, RevertToPointerRoot, CurrentTime);
+  //     GET_R->focus_in ();
+  //   }
+
   settings_ui_refresh_ev.stop ();
   if (settings_ui.win != None) {
     if (display) settings_ui_ev.stop (display);
