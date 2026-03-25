@@ -118,6 +118,7 @@ enum {
   MU_OPT_HIDE_ON_CLICK  = (1 << 20), // for popups
   MU_OPT_CONTAINHEIGHT  = (1 << 21), // for images
   MU_OPT_ALWAYSONTOP = (1 << 22),
+  MU_OPT_CHANGE_ON_RELEASE = (1 << 23), // slider: return MU_RES_CHANGE only on mouse release
 };
 
 enum {

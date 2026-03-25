@@ -236,9 +236,9 @@ void mu_end(mu_Context *ctx) {
   ctx->key_pressed = 0;
   ctx->input_text[0] = '\0';
   // ctx->copy_text[0] = '\0';
+  if (ctx->mouse_pressed) { ctx->scrollbar_drag = 0; }
   ctx->mouse_pressed = 0;
   ctx->mouse_up = 0;
-  ctx->scrollbar_drag = 0;
   ctx->scroll_delta = mu_vec2(0, 0);
   ctx->last_mouse_pos = ctx->mouse_pos;
   ctx->prevent_scroll = 0;
@@ -1858,6 +1858,7 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
   if (number_textbox(ctx, &v, base, id)) { return res; }
 
   /* handle normal mode */
+  int was_focused = (ctx->focus == id);
   // mu_update_control(ctx, id, base, opt);
   mu_update_control(ctx, id, base, opt | MU_OPT_PREVENT_SCROLL);
   if (ctx->hover == id) ctx->hover_type = 3; // slider
@@ -1876,7 +1877,17 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
 
   /* clamp and store value, update res */
   *value = v = mu_clamp(v, low, high);
-  if (last != v) { res |= MU_RES_CHANGE; }
+  if (last != v) {
+    if (opt & MU_OPT_CHANGE_ON_RELEASE) {
+      res |= MU_RES_ACTIVE; /* value preview during drag; caller waits for MU_RES_CHANGE */
+    } else {
+      res |= MU_RES_CHANGE;
+    }
+  }
+  /* with CHANGE_ON_RELEASE: emit MU_RES_CHANGE on mouse release */
+  if ((opt & MU_OPT_CHANGE_ON_RELEASE) && was_focused && (ctx->mouse_up & MU_MOUSE_LEFT)) {
+    res |= MU_RES_CHANGE;
+  }
 
   /* draw base */
   mu_draw_control_frame(ctx, id, base, MU_COLOR_BASE, opt);
@@ -2429,7 +2440,7 @@ int mu_begin_combo_ex(mu_Context* ctx, const char* id, const char* current_item,
        open (begin_window_ex will close it via the mouse_pressed path anyway).
        mu_open_popup is called BEFORE drawing so the button renders in
        normal/hover state rather than the pressed/focus state. */
-    mu_Id button_id = mu_get_id(ctx, current_item, strlen(current_item));
+    mu_Id button_id = popup_id_val; /* use combo id, not label — labels can clash */
     mu_Rect button_rect = mu_layout_next(ctx);
     mu_update_control(ctx, button_id, button_rect, 0);
     if (ctx->hover == button_id) ctx->hover_type = 1; /* button cursor */
