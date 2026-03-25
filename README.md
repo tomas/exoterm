@@ -98,7 +98,15 @@ read. Here's an example configuration:
     Exoterm.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
     Exoterm.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
-    ! real transparency (requires compositor)
+    ! fake transparent background
+    ! Exoterm.inheritPixmap: true
+    ! Exoterm.transparent: true
+    ! Exoterm.tintColor: #00ffff
+    ! Exoterm.shading: 30
+
+    ! for real transparency (requires compositor)
+    Exoterm.inheritPixmap: false
+    Exoterm.transparent: false
     Exoterm.depth: 32
     Exoterm.background: rgba:0000/0000/0800/c800
 
