@@ -122,15 +122,10 @@ Here's an example configuration:
     Exoterm.font: -xos4-terminus-medium-r-normal--16-160-72-72-c-80-iso10646-1
     Exoterm.boldFont: -xos4-terminus-bold-r-normal--16-160-72-72-c-80-iso10646-1
 
-    ! fake transparent background
-    ! Exoterm.inheritPixmap: true
-    ! Exoterm.transparent: true
-    ! Exoterm.tintColor: #00ffff
-    ! Exoterm.shading: 30
-
-    ! for real transparency (requires compositor)
-    Exoterm.depth: 32
-    Exoterm.background: rgba:0000/0000/0800/c800
+    ! 80% opaque black background with a 10% opaque tint of cyan
+    URxvt.blackOpacity: 80
+    URxvt.background: #0ff
+    URxvt.bgOpacity: 10
 
     ! borders
     Exoterm.internalBorder: 10
