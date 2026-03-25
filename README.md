@@ -99,6 +99,8 @@ Run `./configure -h` to see all options. See `README.configure` for details. A f
     ./configure --disable-xft (if you don't need XFT and can do without full transparency)
     ./configure --enable-perl (if you want support for perl extensions)
 
+*Note*: make sure to run `make clean` before `make` after changing compile options.
+
 ## Settings
 
 Exoterm provides a GUI for changing (most of) the available options. In the same
