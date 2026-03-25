@@ -326,8 +326,7 @@ rxvt_term::bg_render ()
 }
 
 void
-rxvt_term::bg_init ()
-{
+rxvt_term::bg_init_transparency () {
   /* Parse bgOpacity/blackOpacity unconditionally — used by both fake transparency
      (winbg path) and real compositor-based transparency (depth-32 path). */
   if (rs [Rs_bgOpacity])
@@ -350,6 +349,11 @@ rxvt_term::bg_init ()
       black_opacity = atoi (rs [Rs_blackOpacity]);
       clamp_it (black_opacity, 0, 100);
     }
+}
+
+void
+rxvt_term::bg_init ()
+{
 
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {

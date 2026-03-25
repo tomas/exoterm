@@ -90,7 +90,7 @@ static int cm_compute_h (bool has_split, bool has_minimap) {
 /* --- live settings state --- */
 static float s_border_width  = 10.0f;
 static float s_scroll_speed  = 5.0f;
-static float s_bg_opacity    = 100.0f;
+static float s_bg_opacity    = 50.0f;
 static float s_black_opacity = 100.0f;
 static float s_line_space    = 0.0f;
 static float s_letter_space  = 0.0f;

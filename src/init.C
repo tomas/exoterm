@@ -1009,6 +1009,7 @@ rxvt_term::init2 (int argc, const char *const *argv)
     scrollBar.resize ();      /* create and map scrollbar */
 
 #ifdef HAVE_BG_PIXMAP
+  bg_init_transparency();
   bg_init ();
 #endif
 

@@ -1286,6 +1286,7 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   row_col_t       oldcursor;
 
 #ifdef HAVE_BG_PIXMAP
+  void bg_init_transparency();
   void bg_init ();
   void bg_destroy ();
 
