@@ -203,7 +203,7 @@ if test x$GXX = xyes; then
 fi
 
 AC_ARG_ENABLE(256-color,
-  [  --disable-256-color    disable 256-color support],
+  [  --disable-256-color     disable 256-color support],
   [if test x$enableval = xno; then
     support_256_color=$enableval
   fi])
@@ -212,7 +212,7 @@ if test x$support_256_color = xyes; then
 fi
 
 AC_ARG_ENABLE(24-bit-color,
-  [  --disable-24-bit-color    disable 24-bit color support],
+  [  --disable-24-bit-color  disable 24-bit color support],
   [if test x$enableval = xno; then
     support_24_bit_color=$enableval
   fi])
@@ -354,13 +354,13 @@ fi
 
 RESNAME=exoterm
 AC_ARG_WITH(res-name,
-  [  --with-res-name=NAME    use this as default resource name (default: urxvt)],
+  [  --with-res-name=NAME    use this as default resource name (default: exoterm)],
   [RESNAME="$withval"])
 AC_DEFINE_UNQUOTED(RESNAME,"$RESNAME", [Default resource name])
 
 RESCLASS=Exoterm
 AC_ARG_WITH(res-class,
-  [  --with-res-class=CLASS  use this as the resource class (default: URxvt)],
+  [  --with-res-class=CLASS  use this as the resource class (default: Exoterm)],
   [RESCLASS="$withval"])
 AC_DEFINE_UNQUOTED(RESCLASS,"$RESCLASS", [Resource class])
 
