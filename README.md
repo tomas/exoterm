@@ -4,7 +4,7 @@
 
 # Exoterm
 
-A fork of the great [[rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt)] plus a few extras.
+A fork of the great [rxvt-unicode](http://software.schmorp.de/pkg/rxvt-unicode.html) (urxvt) plus a few extras.
 Still lean, X11 only.
 
 ## What Exoterm does
