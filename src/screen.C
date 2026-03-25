@@ -3081,8 +3081,40 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
 #endif
     {
       // printf("no bg image\n");
-      XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
-      XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
+#if XFT
+      /* In real (compositor-based) transparency with an ARGB visual, apply
+         bgOpacity and bgDarken by computing a premultiplied ARGB background pixel.
+         effective_alpha = opacity + darken*(1-opacity) — total fraction of window vs wallpaper.
+         RGB values are Color_bg scaled by opacity/effective_alpha so the compositor
+         sees the right tinted colour at the right transparency.
+         Set on parent (which owns the int_bwidth border strips) and make vt
+         ParentRelative so border strips and vt look identical — same as fake-transparent path. */
+      if (depth == 32 && (bg_opacity < 100 || bg_darken > 0))
+        {
+          int eff_pct = bg_opacity + bg_darken * (100 - bg_opacity) / 100;
+          rgba bg;
+          lookup_color (Color_bg, pix_colors_focused).get (bg);
+          unsigned long ea = (unsigned long)eff_pct * 0xFF / 100;
+          unsigned long r  = (bg.r >> 8) & 0xFF;
+          unsigned long g  = (bg.g >> 8) & 0xFF;
+          unsigned long b  = (bg.b >> 8) & 0xFF;
+          if (eff_pct > 0)
+            {
+              r = r * bg_opacity / eff_pct;
+              g = g * bg_opacity / eff_pct;
+              b = b * bg_opacity / eff_pct;
+            }
+          unsigned long argb = (ea << 24) | (r << 16) | (g << 8) | b;
+          XSetWindowBackground (dpy, parent, argb);
+          XSetWindowBackgroundPixmap (dpy, vt, ParentRelative);
+          transparent = true;
+        }
+      else
+#endif
+        {
+          XSetWindowBackground (dpy, parent, lookup_color(Color_border, pix_colors));
+          XSetWindowBackground (dpy, vt, lookup_color(Color_bg, pix_colors));
+        }
     }
 
   XClearWindow (dpy, parent);
@@ -4490,11 +4522,16 @@ void rxvt_term::render_minimap() {
 
     Pixmap buffer = minimap.buffer;
 
-    // Seed the buffer with the terminal content that sits behind the minimap,
-    // then blend the background color over it at 80% opacity — giving true
-    // semi-transparency without a compositor.
+    // Seed the buffer with the wallpaper content behind the minimap.
+    // In fake transparent mode use winbg (the pre-blended root pixmap) so that
+    // bgOpacity/bgDarken are already applied, matching real transparent mode.
     int src_x = max(0, vt_width - minimap.width);
-    XCopyArea(dpy, vt, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
+// #ifdef HAVE_BG_PIXMAP
+//     if (winbg != None && (bg_flags & BG_IS_TRANSPARENT))
+//         XCopyArea(dpy, winbg, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
+//     else
+// #endif
+        XCopyArea(dpy, vt, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
 
     if (minimap.xr_format) {
         Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);

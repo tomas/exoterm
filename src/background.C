@@ -328,31 +328,34 @@ rxvt_term::bg_render ()
 void
 rxvt_term::bg_init ()
 {
+  /* Parse bgOpacity/bgDarken unconditionally — used by both fake transparency
+     (winbg path) and real compositor-based transparency (depth-32 path). */
+  if (rs [Rs_bgOpacity])
+    {
+      bg_opacity = atoi (rs [Rs_bgOpacity]);
+      clamp_it (bg_opacity, 0, 100);
+    }
+  else
+    {
+#if XFT
+      rgba bg_rgba;
+      lookup_color (Color_bg, pix_colors_focused).get (bg_rgba);
+      if (bg_rgba.a < rgba::MAX_CC)
+        bg_opacity = (int)((u_int32_t)bg_rgba.a * 100 / rgba::MAX_CC);
+#endif
+    }
+
+  if (rs [Rs_bgDarken])
+    {
+      bg_darken = atoi (rs [Rs_bgDarken]);
+      clamp_it (bg_darken, 0, 100);
+    }
+
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
       /* Free previous resources before recreating */
       if (root_img != None) { XFreePixmap (dpy, root_img); root_img = None; }
       if (winbg    != None) { XFreePixmap (dpy, winbg);    winbg    = None; }
-
-      /* Determine opacity: explicit bgOpacity resource > Color_bg alpha > runtime value */
-      if (rs [Rs_bgOpacity])
-        {
-          bg_opacity = atoi (rs [Rs_bgOpacity]);
-          clamp_it (bg_opacity, 0, 100);
-        }
-      else
-        {
-          rgba bg_rgba;
-          lookup_color (Color_bg, pix_colors_focused).get (bg_rgba);
-          if (bg_rgba.a < rgba::MAX_CC)
-            bg_opacity = (int)((u_int32_t)bg_rgba.a * 100 / rgba::MAX_CC);
-        }
-
-      if (rs [Rs_bgDarken])
-        {
-          bg_darken = atoi (rs [Rs_bgDarken]);
-          clamp_it (bg_darken, 0, 100);
-        }
 
       XColor bg;
       lookup_color (Color_bg, pix_colors_focused).get (bg);

@@ -1338,6 +1338,7 @@ done:
 #if BG_IMAGE_FROM_ROOT
   if (idx == Color_bg && option (Opt_transparent))
     {
+      minimap.colors_initialized = false;
       bg_init ();
       bg_render ();
       return;

@@ -1269,6 +1269,8 @@ static void apply_settings (int changed) {
           t->bg_init ();
           t->bg_render ();
         }
+      else
+        t->scr_recolor ();
     }
 #endif
     if (changed & CHANGED_LINE_SPACE) {
@@ -1516,21 +1518,57 @@ static void backdrop_refresh (rxvt_term *t)
      since root's vt may be unmapped when on another tab. */
   rxvt_term *active = GET_R;
 
-  /* Seed the entire pixmap with the border/background color so that the
-     internal-border strips around the vt (internalBorder padding) are not
-     left as undefined pixmap content.  XCopyArea from the vt only fills
-     the vt area; the surrounding strips would otherwise show as stale or
-     garbage pixels after the dark overlay is composited. */
-  XSetForeground (dpy, gc, t->lookup_color (Color_border, t->pix_colors));
-  XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
-
   /* Get the position of active's parent within the root window.
      For root term, parent is the root window at (0,0).
      For split child, parent is a child of root window at (attr.x, attr.y). */
   XWindowAttributes parent_attr;
   XGetWindowAttributes (dpy, active->parent, &parent_attr);
 
-  /* Primary pane (active term's vt): copy at its position within root_win. */
+  /* Seed the entire pixmap so the internal-border strips around the vt are
+     not left as stale content after the dark overlay is composited.
+     - Fake-transparent: border strips show winbg (processed wallpaper), so copy from it.
+     - Real-transparent (depth 32): copy from parent window's backing store which holds
+       the ARGB background pixel we set in scr_recolor; the border strip pixels then
+       match the vt background and the dark overlay produces a uniform result.
+     - Opaque: fill with Color_border as before. */
+#ifdef HAVE_BG_PIXMAP
+  if (active->winbg != None && (active->bg_flags & rxvt_term::BG_IS_TRANSPARENT)) {
+    int full_w = active->vt_width  + 2 * active->window_vt_x;
+    int full_h = active->vt_height + 2 * active->window_vt_y;
+    XCopyArea (dpy, active->winbg, pix, gc,
+               0, 0, full_w, full_h,
+               parent_attr.x, parent_attr.y);
+  } else
+#endif
+  if (active->depth == 32 && (active->bg_opacity < 100 || active->bg_darken > 0)) {
+    /* Real transparency: fill the whole pixmap with the same ARGB background pixel
+       that scr_recolor set on parent.  XFillRectangle writes the raw pixel value
+       without alpha compositing, so the border strips and the vt background areas
+       end up with identical values before the dark overlay is applied. */
+    int eff_pct = active->bg_opacity
+                + active->bg_darken * (100 - active->bg_opacity) / 100;
+    rgba bg_rgba;
+    active->lookup_color (Color_bg, active->pix_colors_focused).get (bg_rgba);
+    unsigned long ea = (unsigned long)eff_pct * 0xFF / 100;
+    unsigned long r  = (bg_rgba.r >> 8) & 0xFF;
+    unsigned long g  = (bg_rgba.g >> 8) & 0xFF;
+    unsigned long b  = (bg_rgba.b >> 8) & 0xFF;
+    if (eff_pct > 0)
+      {
+        r = r * active->bg_opacity / eff_pct;
+        g = g * active->bg_opacity / eff_pct;
+        b = b * active->bg_opacity / eff_pct;
+      }
+    XSetForeground (dpy, gc, (ea << 24) | (r << 16) | (g << 8) | b);
+    XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+  } else {
+    XSetForeground (dpy, gc, t->lookup_color (Color_border, t->pix_colors));
+    XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+  }
+
+  /* Primary pane (active term's vt): copy at its position within root_win.
+     In transparent mode this is redundant (winbg already seeded the vt area)
+     but harmless and keeps the code path uniform. */
   XCopyArea (dpy, active->vt, pix, gc,
              0, 0, active->vt_width, active->vt_height,
              parent_attr.x + active->window_vt_x,
