@@ -369,8 +369,7 @@ rxvt_term::bg_init ()
 
       XSelectInput (dpy, display->root, PropertyChangeMask);
       rootwin_ev.start (display, display->root);
-    }
-  else
+  }
 #endif
 }
 
