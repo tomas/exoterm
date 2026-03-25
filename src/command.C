@@ -5826,7 +5826,20 @@ rxvt_term::process_xterm_seq (int op, char *str, string_term &st)
             color = atoi (buf) + minCOLOR;
 
             if (!IN_RANGE_INC (color, minCOLOR, maxTermCOLOR))
-              break;
+              {
+#if !USE_24_BIT_COLOR
+                if (name && strlen (name) >= 4 && name[0] == 'r' && name[1] == 'g' && name[2] == 'b' && name[3] == ':')
+                  {
+                    unsigned int r, g, b;
+                    if (sscanf (name + 4, "%02x/%02x/%02x", &r, &g, &b) == 3)
+                      color = map_rgb24_color (r, g, b, 0xFF);
+                    else
+                      break;
+                  }
+                else
+#endif
+                  break;
+              }
 
             if ((buf = strchr (name, ';')) != NULL)
               *buf++ = '\0';
@@ -6329,6 +6342,14 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
                 scr_color_rgb (r, g, b, Color_fg);
                 i += 4;
               }
+#else
+            else if (nargs > i + 4 && arg[i + 1] == 2)
+              {
+                unsigned int r = arg[i + 2], g = arg[i + 3], b = arg[i + 4];
+                unsigned int color = map_rgb24_color (r, g, b, 0xFF);
+                scr_color (color, Color_fg);
+                i += 4;
+              }
 #endif
             break;
           case 39:		/* default fg */
@@ -6356,6 +6377,14 @@ rxvt_term::process_sgr_mode (unsigned int nargs, const int *arg)
               {
                 unsigned int r = arg[i + 2], g = arg[i + 3], b = arg[i + 4];
                 scr_color_rgb (r, g, b, Color_bg);
+                i += 4;
+              }
+#else
+            else if (nargs > i + 4 && arg[i + 1] == 2)
+              {
+                unsigned int r = arg[i + 2], g = arg[i + 3], b = arg[i + 4];
+                unsigned int color = map_rgb24_color (r, g, b, 0xFF);
+                scr_color (color, Color_bg);
                 i += 4;
               }
 #endif
