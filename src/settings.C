@@ -90,8 +90,8 @@ static int cm_compute_h (bool has_split, bool has_minimap) {
 /* --- live settings state --- */
 static float s_border_width  = 10.0f;
 static float s_scroll_speed  = 5.0f;
-static float s_opacity       = 50.0f;
-static float s_darken        = 0.0f;
+static float s_bg_opacity    = 100.0f;
+static float s_black_opacity = 100.0f;
 static float s_line_space    = 0.0f;
 static float s_letter_space  = 0.0f;
 static float s_save_lines    = 1000.0f;
@@ -132,8 +132,8 @@ static char  s_geometry[32]       = "";
    Snapshot — saved on open, restored on Cancel
    ====================================================================== */
 struct settings_snapshot_t {
-  float border_width, scroll_speed, opacity, darken, line_space, letter_space;
-  float save_lines;
+  float border_width, scroll_speed, opacity, darken, bg_opacity, black_opacity;
+  float line_space, letter_space, save_lines;
   int   cursor_blink, cursor_underline, scrollbar;
   int   scroll_on_output, scroll_on_keypress, jump_scroll;
   int   visual_bell, urgent_on_bell, mouse_wheel_page, pointer_blank;
@@ -160,8 +160,8 @@ static void color_to_hex (rxvt_term *t, int idx, char *dst) {
 static void save_snapshot (rxvt_term *t) {
   s_snapshot.border_width       = s_border_width;
   s_snapshot.scroll_speed       = s_scroll_speed;
-  s_snapshot.opacity            = s_opacity;
-  s_snapshot.darken             = s_darken;
+  s_snapshot.bg_opacity         = s_bg_opacity;
+  s_snapshot.black_opacity      = s_black_opacity;
   s_snapshot.line_space         = s_line_space;
   s_snapshot.letter_space       = s_letter_space;
   s_snapshot.save_lines         = s_save_lines;
@@ -693,10 +693,11 @@ enum {
   CHANGED_BORDER         = 1 << 0,
   CHANGED_SCROLL         = 1 << 1,
   CHANGED_CURSOR_BLINK   = 1 << 2,
-  CHANGED_SHADING        = 1 << 3,
+  CHANGED_BLACK_OPACITY  = 1 << 3,
   CHANGED_LINE_SPACE     = 1 << 4,
   CHANGED_LETTER_SPACE   = 1 << 5,
   CHANGED_SAVE_LINES     = 1 << 6,
+  CHANGED_BG_OPACITY     = 1 << 7,
   CHANGED_CURSOR_UL      = 1 << 8,
   CHANGED_SCROLLBAR      = 1 << 9,
   CHANGED_SCROLL_OUTPUT  = 1 << 10,
@@ -784,9 +785,13 @@ static int build_settings_window (mu_Context *ctx) {
 //       changed |= CHANGED_TRANSPARENT;
 // #endif
 
-    // mu_label (ctx, "Shading:", 0);
-    // if (float_slider (ctx, &s_opacity, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
-    //   changed |= CHANGED_SHADING;
+    input_label (ctx, "Bg darkness");
+    if (float_slider (ctx, &s_black_opacity, 0.0f, 100.0f, 1.0f, "%.0f%%") & MU_RES_CHANGE)
+      changed |= CHANGED_BLACK_OPACITY;
+
+    input_label (ctx, "Bg color opacity");
+    if (float_slider (ctx, &s_bg_opacity, 0.0f, 100.0f, 1.0f, "%.0f%%") & MU_RES_CHANGE)
+      changed |= CHANGED_BG_OPACITY;
 
     /* ---- Color Scheme ---- */
     input_label (ctx, "Color Scheme");
@@ -1261,9 +1266,18 @@ static void apply_settings (int changed) {
       t->want_refresh = 1;
     }
 #ifdef HAVE_BG_PIXMAP
-    if (changed & CHANGED_SHADING) {
-      t->bg_opacity    = (int) s_opacity;
-      t->black_opacity = (int) s_darken;
+    if (changed & CHANGED_BG_OPACITY) {
+      t->bg_opacity = (int) s_bg_opacity;
+      if (t->option (Opt_transparent))
+        {
+          t->bg_init ();
+          t->bg_render ();
+        }
+      else
+        t->scr_recolor ();
+    }
+    if (changed & CHANGED_BLACK_OPACITY) {
+      t->black_opacity = (int) s_black_opacity;
       if (t->option (Opt_transparent))
         {
           t->bg_init ();
@@ -1337,8 +1351,8 @@ static void apply_settings (int changed) {
 static void restore_snapshot () {
   s_border_width       = s_snapshot.border_width;
   s_scroll_speed       = s_snapshot.scroll_speed;
-  s_opacity            = s_snapshot.opacity;
-  s_darken             = s_snapshot.darken;
+  s_bg_opacity         = s_snapshot.bg_opacity;
+  s_black_opacity      = s_snapshot.black_opacity;
   s_line_space         = s_snapshot.line_space;
   s_letter_space       = s_snapshot.letter_space;
   s_save_lines         = s_snapshot.save_lines;
@@ -1373,7 +1387,7 @@ static void restore_snapshot () {
 #endif
 
   int all = CHANGED_BORDER | CHANGED_SCROLL | CHANGED_CURSOR_BLINK |
-            CHANGED_SHADING | CHANGED_LINE_SPACE | CHANGED_LETTER_SPACE |
+            CHANGED_LINE_SPACE | CHANGED_LETTER_SPACE |
             CHANGED_SAVE_LINES | CHANGED_CURSOR_UL | CHANGED_SCROLLBAR |
             CHANGED_SCROLL_OUTPUT | CHANGED_SCROLL_KEY | CHANGED_JUMP_SCROLL |
             CHANGED_VISUAL_BELL | CHANGED_URGENT_BELL | CHANGED_WHEEL_PAGE |
@@ -1398,8 +1412,8 @@ static void restore_snapshot () {
 static void read_settings_from_term (rxvt_term *t) {
   s_border_width       = (float) t->int_bwidth;
   s_scroll_speed       = (float) t->wheel_scroll_lines;
-  s_opacity            = (float) t->bg_opacity;
-  s_darken             = (float) t->black_opacity;
+  s_bg_opacity         = (float) t->bg_opacity;
+  s_black_opacity      = (float) t->black_opacity;
   s_line_space         = (float) t->lineSpace;
   s_letter_space       = (float) t->letterSpace;
   s_save_lines         = (float) t->saveLines;
@@ -2017,7 +2031,9 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
 
   g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
-  // g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_opacity);
+
+  g_string_append_printf (block, "Exoterm.blackOpacity:           %d\n",  (int)s_black_opacity);
+  g_string_append_printf (block, "Exoterm.bgOpacity:           %d\n",  (int)s_bg_opacity);
 
   g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
   g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
