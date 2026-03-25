@@ -56,9 +56,15 @@ You can't, sorry.
 
 But I hear that [foot](https://codeberg.org/dnkl/foot) is pretty lightweight and minimal. ;)
 
+## Why does the font look so crisp?
+
+Such wow, right? It's because I am using a bitmap (aka 'pixel') font. 
+
+That one in particular is Terminus. You can see more of them [here](https://pixelfonts.org).
+
 ## Download/Install
 
-No binary packages available at the moment. But you can build it in a second or two.
+Good question. I don't provide binary packages at the moment, but you can build it in a second or two.
 
 ## How to build
 
