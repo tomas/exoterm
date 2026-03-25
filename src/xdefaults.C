@@ -119,7 +119,7 @@ optList[] = {
               BOOL (Rs_transparent, "inheritPixmap", "ip", Opt_transparent, 0, "inherit parent pixmap"),
               BOOL (Rs_transparent, "transparent", "tr", Opt_transparent, 0, "inherit parent pixmap"),
               STRG (Rs_bgOpacity, "bgOpacity", "op",  "number", "bg colour blend strength %% (0=transparent, 100=solid bg colour)"),
-              STRG (Rs_bgDarken,  "bgDarken",  "drk", "number", "wallpaper darkening %% applied before bg colour blend (0=none, 100=black)"),
+              STRG (Rs_blackOpacity, "blackOpacity", "bo",  "number", "opacity %% of black layer applied before bg colour blend (0=none, 100=full black)"),
 #endif
 #if OFF_FOCUS_FADING
               STRG (Rs_fade, "fading", "fade", "number", "fade colors by number % when losing focus"),

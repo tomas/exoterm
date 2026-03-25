@@ -1262,8 +1262,8 @@ static void apply_settings (int changed) {
     }
 #ifdef HAVE_BG_PIXMAP
     if (changed & CHANGED_SHADING) {
-      t->bg_opacity = (int) s_opacity;
-      t->bg_darken  = (int) s_darken;
+      t->bg_opacity    = (int) s_opacity;
+      t->black_opacity = (int) s_darken;
       if (t->option (Opt_transparent))
         {
           t->bg_init ();
@@ -1399,7 +1399,7 @@ static void read_settings_from_term (rxvt_term *t) {
   s_border_width       = (float) t->int_bwidth;
   s_scroll_speed       = (float) t->wheel_scroll_lines;
   s_opacity            = (float) t->bg_opacity;
-  s_darken             = (float) t->bg_darken;
+  s_darken             = (float) t->black_opacity;
   s_line_space         = (float) t->lineSpace;
   s_letter_space       = (float) t->letterSpace;
   s_save_lines         = (float) t->saveLines;
@@ -1540,25 +1540,20 @@ static void backdrop_refresh (rxvt_term *t)
                parent_attr.x, parent_attr.y);
   } else
 #endif
-  if (active->depth == 32 && (active->bg_opacity < 100 || active->bg_darken > 0)) {
-    /* Real transparency: fill the whole pixmap with the same ARGB background pixel
+  if (active->depth == 32 && (active->bg_opacity < 100 || active->black_opacity > 0)) {
+    /* Real transparency: fill the whole pixmap with the same premultiplied ARGB pixel
        that scr_recolor set on parent.  XFillRectangle writes the raw pixel value
        without alpha compositing, so the border strips and the vt background areas
        end up with identical values before the dark overlay is applied. */
     int eff_pct = active->bg_opacity
-                + active->bg_darken * (100 - active->bg_opacity) / 100;
+                + active->black_opacity * (100 - active->bg_opacity) / 100;
     rgba bg_rgba;
     active->lookup_color (Color_bg, active->pix_colors_focused).get (bg_rgba);
     unsigned long ea = (unsigned long)eff_pct * 0xFF / 100;
-    unsigned long r  = (bg_rgba.r >> 8) & 0xFF;
-    unsigned long g  = (bg_rgba.g >> 8) & 0xFF;
-    unsigned long b  = (bg_rgba.b >> 8) & 0xFF;
-    if (eff_pct > 0)
-      {
-        r = r * active->bg_opacity / eff_pct;
-        g = g * active->bg_opacity / eff_pct;
-        b = b * active->bg_opacity / eff_pct;
-      }
+    /* premultiplied RGB: bg_channel * bgOpacity/100 */
+    unsigned long r  = (unsigned long)(bg_rgba.r >> 8) * active->bg_opacity / 100;
+    unsigned long g  = (unsigned long)(bg_rgba.g >> 8) * active->bg_opacity / 100;
+    unsigned long b  = (unsigned long)(bg_rgba.b >> 8) * active->bg_opacity / 100;
     XSetForeground (dpy, gc, (ea << 24) | (r << 16) | (g << 8) | b);
     XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
   } else {
@@ -1946,7 +1941,7 @@ rxvt_term::destroy_settings_ui ()
 
 /*
 static const char *s_managed_keys[] = {
-  "internalBorder", "bgOpacity", "bgDarken", "lineSpace", "letterSpace", "saveLines",
+  "internalBorder", "bgOpacity", "blackOpacity", "lineSpace", "letterSpace", "saveLines",
   "wheelScrollLines", "scrollBar", "cursorBlink", "cursorUnderline",
   "scrollTtyOutput", "scrollTtyKeypress", "jumpScroll", "visualBell",
   "urgentOnBell", "mouseWheelScrollPage", "pointerBlank",

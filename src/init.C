@@ -765,6 +765,22 @@ rxvt_term::init_resources (int argc, const char *const *argv)
     #endif
 #endif
 
+#if ENABLE_FRILLS && defined(XFT) && defined(HAVE_BG_PIXMAP)
+  /* If blackOpacity < 100 is configured without an explicit depth/visual,
+     auto-select: try depth 32 (real compositor transparency); if unavailable,
+     fall back to fake transparency (inheritPixmap). */
+  if (!rs[Rs_visual] && !rs[Rs_depth])
+    {
+      int bo = rs[Rs_blackOpacity] ? atoi (rs[Rs_blackOpacity]) : 100;
+      if (bo < 100)
+        {
+          select_depth (32);
+          if (depth != 32)
+            set_option (Opt_transparent, true);
+        }
+    }
+#endif
+
   for (int i = NUM_RESOURCES; i--; )
     if (rs [i] == resval_undef)
       rs [i] = 0;

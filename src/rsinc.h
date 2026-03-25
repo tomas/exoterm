@@ -62,7 +62,7 @@
 #if BG_IMAGE_FROM_ROOT
   def (transparent)
   def (bgOpacity)
-  def (bgDarken)
+  def (blackOpacity)
 #endif
 #if XFT
   def (buffered)

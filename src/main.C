@@ -210,7 +210,7 @@ rxvt_term::rxvt_term ()
   context_menu_ev.set        <rxvt_term, &rxvt_term::x_context_menu_cb> (this);
   wheel_scroll_lines = 5;
   bg_opacity         = 50;
-  bg_darken          = 0;
+  black_opacity      = 100;
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);

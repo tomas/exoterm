@@ -328,7 +328,7 @@ rxvt_term::bg_render ()
 void
 rxvt_term::bg_init ()
 {
-  /* Parse bgOpacity/bgDarken unconditionally — used by both fake transparency
+  /* Parse bgOpacity/blackOpacity unconditionally — used by both fake transparency
      (winbg path) and real compositor-based transparency (depth-32 path). */
   if (rs [Rs_bgOpacity])
     {
@@ -345,10 +345,10 @@ rxvt_term::bg_init ()
 #endif
     }
 
-  if (rs [Rs_bgDarken])
+  if (rs [Rs_blackOpacity])
     {
-      bg_darken = atoi (rs [Rs_bgDarken]);
-      clamp_it (bg_darken, 0, 100);
+      black_opacity = atoi (rs [Rs_blackOpacity]);
+      clamp_it (black_opacity, 0, 100);
     }
 
 #if BG_IMAGE_FROM_ROOT
@@ -361,13 +361,23 @@ rxvt_term::bg_init ()
       lookup_color (Color_bg, pix_colors_focused).get (bg);
 
       int w, h;
-      root_img = load_root_img (dpy, parent, gc, &w, &h, &bg, bg_opacity, bg_darken);
+      root_img = load_root_img (dpy, parent, gc, &w, &h, &bg, bg_opacity, black_opacity);
       if (root_img) winbg = XCreatePixmap (dpy, parent, w, h, depth);
 
       XSelectInput (dpy, display->root, PropertyChangeMask);
       rootwin_ev.start (display, display->root);
     }
+  else
 #endif
+#if XFT
+  if (depth == 32 && (bg_opacity < 100 || black_opacity > 0))
+    {
+      /* Real compositor transparency: apply the newly-parsed resource values
+         immediately so the window doesn't stay at the startup defaults. */
+      scr_recolor (false);
+    }
+#endif
+    ;
 }
 
 #endif /* HAVE_BG_PIXMAP */

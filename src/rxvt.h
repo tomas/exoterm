@@ -1044,7 +1044,7 @@ struct TermWin_t
   int            letterSpace;   /* number of extra pixels between columns   */
   int            wheel_scroll_lines; /* lines to scroll per mouse wheel tick */
   int            bg_opacity;    /* bg colour blend strength % (0=transparent, 100=solid bg colour) */
-  int            bg_darken;     /* wallpaper darkening % applied before bg colour blend (0=none, 100=black) */
+  int            black_opacity; /* opacity % of black layer under bg colour blend (0=none, 100=full black) */
   int            saveLines;     /* number of lines that fit in scrollback   */
   int            total_rows;    /* total number of rows in this terminal    */
   int            term_start;    /* term lines start here                    */
