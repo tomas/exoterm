@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/tomas/exoterm/master/doc/screenshot.png" alt="Exoterm Window" />
+  <img src="https://raw.githubusercontent.com/tomas/exoterm/master/doc/screenshot2.png" alt="Exoterm Window" />
 </p>
 
 # Exoterm
