@@ -90,7 +90,8 @@ static int cm_compute_h (bool has_split, bool has_minimap) {
 /* --- live settings state --- */
 static float s_border_width  = 10.0f;
 static float s_scroll_speed  = 5.0f;
-static float s_shading       = 20.0f;
+static float s_opacity       = 50.0f;
+static float s_darken        = 0.0f;
 static float s_line_space    = 0.0f;
 static float s_letter_space  = 0.0f;
 static float s_save_lines    = 1000.0f;
@@ -131,7 +132,7 @@ static char  s_geometry[32]       = "";
    Snapshot — saved on open, restored on Cancel
    ====================================================================== */
 struct settings_snapshot_t {
-  float border_width, scroll_speed, shading, line_space, letter_space;
+  float border_width, scroll_speed, opacity, darken, line_space, letter_space;
   float save_lines;
   int   cursor_blink, cursor_underline, scrollbar;
   int   scroll_on_output, scroll_on_keypress, jump_scroll;
@@ -159,7 +160,8 @@ static void color_to_hex (rxvt_term *t, int idx, char *dst) {
 static void save_snapshot (rxvt_term *t) {
   s_snapshot.border_width       = s_border_width;
   s_snapshot.scroll_speed       = s_scroll_speed;
-  s_snapshot.shading            = s_shading;
+  s_snapshot.opacity            = s_opacity;
+  s_snapshot.darken             = s_darken;
   s_snapshot.line_space         = s_line_space;
   s_snapshot.letter_space       = s_letter_space;
   s_snapshot.save_lines         = s_save_lines;
@@ -783,7 +785,7 @@ static int build_settings_window (mu_Context *ctx) {
 // #endif
 
     // mu_label (ctx, "Shading:", 0);
-    // if (float_slider (ctx, &s_shading, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
+    // if (float_slider (ctx, &s_opacity, 0.0f, 100.0f, 1.0f, "%.0f %%") & MU_RES_CHANGE)
     //   changed |= CHANGED_SHADING;
 
     /* ---- Color Scheme ---- */
@@ -1258,13 +1260,19 @@ static void apply_settings (int changed) {
       t->set_option (Opt_cursorUnderline, s_cursor_underline);
       t->want_refresh = 1;
     }
-//     if (changed & CHANGED_SHADING) {
-//       t->bg_shading = (int) s_shading;
-// #ifdef HAVE_BG_PIXMAP
-//       t->bg_init ();
-//       t->bg_render ();
-// #endif
-//     }
+#ifdef HAVE_BG_PIXMAP
+    if (changed & CHANGED_SHADING) {
+      t->bg_opacity    = (int) s_opacity;
+      t->black_opacity = (int) s_darken;
+      if (t->option (Opt_transparent))
+        {
+          t->bg_init ();
+          t->bg_render ();
+        }
+      else
+        t->scr_recolor ();
+    }
+#endif
     if (changed & CHANGED_LINE_SPACE) {
       t->lineSpace = (int) s_line_space;
       t->set_fonts ();
@@ -1329,7 +1337,8 @@ static void apply_settings (int changed) {
 static void restore_snapshot () {
   s_border_width       = s_snapshot.border_width;
   s_scroll_speed       = s_snapshot.scroll_speed;
-  s_shading            = s_snapshot.shading;
+  s_opacity            = s_snapshot.opacity;
+  s_darken             = s_snapshot.darken;
   s_line_space         = s_snapshot.line_space;
   s_letter_space       = s_snapshot.letter_space;
   s_save_lines         = s_snapshot.save_lines;
@@ -1389,7 +1398,8 @@ static void restore_snapshot () {
 static void read_settings_from_term (rxvt_term *t) {
   s_border_width       = (float) t->int_bwidth;
   s_scroll_speed       = (float) t->wheel_scroll_lines;
-  s_shading            = (float) t->bg_shading;
+  s_opacity            = (float) t->bg_opacity;
+  s_darken             = (float) t->black_opacity;
   s_line_space         = (float) t->lineSpace;
   s_letter_space       = (float) t->letterSpace;
   s_save_lines         = (float) t->saveLines;
@@ -1508,21 +1518,52 @@ static void backdrop_refresh (rxvt_term *t)
      since root's vt may be unmapped when on another tab. */
   rxvt_term *active = GET_R;
 
-  /* Seed the entire pixmap with the border/background color so that the
-     internal-border strips around the vt (internalBorder padding) are not
-     left as undefined pixmap content.  XCopyArea from the vt only fills
-     the vt area; the surrounding strips would otherwise show as stale or
-     garbage pixels after the dark overlay is composited. */
-  XSetForeground (dpy, gc, t->lookup_color (Color_border, t->pix_colors));
-  XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
-
   /* Get the position of active's parent within the root window.
      For root term, parent is the root window at (0,0).
      For split child, parent is a child of root window at (attr.x, attr.y). */
   XWindowAttributes parent_attr;
   XGetWindowAttributes (dpy, active->parent, &parent_attr);
 
-  /* Primary pane (active term's vt): copy at its position within root_win. */
+  /* Seed the entire pixmap so the internal-border strips around the vt are
+     not left as stale content after the dark overlay is composited.
+     - Fake-transparent: border strips show winbg (processed wallpaper), so copy from it.
+     - Real-transparent (depth 32): copy from parent window's backing store which holds
+       the ARGB background pixel we set in scr_recolor; the border strip pixels then
+       match the vt background and the dark overlay produces a uniform result.
+     - Opaque: fill with Color_border as before. */
+#ifdef HAVE_BG_PIXMAP
+  if (active->winbg != None && (active->bg_flags & rxvt_term::BG_IS_TRANSPARENT)) {
+    int full_w = active->vt_width  + 2 * active->window_vt_x;
+    int full_h = active->vt_height + 2 * active->window_vt_y;
+    XCopyArea (dpy, active->winbg, pix, gc,
+               0, 0, full_w, full_h,
+               parent_attr.x, parent_attr.y);
+  } else
+#endif
+  if (active->depth == 32 && (active->bg_opacity < 100 || active->black_opacity > 0)) {
+    /* Real transparency: fill the whole pixmap with the same premultiplied ARGB pixel
+       that scr_recolor set on parent.  XFillRectangle writes the raw pixel value
+       without alpha compositing, so the border strips and the vt background areas
+       end up with identical values before the dark overlay is applied. */
+    int eff_pct = active->bg_opacity
+                + active->black_opacity * (100 - active->bg_opacity) / 100;
+    rgba bg_rgba;
+    active->lookup_color (Color_bg, active->pix_colors_focused).get (bg_rgba);
+    unsigned long ea = (unsigned long)eff_pct * 0xFF / 100;
+    /* premultiplied RGB: bg_channel * bgOpacity/100 */
+    unsigned long r  = (unsigned long)(bg_rgba.r >> 8) * active->bg_opacity / 100;
+    unsigned long g  = (unsigned long)(bg_rgba.g >> 8) * active->bg_opacity / 100;
+    unsigned long b  = (unsigned long)(bg_rgba.b >> 8) * active->bg_opacity / 100;
+    XSetForeground (dpy, gc, (ea << 24) | (r << 16) | (g << 8) | b);
+    XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+  } else {
+    XSetForeground (dpy, gc, t->lookup_color (Color_border, t->pix_colors));
+    XFillRectangle (dpy, pix, gc, 0, 0, pw, ph);
+  }
+
+  /* Primary pane (active term's vt): copy at its position within root_win.
+     In transparent mode this is redundant (winbg already seeded the vt area)
+     but harmless and keeps the code path uniform. */
   XCopyArea (dpy, active->vt, pix, gc,
              0, 0, active->vt_width, active->vt_height,
              parent_attr.x + active->window_vt_x,
@@ -1900,7 +1941,7 @@ rxvt_term::destroy_settings_ui ()
 
 /*
 static const char *s_managed_keys[] = {
-  "internalBorder", "shading", "lineSpace", "letterSpace", "saveLines",
+  "internalBorder", "bgOpacity", "blackOpacity", "lineSpace", "letterSpace", "saveLines",
   "wheelScrollLines", "scrollBar", "cursorBlink", "cursorUnderline",
   "scrollTtyOutput", "scrollTtyKeypress", "jumpScroll", "visualBell",
   "urgentOnBell", "mouseWheelScrollPage", "pointerBlank",
@@ -1976,7 +2017,7 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
 
   g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
-  // g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_shading);
+  // g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_opacity);
 
   g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
   g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);

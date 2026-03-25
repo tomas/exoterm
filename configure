@@ -1427,8 +1427,8 @@ Optional Features:
                           NOTE: this option is order dependent
   --enable-assert         enable assertions
   --enable-warnings       turn on g++ warnings
-  --enable-256-color      enable 256-color support
-  --enable-24-bit-color   enable 24-bit color support
+  --disable-256-color     disable 256-color support
+  --disable-24-bit-color  disable 24-bit color support
   --enable-unicode3       use 21 instead of 16 bits to represent unicode characters
   --enable-combining      enable composition of base and combining characters
   --enable-xft            enable xft support on systems that have it
@@ -1467,10 +1467,10 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-codesets=CS,...  compile in additional codesets (jp,jp_ext,kr,zh,zh_ext,all)
-  --with-res-name=NAME    use this as default resource name (default: urxvt)
-  --with-res-class=CLASS  use this as the resource class (default: URxvt)
+  --with-res-name=NAME    use this as default resource name (default: exoterm)
+  --with-res-class=CLASS  use this as the resource class (default: Exoterm)
   --with-name=NAME        set the basename for the installed binaries (default: urxvt)
-  --with-font-dir=DIR     directory for bundled fonts (default: ~/.local/share/exoterm/fonts)
+  --with-font-dir=DIR     directory for bundled fonts (default: ~/.local/share/fonts/exoterm)
   --with-term=NAME        set the terminal to NAME (default: rxvt)
   --with-terminfo=PATH    set the path to the terminfo tree to PATH
   --with-x                use the X Window System
@@ -1869,6 +1869,44 @@ printf "%s\n" "$ac_res" >&6; }
 
 } # ac_fn_cxx_check_func
 
+# ac_fn_cxx_try_cpp LINENO
+# ------------------------
+# Try to preprocess conftest.$ac_ext, and return whether this succeeded.
+ac_fn_cxx_try_cpp ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  if { { ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
+printf "%s\n" "$ac_try_echo"; } >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.err
+  ac_status=$?
+  if test -s conftest.err; then
+    grep -v '^ *+' conftest.err >conftest.er1
+    cat conftest.er1 >&5
+    mv -f conftest.er1 conftest.err
+  fi
+  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; } > conftest.i && {
+	 test -z "$ac_cxx_preproc_warn_flag$ac_cxx_werror_flag" ||
+	 test ! -s conftest.err
+       }
+then :
+  ac_retval=0
+else $as_nop
+  printf "%s\n" "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+    ac_retval=1
+fi
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+  as_fn_set_status $ac_retval
+
+} # ac_fn_cxx_try_cpp
+
 # ac_fn_cxx_check_type LINENO TYPE VAR INCLUDES
 # ---------------------------------------------
 # Tests whether TYPE exists after having included INCLUDES, setting cache
@@ -1925,44 +1963,6 @@ printf "%s\n" "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_cxx_check_type
-
-# ac_fn_cxx_try_cpp LINENO
-# ------------------------
-# Try to preprocess conftest.$ac_ext, and return whether this succeeded.
-ac_fn_cxx_try_cpp ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  if { { ac_try="$ac_cpp conftest.$ac_ext"
-case "(($ac_try" in
-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
-  *) ac_try_echo=$ac_try;;
-esac
-eval ac_try_echo="\"\$as_me:${as_lineno-$LINENO}: $ac_try_echo\""
-printf "%s\n" "$ac_try_echo"; } >&5
-  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.err
-  ac_status=$?
-  if test -s conftest.err; then
-    grep -v '^ *+' conftest.err >conftest.er1
-    cat conftest.er1 >&5
-    mv -f conftest.er1 conftest.err
-  fi
-  printf "%s\n" "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; } > conftest.i && {
-	 test -z "$ac_cxx_preproc_warn_flag$ac_cxx_werror_flag" ||
-	 test ! -s conftest.err
-       }
-then :
-  ac_retval=0
-else $as_nop
-  printf "%s\n" "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-    ac_retval=1
-fi
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-  as_fn_set_status $ac_retval
-
-} # ac_fn_cxx_try_cpp
 
 # ac_fn_c_find_intX_t LINENO BITS VAR
 # -----------------------------------
@@ -5260,6 +5260,7 @@ support_pixbuf=yes
 support_xpm=yes
 support_startup_notification=yes
 support_256_color=yes
+support_24_bit_color=yes
 support_xft=yes
 support_unicode3=no
 support_combining=yes
@@ -5295,6 +5296,7 @@ then :
        support_pixbuf=no
        support_startup_notification=no
        support_256_color=no
+       support_24_bit_color=no
        support_xft=no
        support_unicode3=no
        support_combining=no
@@ -5326,6 +5328,7 @@ then :
        support_pixbuf=yes
        support_startup_notification=yes
        support_256_color=yes
+       support_24_bit_color=yes
        support_xft=yes
        support_unicode3=yes
        support_combining=yes
@@ -5394,7 +5397,7 @@ fi
 # Check whether --enable-256-color was given.
 if test ${enable_256_color+y}
 then :
-  enableval=$enable_256_color; if test x$enableval = xyes -o x$enableval = xno; then
+  enableval=$enable_256_color; if test x$enableval = xno; then
     support_256_color=$enableval
   fi
 fi
@@ -5405,12 +5408,11 @@ printf "%s\n" "#define USE_256_COLORS 1" >>confdefs.h
 
 fi
 
-support_24_bit_color=no
 # Check whether --enable-24-bit-color was given.
 if test ${enable_24_bit_color+y}
 then :
-  enableval=$enable_24_bit_color; if test x$enableval = xyes; then
-    support_24_bit_color=yes
+  enableval=$enable_24_bit_color; if test x$enableval = xno; then
+    support_24_bit_color=$enableval
   fi
 fi
 
@@ -5666,7 +5668,7 @@ if test ${with_font_dir+y}
 then :
   withval=$with_font_dir; EXOTERM_FONT_DIR="$withval"
 else $as_nop
-  EXOTERM_FONT_DIR="$HOME/.local/share/exoterm/fonts"
+  EXOTERM_FONT_DIR="$HOME/.local/share/fonts/exoterm"
 fi
 
 
@@ -5835,13 +5837,6 @@ then :
   printf "%s\n" "#define HAVE_POLL_H 1" >>confdefs.h
 
 fi
-ac_fn_cxx_check_header_compile "$LINENO" "sys/timerfd.h" "ac_cv_header_sys_timerfd_h" "$ac_includes_default"
-if test "x$ac_cv_header_sys_timerfd_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_SYS_TIMERFD_H 1" >>confdefs.h
-
-fi
-
 ac_fn_cxx_check_header_compile "$LINENO" "sys/select.h" "ac_cv_header_sys_select_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_select_h" = xyes
 then :
@@ -5858,18 +5853,6 @@ ac_fn_cxx_check_header_compile "$LINENO" "sys/signalfd.h" "ac_cv_header_sys_sign
 if test "x$ac_cv_header_sys_signalfd_h" = xyes
 then :
   printf "%s\n" "#define HAVE_SYS_SIGNALFD_H 1" >>confdefs.h
-
-fi
-ac_fn_cxx_check_header_compile "$LINENO" "linux/aio_abi.h" "ac_cv_header_linux_aio_abi_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_aio_abi_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_LINUX_AIO_ABI_H 1" >>confdefs.h
-
-fi
-ac_fn_cxx_check_header_compile "$LINENO" "linux/fs.h" "ac_cv_header_linux_fs_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_fs_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_LINUX_FS_H 1" >>confdefs.h
 
 fi
 
@@ -6088,18 +6071,6 @@ fi
 fi
 
 done
-
-ac_fn_cxx_check_type "$LINENO" "__kernel_rwf_t" "ac_cv_type___kernel_rwf_t" "#include <linux/fs.h>
-"
-if test "x$ac_cv_type___kernel_rwf_t" = xyes
-then :
-
-
-printf "%s\n" "#define HAVE_KERNEL_RWF_T 1" >>confdefs.h
-
-
-fi
-
 
 if test -z "$LIBEV_M4_AVOID_LIBM"; then
    LIBM=m
@@ -7678,34 +7649,6 @@ printf "%s\n" "#define LASTLOG_SUPPORT 1" >>confdefs.h
 
 fi
 
-ac_fn_cxx_check_func "$LINENO" "updwtmp" "ac_cv_func_updwtmp"
-if test "x$ac_cv_func_updwtmp" = xyes
-then :
-  printf "%s\n" "#define HAVE_UPDWTMP 1" >>confdefs.h
-
-fi
-ac_fn_cxx_check_func "$LINENO" "updwtmpx" "ac_cv_func_updwtmpx"
-if test "x$ac_cv_func_updwtmpx" = xyes
-then :
-  printf "%s\n" "#define HAVE_UPDWTMPX 1" >>confdefs.h
-
-fi
-ac_fn_cxx_check_func "$LINENO" "updlastlogx" "ac_cv_func_updlastlogx"
-if test "x$ac_cv_func_updlastlogx" = xyes
-then :
-  printf "%s\n" "#define HAVE_UPDLASTLOGX 1" >>confdefs.h
-
-fi
-
-
-ac_fn_cxx_check_header_compile "$LINENO" "lastlog.h" "ac_cv_header_lastlog_h" "$ac_includes_default"
-if test "x$ac_cv_header_lastlog_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_LASTLOG_H 1" >>confdefs.h
-
-fi
-
-
 case $host in
    *-*-solaris*)
 
@@ -7713,7 +7656,6 @@ printf "%s\n" "#define __EXTENSIONS__ 1" >>confdefs.h
 
       ;;
 esac
-
 
        for ac_header in utmp.h
 do :
@@ -7762,6 +7704,121 @@ printf "%s\n" "#define HAVE_UTMP_PID 1" >>confdefs.h
 fi
 
 
+ac_fn_cxx_check_func "$LINENO" "updwtmp" "ac_cv_func_updwtmp"
+if test "x$ac_cv_func_updwtmp" = xyes
+then :
+  printf "%s\n" "#define HAVE_UPDWTMP 1" >>confdefs.h
+
+fi
+
+
+ac_fn_cxx_check_header_compile "$LINENO" "lastlog.h" "ac_cv_header_lastlog_h" "$ac_includes_default"
+if test "x$ac_cv_header_lastlog_h" = xyes
+then :
+  printf "%s\n" "#define HAVE_LASTLOG_H 1" >>confdefs.h
+
+fi
+
+
+ac_fn_cxx_check_type "$LINENO" "struct lastlog" "ac_cv_type_struct_lastlog" "
+#include <sys/types.h>
+#include <utmp.h>
+#ifdef HAVE_LASTLOG_H
+#include <lastlog.h>
+#endif
+
+"
+if test "x$ac_cv_type_struct_lastlog" = xyes
+then :
+
+printf "%s\n" "#define HAVE_STRUCT_LASTLOG 1" >>confdefs.h
+
+
+fi
+
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of utmp" >&5
+printf %s "checking for a fallback location of utmp... " >&6; }
+if test ${pt_cv_path_utmp+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+
+if test "$cross_compiling" != yes; then
+  for file in "/var/run/utmp" "/var/adm/utmp" "/etc/utmp" "/usr/etc/utmp" "/usr/adm/utmp"; do
+    if test -f "$file"; then
+      pt_cv_path_utmp=$file
+      break
+    fi
+  done
+fi
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_utmp" >&5
+printf "%s\n" "$pt_cv_path_utmp" >&6; }
+if test x$pt_cv_path_utmp != x; then
+
+printf "%s\n" "#define PT_UTMP_FILE \"$pt_cv_path_utmp\"" >>confdefs.h
+
+elif test "$cross_compiling" = yes; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_UTMP_FILE in config.h manually" >&5
+printf "%s\n" "$as_me: WARNING: Define PT_UTMP_FILE in config.h manually" >&2;}
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of wtmp" >&5
+printf %s "checking for a fallback location of wtmp... " >&6; }
+if test ${pt_cv_path_wtmp+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+
+if test "$cross_compiling" != yes; then
+  for file in "/var/log/wtmp" "/var/adm/wtmp" "/etc/wtmp" "/usr/etc/wtmp" "/usr/adm/wtmp"; do
+    if test -f "$file"; then
+      pt_cv_path_wtmp=$file
+      break
+    fi
+  done
+fi
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_wtmp" >&5
+printf "%s\n" "$pt_cv_path_wtmp" >&6; }
+if test x$pt_cv_path_wtmp != x; then
+
+printf "%s\n" "#define PT_WTMP_FILE \"$pt_cv_path_wtmp\"" >>confdefs.h
+
+elif test "$cross_compiling" = yes; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_WTMP_FILE in config.h manually" >&5
+printf "%s\n" "$as_me: WARNING: Define PT_WTMP_FILE in config.h manually" >&2;}
+fi
+
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of lastlog" >&5
+printf %s "checking for a fallback location of lastlog... " >&6; }
+if test ${pt_cv_path_lastlog+y}
+then :
+  printf %s "(cached) " >&6
+else $as_nop
+
+if test "$cross_compiling" != yes; then
+  for file in "/var/log/lastlog" "/var/adm/lastlog"; do
+    if test -f "$file"; then
+      pt_cv_path_lastlog=$file
+      break
+    fi
+  done
+fi
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_lastlog" >&5
+printf "%s\n" "$pt_cv_path_lastlog" >&6; }
+if test x$pt_cv_path_lastlog != x; then
+
+printf "%s\n" "#define PT_LASTLOG_FILE \"$pt_cv_path_lastlog\"" >>confdefs.h
+
+elif test "$cross_compiling" = yes; then
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_LASTLOG_FILE in config.h manually" >&5
+printf "%s\n" "$as_me: WARNING: Define PT_LASTLOG_FILE in config.h manually" >&2;}
+fi
+
+
 fi
 
 done
@@ -7800,22 +7857,16 @@ printf "%s\n" "#define HAVE_UTMPX_HOST 1" >>confdefs.h
 fi
 
 
-fi
-
-done
-ac_fn_cxx_check_type "$LINENO" "struct lastlog" "ac_cv_type_struct_lastlog" "
-#include <sys/types.h>
-#include <utmp.h>
-#ifdef HAVE_LASTLOG_H
-#include <lastlog.h>
-#endif
-
-"
-if test "x$ac_cv_type_struct_lastlog" = xyes
+ac_fn_cxx_check_func "$LINENO" "updwtmpx" "ac_cv_func_updwtmpx"
+if test "x$ac_cv_func_updwtmpx" = xyes
 then :
+  printf "%s\n" "#define HAVE_UPDWTMPX 1" >>confdefs.h
 
-printf "%s\n" "#define HAVE_STRUCT_LASTLOG 1" >>confdefs.h
-
+fi
+ac_fn_cxx_check_func "$LINENO" "updlastlogx" "ac_cv_func_updlastlogx"
+if test "x$ac_cv_func_updlastlogx" = xyes
+then :
+  printf "%s\n" "#define HAVE_UPDLASTLOGX 1" >>confdefs.h
 
 fi
 
@@ -7823,9 +7874,6 @@ fi
 ac_fn_cxx_check_type "$LINENO" "struct lastlogx" "ac_cv_type_struct_lastlogx" "
 #include <sys/types.h>
 #include <utmpx.h>
-#ifdef HAVE_LASTLOG_H
-#include <lastlog.h>
-#endif
 
 "
 if test "x$ac_cv_type_struct_lastlogx" = xyes
@@ -7836,62 +7884,6 @@ printf "%s\n" "#define HAVE_STRUCT_LASTLOGX 1" >>confdefs.h
 
 fi
 
-
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of utmp" >&5
-printf %s "checking for a fallback location of utmp... " >&6; }
-if test ${pt_cv_path_utmp+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-
-if test "$cross_compiling" != yes; then
-  for file in "/var/run/utmp" "/var/adm/utmp" "/etc/utmp" "/usr/etc/utmp" "/usr/adm/utmp"; do
-    if test -f "$file"; then
-      pt_cv_path_utmp=$file
-      break
-    fi
-  done
-fi
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_utmp" >&5
-printf "%s\n" "$pt_cv_path_utmp" >&6; }
-if test x$pt_cv_path_utmp != x; then
-
-printf "%s\n" "#define PT_UTMP_FILE \"$pt_cv_path_utmp\"" >>confdefs.h
-
-elif test "$cross_compiling" = yes; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_UTMP_FILE in config.h manually" >&5
-printf "%s\n" "$as_me: WARNING: Define PT_UTMP_FILE in config.h manually" >&2;}
-fi
-
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of wtmp" >&5
-printf %s "checking for a fallback location of wtmp... " >&6; }
-if test ${pt_cv_path_wtmp+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-
-if test "$cross_compiling" != yes; then
-  for file in "/var/log/wtmp" "/var/adm/wtmp" "/etc/wtmp" "/usr/etc/wtmp" "/usr/adm/wtmp"; do
-    if test -f "$file"; then
-      pt_cv_path_wtmp=$file
-      break
-    fi
-  done
-fi
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_wtmp" >&5
-printf "%s\n" "$pt_cv_path_wtmp" >&6; }
-if test x$pt_cv_path_wtmp != x; then
-
-printf "%s\n" "#define PT_WTMP_FILE \"$pt_cv_path_wtmp\"" >>confdefs.h
-
-elif test "$cross_compiling" = yes; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_WTMP_FILE in config.h manually" >&5
-printf "%s\n" "$as_me: WARNING: Define PT_WTMP_FILE in config.h manually" >&2;}
-fi
 
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of wtmpx" >&5
 printf %s "checking for a fallback location of wtmpx... " >&6; }
@@ -7920,33 +7912,6 @@ elif test "$cross_compiling" = yes; then
 printf "%s\n" "$as_me: WARNING: Define PT_WTMPX_FILE in config.h manually" >&2;}
 fi
 
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of lastlog" >&5
-printf %s "checking for a fallback location of lastlog... " >&6; }
-if test ${pt_cv_path_lastlog+y}
-then :
-  printf %s "(cached) " >&6
-else $as_nop
-
-if test "$cross_compiling" != yes; then
-  for file in "/var/log/lastlog" "/var/adm/lastlog"; do
-    if test -f "$file"; then
-      pt_cv_path_lastlog=$file
-      break
-    fi
-  done
-fi
-fi
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_path_lastlog" >&5
-printf "%s\n" "$pt_cv_path_lastlog" >&6; }
-if test x$pt_cv_path_lastlog != x; then
-
-printf "%s\n" "#define PT_LASTLOG_FILE \"$pt_cv_path_lastlog\"" >>confdefs.h
-
-elif test "$cross_compiling" = yes; then
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_LASTLOG_FILE in config.h manually" >&5
-printf "%s\n" "$as_me: WARNING: Define PT_LASTLOG_FILE in config.h manually" >&2;}
-fi
-
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for a fallback location of lastlogx" >&5
 printf %s "checking for a fallback location of lastlogx... " >&6; }
 if test ${pt_cv_path_lastlogx+y}
@@ -7973,6 +7938,11 @@ elif test "$cross_compiling" = yes; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: Define PT_LASTLOGX_FILE in config.h manually" >&5
 printf "%s\n" "$as_me: WARNING: Define PT_LASTLOGX_FILE in config.h manually" >&2;}
 fi
+
+fi
+
+done
+
 
 
 
@@ -8278,11 +8248,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.beam \
 fi
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $pt_cv_can_pass_fds" >&5
 printf "%s\n" "$pt_cv_can_pass_fds" >&6; }
-if test x$pt_cv_can_pass_fds = xyes; then
-
-printf "%s\n" "#define HAVE_UNIX_FDPASS 1" >>confdefs.h
-
-else
+if test x$pt_cv_can_pass_fds = xno; then
    as_fn_error $? "libptytty requires unix-compliant filehandle passing ability" "$LINENO" 5
 fi
 
@@ -8354,12 +8320,6 @@ ac_fn_cxx_check_func "$LINENO" "setuid" "ac_cv_func_setuid"
 if test "x$ac_cv_func_setuid" = xyes
 then :
   printf "%s\n" "#define HAVE_SETUID 1" >>confdefs.h
-
-fi
-ac_fn_cxx_check_func "$LINENO" "seteuid" "ac_cv_func_seteuid"
-if test "x$ac_cv_func_seteuid" = xyes
-then :
-  printf "%s\n" "#define HAVE_SETEUID 1" >>confdefs.h
 
 fi
 ac_fn_cxx_check_func "$LINENO" "setreuid" "ac_cv_func_setreuid"

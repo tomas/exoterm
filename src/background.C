@@ -27,75 +27,12 @@
 
 #ifdef HAVE_BG_PIXMAP
 
-typedef struct ShadingInfo {
-  XColor tintColor;
-  int shading;
-} ShadingInfo;
-
-bool
-image_effects::set_blur (const char *geom)
-{
-  bool changed = false;
-  unsigned int hr, vr;
-  int junk;
-  int geom_flags = XParseGeometry (geom, &junk, &junk, &hr, &vr);
-
-  if (!(geom_flags & WidthValue))
-    hr = 1;
-  if (!(geom_flags & HeightValue))
-    vr = hr;
-
-  min_it (hr, 128);
-  min_it (vr, 128);
-
-  if (h_blurRadius != hr)
-    {
-      changed = true;
-      h_blurRadius = hr;
-    }
-
-  if (v_blurRadius != vr)
-    {
-      changed = true;
-      v_blurRadius = vr;
-    }
-
-  return changed;
-}
-
-bool
-image_effects::set_tint (const rxvt_color &new_tint)
-{
-  if (!tint_set || tint != new_tint)
-    {
-      tint = new_tint;
-      tint_set = true;
-
-      return true;
-    }
-
-  return false;
-}
-
-bool
-image_effects::set_shade (const char *shade_str)
-{
-  int new_shade = atoi (shade_str);
-
-  clamp_it (new_shade, -100, 200);
-  if (new_shade < 0)
-    new_shade = 200 - (100 + new_shade);
-
-  if (new_shade != shade)
-    {
-      shade = new_shade;
-      return true;
-    }
-
-  return false;
-}
-
-void ShadeXImage(Display * dpy, XImage* srcImage, ShadingInfo* shading, GC gc ) {
+/* Alpha-blend the root image with a solid background colour.
+ * opacity=0   → pure root image (fully transparent)
+ * opacity=100 → solid bg colour (fully opaque)
+ * out_channel = root_channel * (1 - opacity/100) + bg_channel * (opacity/100)
+ */
+void ShadeXImage(Display * dpy, XImage* srcImage, XColor *bg, int opacity, int darken, GC gc) {
   int sh_r, sh_g, sh_b;
   u_int32_t mask_r, mask_g, mask_b;
   u_int32_t *lookup, *lookup_r, *lookup_g, *lookup_b;
@@ -112,185 +49,90 @@ void ShadeXImage(Display * dpy, XImage* srcImage, ShadingInfo* shading, GC gc ) 
   mask_g = visual->green_mask;
   mask_b = visual->blue_mask;
 
-  /* boring lookup table pre-initialization */
   switch (srcImage->bits_per_pixel) {
     case 15:
-      if ((mask_r != 0x7c00) ||
-          (mask_g != 0x03e0) ||
-          (mask_b != 0x001f))
-        return;
-        lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(32+32+32));
-        lookup_r = lookup;
-        lookup_g = lookup+32;
-        lookup_b = lookup+32+32;
-        sh_r = 10;
-        sh_g = 5;
-        sh_b = 0;
+      if ((mask_r != 0x7c00) || (mask_g != 0x03e0) || (mask_b != 0x001f)) return;
+      lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(32+32+32));
+      lookup_r = lookup; lookup_g = lookup+32; lookup_b = lookup+32+32;
+      sh_r = 10; sh_g = 5; sh_b = 0;
       break;
     case 16:
-      if ((mask_r != 0xf800) ||
-          (mask_g != 0x07e0) ||
-          (mask_b != 0x001f))
-        return;
-        lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(32+64+32));
-        lookup_r = lookup;
-        lookup_g = lookup+32;
-        lookup_b = lookup+32+64;
-        sh_r = 11;
-        sh_g = 5;
-        sh_b = 0;
+      if ((mask_r != 0xf800) || (mask_g != 0x07e0) || (mask_b != 0x001f)) return;
+      lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(32+64+32));
+      lookup_r = lookup; lookup_g = lookup+32; lookup_b = lookup+32+64;
+      sh_r = 11; sh_g = 5; sh_b = 0;
       break;
     case 24:
-      if ((mask_r != 0xff0000) ||
-          (mask_g != 0x00ff00) ||
-          (mask_b != 0x0000ff))
-        return;
-        lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(256+256+256));
-        lookup_r = lookup;
-        lookup_g = lookup+256;
-        lookup_b = lookup+256+256;
-        sh_r = 16;
-        sh_g = 8;
-        sh_b = 0;
-      break;
     case 32:
-      if ((mask_r != 0xff0000) ||
-          (mask_g != 0x00ff00) ||
-          (mask_b != 0x0000ff))
-        return;
-        lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(256+256+256));
-        lookup_r = lookup;
-        lookup_g = lookup+256;
-        lookup_b = lookup+256+256;
-        sh_r = 16;
-        sh_g = 8;
-        sh_b = 0;
+      if ((mask_r != 0xff0000) || (mask_g != 0x00ff00) || (mask_b != 0x0000ff)) return;
+      lookup = (u_int32_t *) malloc (sizeof (u_int32_t)*(256+256+256));
+      lookup_r = lookup; lookup_g = lookup+256; lookup_b = lookup+256+256;
+      sh_r = 16; sh_g = 8; sh_b = 0;
       break;
     default:
-      return; /* we do not support this color depth */
+      return;
   }
 
-  /* prepare limits for color transformation (each channel is handled separately) */
-  if (shading->shading < 0) {
-    int shade;
-    shade = -shading->shading;
-    if (shade < 0) shade = 0;
-    if (shade > 100) shade = 100;
+  /* Single-pass blend:
+   *   out = wallpaper*(1-darken/100)*(1-opacity/100) + bg*(opacity/100)
+   * lower_lim (wallpaper=0): bg_channel * opacity/100
+   * upper_lim (wallpaper=max): 65535*(1-darken/100)*(1-opacity/100) + lower_lim */
+  lower_lim_r = (u_int32_t)bg->red   * opacity / 100;
+  lower_lim_g = (u_int32_t)bg->green * opacity / 100;
+  lower_lim_b = (u_int32_t)bg->blue  * opacity / 100;
+  upper_lim_r = (u_int32_t)65535 * (100 - darken) * (100 - opacity) / 10000 + lower_lim_r;
+  upper_lim_g = (u_int32_t)65535 * (100 - darken) * (100 - opacity) / 10000 + lower_lim_g;
+  upper_lim_b = (u_int32_t)65535 * (100 - darken) * (100 - opacity) / 10000 + lower_lim_b;
 
-    lower_lim_r = 65535-shading->tintColor.red;
-    lower_lim_g = 65535-shading->tintColor.green;
-    lower_lim_b = 65535-shading->tintColor.blue;
-
-    lower_lim_r = 65535-(unsigned int)(((u_int32_t)lower_lim_r)*((u_int32_t)shade)/100);
-    lower_lim_g = 65535-(unsigned int)(((u_int32_t)lower_lim_g)*((u_int32_t)shade)/100);
-    lower_lim_b = 65535-(unsigned int)(((u_int32_t)lower_lim_b)*((u_int32_t)shade)/100);
-
-    upper_lim_r = upper_lim_g = upper_lim_b = 65535;
-  } else {
-    int shade;
-    shade = shading->shading;
-    if (shade < 0) shade = 0;
-    if (shade > 100) shade = 100;
-
-    lower_lim_r = lower_lim_g = lower_lim_b = 0;
-
-    upper_lim_r = (unsigned int)((((u_int32_t)shading->tintColor.red)*((u_int32_t)shading->shading))/100);
-    upper_lim_g = (unsigned int)((((u_int32_t)shading->tintColor.green)*((u_int32_t)shading->shading))/100);
-    upper_lim_b = (unsigned int)((((u_int32_t)shading->tintColor.blue)*((u_int32_t)shading->shading))/100);
+  /* fill lookup tables */
+  for (i = 0; i <= (int)(mask_r >> sh_r); i++) {
+    u_int32_t tmp = (u_int32_t)i * (upper_lim_r - lower_lim_r);
+    tmp += (u_int32_t)(mask_r >> sh_r) * lower_lim_r;
+    lookup_r[i] = (tmp / 65535) << sh_r;
+  }
+  for (i = 0; i <= (int)(mask_g >> sh_g); i++) {
+    u_int32_t tmp = (u_int32_t)i * (upper_lim_g - lower_lim_g);
+    tmp += (u_int32_t)(mask_g >> sh_g) * lower_lim_g;
+    lookup_g[i] = (tmp / 65535) << sh_g;
+  }
+  for (i = 0; i <= (int)(mask_b >> sh_b); i++) {
+    u_int32_t tmp = (u_int32_t)i * (upper_lim_b - lower_lim_b);
+    tmp += (u_int32_t)(mask_b >> sh_b) * lower_lim_b;
+    lookup_b[i] = (tmp / 65535) << sh_b;
   }
 
-  /* switch red and blue bytes if necessary, we need it for some weird XServers like XFree86 3.3.3.1 */
-  if ((srcImage->bits_per_pixel == 24) && (mask_r >= 0xFF0000 ))
-  {
-    unsigned int tmp;
-
-    tmp = lower_lim_r;
-    lower_lim_r = lower_lim_b;
-    lower_lim_b = tmp;
-
-    tmp = upper_lim_r;
-    upper_lim_r = upper_lim_b;
-    upper_lim_b = tmp;
-  }
-
-  /* fill our lookup tables */
-  for (i = 0; i <= mask_r>>sh_r; i++)
-  {
-    u_int32_t tmp;
-    tmp = ((u_int32_t)i)*((u_int32_t)(upper_lim_r-lower_lim_r));
-    tmp += ((u_int32_t)(mask_r>>sh_r))*((u_int32_t)lower_lim_r);
-    lookup_r[i] = (tmp/65535)<<sh_r;
-  }
-  for (i = 0; i <= mask_g>>sh_g; i++)
-  {
-    u_int32_t tmp;
-    tmp = ((u_int32_t)i)*((u_int32_t)(upper_lim_g-lower_lim_g));
-    tmp += ((u_int32_t)(mask_g>>sh_g))*((u_int32_t)lower_lim_g);
-    lookup_g[i] = (tmp/65535)<<sh_g;
-  }
-  for (i = 0; i <= mask_b>>sh_b; i++)
-  {
-    u_int32_t tmp;
-    tmp = ((u_int32_t)i)*((u_int32_t)(upper_lim_b-lower_lim_b));
-    tmp += ((u_int32_t)(mask_b>>sh_b))*((u_int32_t)lower_lim_b);
-    lookup_b[i] = (tmp/65535)<<sh_b;
-  }
-
-  /* apply table to input image (replacing colors by newly calculated ones) */
   switch (srcImage->bits_per_pixel)
   {
     case 15:
-    {
-      unsigned short *p1, *pf, *p, *pl;
-      p1 = (unsigned short *) srcImage->data;
-      pf = (unsigned short *) (srcImage->data + srcImage->height * srcImage->bytes_per_line);
-      while (p1 < pf)
-      {
-        p = p1;
-        pl = p1 + srcImage->width;
-        for (; p < pl; p++)
-        {
-          *p = lookup_r[(*p & 0x7c00)>>10] |
-               lookup_g[(*p & 0x03e0)>> 5] |
-               lookup_b[(*p & 0x001f)];
-        }
-        p1 = (unsigned short *) ((char *) p1 + srcImage->bytes_per_line);
-      }
-      break;
-    }
     case 16:
     {
       unsigned short *p1, *pf, *p, *pl;
+      int rsh = (srcImage->bits_per_pixel == 15) ? 10 : 11;
       p1 = (unsigned short *) srcImage->data;
       pf = (unsigned short *) (srcImage->data + srcImage->height * srcImage->bytes_per_line);
-      while (p1 < pf)
-      {
-        p = p1;
-        pl = p1 + srcImage->width;
+      while (p1 < pf) {
+        p = p1; pl = p1 + srcImage->width;
         for (; p < pl; p++)
-        {
-          *p = lookup_r[(*p & 0xf800)>>11] |
-               lookup_g[(*p & 0x07e0)>> 5] |
-               lookup_b[(*p & 0x001f)];
-        }
+          *p = lookup_r[(*p & mask_r) >> rsh] |
+               lookup_g[(*p & mask_g) >>  5] |
+               lookup_b[(*p & mask_b)];
         p1 = (unsigned short *) ((char *) p1 + srcImage->bytes_per_line);
       }
       break;
     }
     case 24:
     {
+      /* 24bpp: three separate bytes per pixel, order depends on server byte order.
+       * lookup tables are indexed by channel value (0-255) and store pre-shifted results. */
       unsigned char *p1, *pf, *p, *pl;
       p1 = (unsigned char *) srcImage->data;
       pf = (unsigned char *) (srcImage->data + srcImage->height * srcImage->bytes_per_line);
-      while (p1 < pf)
-      {
-        p = p1;
-        pl = p1 + srcImage->width * 3;
-        for (; p < pl; p += 3)
-        {
-          p[0] = lookup_r[(p[0] & 0xff0000)>>16];
-          p[1] = lookup_r[(p[1] & 0x00ff00)>> 8];
-          p[2] = lookup_r[(p[2] & 0x0000ff)];
+      while (p1 < pf) {
+        p = p1; pl = p1 + srcImage->width * 3;
+        for (; p < pl; p += 3) {
+          p[0] = lookup_r[p[0]] >> sh_r;
+          p[1] = lookup_g[p[1]] >> sh_g;
+          p[2] = lookup_b[p[2]];
         }
         p1 = (unsigned char *) ((char *) p1 + srcImage->bytes_per_line);
       }
@@ -301,18 +143,13 @@ void ShadeXImage(Display * dpy, XImage* srcImage, ShadingInfo* shading, GC gc ) 
       u_int32_t *p1, *pf, *p, *pl;
       p1 = (u_int32_t *) srcImage->data;
       pf = (u_int32_t *) (srcImage->data + srcImage->height * srcImage->bytes_per_line);
-
-      while (p1 < pf)
-      {
-        p = p1;
-        pl = p1 + srcImage->width;
+      while (p1 < pf) {
+        p = p1; pl = p1 + srcImage->width;
         for (; p < pl; p++)
-        {
-          *p = lookup_r[(*p & 0xff0000)>>16] |
-               lookup_g[(*p & 0x00ff00)>> 8] |
+          *p = lookup_r[(*p & 0xff0000) >> 16] |
+               lookup_g[(*p & 0x00ff00) >>  8] |
                lookup_b[(*p & 0x0000ff)] |
                (*p & ~0xffffff);
-        }
         p1 = (u_int32_t *) ((char *) p1 + srcImage->bytes_per_line);
       }
       break;
@@ -322,31 +159,22 @@ void ShadeXImage(Display * dpy, XImage* srcImage, ShadingInfo* shading, GC gc ) 
   free (lookup);
 }
 
-void CopyAndShadeArea(Display * dpy, Drawable src, Pixmap target, int x, int y, int w, int h, int trg_x, int trg_y, GC gc, ShadingInfo* shading) {
-  // int (*oldXErrorHandler)(Display *, XErrorEvent *);
+void CopyAndShadeArea(Display * dpy, Drawable src, Pixmap target, int x, int y, int w, int h, int trg_x, int trg_y, GC gc, XColor *bg, int opacity, int darken) {
   if (x < 0 || y < 0) return;
 
-  if (shading) {
-    XImage * img = XGetImage(dpy, src, x, y, w, h, AllPlanes, ZPixmap);
-
-    if (img != NULL) {
-      ShadeXImage(dpy, img, shading, gc);
-      XPutImage(dpy, target, gc, img, 0, 0, trg_x, trg_y, w, h);
-      XDestroyImage(img);
-      return ;
-    }
+  XImage * img = XGetImage(dpy, src, x, y, w, h, AllPlanes, ZPixmap);
+  if (img != NULL) {
+    ShadeXImage(dpy, img, bg, opacity, darken, gc);
+    XPutImage(dpy, target, gc, img, 0, 0, trg_x, trg_y, w, h);
+    XDestroyImage(img);
   }
-
-  if (!XCopyArea(dpy, src, target, gc, x, y, w, h, trg_x, trg_y))
-    XFillRectangle(dpy, target, gc, trg_x, trg_y, w, h);
 }
 
-Pixmap ShadePixmap(Display * dpy, Window win, Pixmap src, int x, int y, int width, int height, GC gc, ShadingInfo* shading, int depth) {
+Pixmap ShadePixmap(Display * dpy, Window win, Pixmap src, int x, int y, int width, int height, GC gc, XColor *bg, int opacity, int darken, int depth) {
   Pixmap target = XCreatePixmap(dpy, win, width, height, depth);
 
-  if (target != None) {
-    CopyAndShadeArea(dpy, src, target, x, y, width, height, 0, 0, gc, shading);
-  }
+  if (target != None)
+    CopyAndShadeArea(dpy, src, target, x, y, width, height, 0, 0, gc, bg, opacity, darken);
 
   return target;
 }
@@ -444,29 +272,18 @@ rxvt_term::bg_window_position_sensitive ()
   return false;
 }
 
-Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out, int shading_val = 20) {
-  Pixmap bg = getRootPixmap(dpy);
-  if (bg == None) {
+Pixmap load_root_img(Display * dpy, Window win, GC gc, int * w_out, int * h_out, XColor *bg, int opacity, int darken) {
+  Pixmap root_pix = getRootPixmap(dpy);
+  if (root_pix == None) {
     printf("Unable to get root pixmap\n");
-    return NULL;
+    return None;
   }
 
   int xpos, ypos;
   unsigned int w, h, border_width, depth;
+  XGetGeometry(dpy, root_pix, &win, &xpos, &ypos, &w, &h, &border_width, &depth);
 
-  // get bg image size
-  // Window rootwin;
-  // XGetGeometry(dpy, bg, &rootwin, &xpos, &ypos, &w, &h, &border_width, &depth);
-  XGetGeometry(dpy, bg, &win, &xpos, &ypos, &w, &h, &border_width, &depth);
-
-  // shade it
-  ShadingInfo shade;
-  shade.shading = shading_val;
-  shade.tintColor.red   = 0x0000;
-  shade.tintColor.green = 0xFFFF;
-  shade.tintColor.blue  = 0xFFFF;
-  Pixmap pix = ShadePixmap(dpy, win, bg, 0, 0, w, h, gc, &shade, depth);
-  // XFreePixmap(dpy, bg);
+  Pixmap pix = ShadePixmap(dpy, win, root_pix, 0, 0, w, h, gc, bg, opacity, darken, depth);
 
   *w_out = w;
   *h_out = h;
@@ -511,34 +328,56 @@ rxvt_term::bg_render ()
 void
 rxvt_term::bg_init ()
 {
+  /* Parse bgOpacity/blackOpacity unconditionally — used by both fake transparency
+     (winbg path) and real compositor-based transparency (depth-32 path). */
+  if (rs [Rs_bgOpacity])
+    {
+      bg_opacity = atoi (rs [Rs_bgOpacity]);
+      clamp_it (bg_opacity, 0, 100);
+    }
+  else
+    {
+#if XFT
+      rgba bg_rgba;
+      lookup_color (Color_bg, pix_colors_focused).get (bg_rgba);
+      if (bg_rgba.a < rgba::MAX_CC)
+        bg_opacity = (int)((u_int32_t)bg_rgba.a * 100 / rgba::MAX_CC);
+#endif
+    }
+
+  if (rs [Rs_blackOpacity])
+    {
+      black_opacity = atoi (rs [Rs_blackOpacity]);
+      clamp_it (black_opacity, 0, 100);
+    }
+
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
+      /* Free previous resources before recreating */
+      if (root_img != None) { XFreePixmap (dpy, root_img); root_img = None; }
+      if (winbg    != None) { XFreePixmap (dpy, winbg);    winbg    = None; }
 
-      // when initializing a new term, if this is a second tab
-      // then the root image with windows would return the existing tab
-      // already rendered. so we just get the ESETROOT bg, which is simply
-      // the background with no windows
+      XColor bg;
+      lookup_color (Color_bg, pix_colors_focused).get (bg);
 
       int w, h;
-      root_img = load_root_img(dpy, parent, gc, &w, &h, bg_shading);
+      root_img = load_root_img (dpy, parent, gc, &w, &h, &bg, bg_opacity, black_opacity);
+      if (root_img) winbg = XCreatePixmap (dpy, parent, w, h, depth);
 
-      // printf("creating pixmap: %d/%d, depth: %d\n", w, h, depth);
-      if (root_img) winbg = XCreatePixmap(dpy, parent, w, h, depth);
-
-      // if (rs [Rs_blurradius])
-      //   root_effects.set_blur (rs [Rs_blurradius]);
-
-      // if (ISSET_PIXCOLOR (Color_tint))
-      //   root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
-
-      // if (rs [Rs_shade])
-      //   root_effects.set_shade (rs [Rs_shade]);
-
-      // rxvt_img::new_from_root (this)->replace (root_img);
       XSelectInput (dpy, display->root, PropertyChangeMask);
       rootwin_ev.start (display, display->root);
     }
+  else
 #endif
+// #if XFT
+//   if (depth == 32 && (bg_opacity < 100 || black_opacity > 0))
+//     {
+//       /* Real compositor transparency: apply the newly-parsed resource values
+//          immediately so the window doesn't stay at the startup defaults. */
+//       scr_recolor (false);
+//     }
+// #endif
+    ;
 }
 
 #endif /* HAVE_BG_PIXMAP */

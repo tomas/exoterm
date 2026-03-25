@@ -116,11 +116,10 @@ optList[] = {
               BOOL (Rs_scrollTtyKeypress, "scrollTtyKeypress", "sk", Opt_scrollTtyKeypress, 0, "scroll-on-keypress"),
               BOOL (Rs_scrollWithBuffer, "scrollWithBuffer", "sw", Opt_scrollWithBuffer, 0, "scroll-with-buffer"),
 #if BG_IMAGE_FROM_ROOT
-              BOOL (Rs_transparent, "inheritPixmap", "ip", Opt_transparent, 0, "inherit parent pixmap"),
-              BOOL (Rs_transparent, "transparent", "tr", Opt_transparent, 0, "inherit parent pixmap"),
-              STRG (Rs_color + Color_tint, "tintColor", "tint", "color", "tint color"),
-              STRG (Rs_shade, "shading", "sh", "number", "shade background by number %."),
-              STRG (Rs_blurradius, "blurRadius", "blr", "HxV", "gaussian blur radii to apply to the root background"),
+              // BOOL (Rs_transparent, "inheritPixmap", "ip", Opt_transparent, 0, "inherit parent pixmap"),
+              BOOL (Rs_transparent, "transparent", "tr", Opt_transparent, 0, "inherit parent pixmap (fake transparency)"),
+              STRG (Rs_bgOpacity, "bgOpacity", "op",  "number", "bg colour blend strength %% (0=transparent, 100=solid bg colour)"),
+              STRG (Rs_blackOpacity, "blackOpacity", "bo",  "number", "opacity %% of black layer applied before bg colour blend (0=none, 100=full black)"),
 #endif
 #if OFF_FOCUS_FADING
               STRG (Rs_fade, "fading", "fade", "number", "fade colors by number % when losing focus"),

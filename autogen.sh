@@ -15,9 +15,9 @@ fi
 if ! [ -e libptytty/ptytty.m4 ]; then
    cat <<EOF
 **
-** libptytty/ directory is missing
+** libptytty/ptytty.m4 is missing
 **
-** you need a checkout of libptytty (http://software.schmorp.de/pkg/libptytty.html)
+** please run git submodule init && git submodule update
 ** in the top-level build directory.
 **
 EOF

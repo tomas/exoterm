@@ -78,9 +78,6 @@
 /* Define to 1 if you have the `isastream' function. */
 #undef HAVE_ISASTREAM
 
-/* Define to 1 if linux/fs.h defined kernel_rwf_t */
-#undef HAVE_KERNEL_RWF_T
-
 /* Define to 1 if you have the `kqueue' function. */
 #undef HAVE_KQUEUE
 
@@ -92,12 +89,6 @@
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
-
-/* Define to 1 if you have the <linux/aio_abi.h> header file. */
-#undef HAVE_LINUX_AIO_ABI_H
-
-/* Define to 1 if you have the <linux/fs.h> header file. */
-#undef HAVE_LINUX_FS_H
 
 /* Define to 1 if you have the <minix/config.h> header file. */
 #undef HAVE_MINIX_CONFIG_H
@@ -137,9 +128,6 @@
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
-
-/* Define to 1 if you have the `seteuid' function. */
-#undef HAVE_SETEUID
 
 /* Define to 1 if you have the `setresuid' function. */
 #undef HAVE_SETRESUID
@@ -219,18 +207,11 @@
 /* Define to 1 if you have the <sys/strredir.h> header file. */
 #undef HAVE_SYS_STRREDIR_H
 
-/* Define to 1 if you have the <sys/timerfd.h> header file. */
-#undef HAVE_SYS_TIMERFD_H
-
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Define if sys/socket.h defines the necessary macros/functions for file
-   handle passing */
-#undef HAVE_UNIX_FDPASS
 
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV

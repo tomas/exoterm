@@ -46,9 +46,9 @@ COMMON = \
 
 COMMON_DAEMON = rxvtdaemon.o
 
-RXVT_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)$(EXEEXT)
-RXVTC_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)c$(EXEEXT)
-RXVTD_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)d$(EXEEXT)
+RXVT_BINNAME=$(DESTDIR)$(bindir)/exoterm$(EXEEXT)
+RXVTC_BINNAME=$(DESTDIR)$(bindir)/exotermc$(EXEEXT)
+RXVTD_BINNAME=$(DESTDIR)$(bindir)/exotermd$(EXEEXT)
 
 #
 # Distribution variables
@@ -65,13 +65,13 @@ RXVTD_BINNAME=$(DESTDIR)$(bindir)/$(RXVTNAME)d$(EXEEXT)
 
 all: allbin
 
-rxvt: rxvt.o $(COMMON)
+exoterm: rxvt.o $(COMMON)
 	$(LINK) -o $@ rxvt.o $(COMMON) $(LIBS) $(XLIB) $(PERLLIB)
 
-rxvtd: rxvtd.o $(COMMON) $(COMMON_DAEMON)
+exotermd: rxvtd.o $(COMMON) $(COMMON_DAEMON)
 	$(LINK) -o $@ rxvtd.o $(COMMON) $(COMMON_DAEMON) $(LIBS) $(XLIB) $(PERLLIB)
 
-rxvtc: rxvtc.o $(COMMON_DAEMON) fdpass_wrapper.o
+exotermc: rxvtc.o $(COMMON_DAEMON) fdpass_wrapper.o
 	$(LINK) -o $@ rxvtc.o $(COMMON_DAEMON) fdpass_wrapper.o $(LIBS)
 
 #-------------------------------------------------------------------------
@@ -84,12 +84,12 @@ tags: *.[Ch]
 TAGS: *.[Ch]
 	etags $(EXUBERANT_OPTS) *.[Ch]
 
-allbin: rxvt rxvtd rxvtc
+allbin: exoterm exotermd exotermc
 
 alldoc:
 
 clean:
-	rm -f rxvt rxvtc rxvtd perlxsi.c rxvtperl.C manlst mantmp
+	rm -f exoterm exotermc exotermd perlxsi.c rxvtperl.C manlst mantmp
 	rm -f *.o
 	$(MAKE) -C ../fonts clean
 
@@ -129,9 +129,9 @@ install-perl:
 
 install-bin: allbin
 	$(INSTALL) -d $(DESTDIR)$(bindir)
-	$(INSTALL_PROGRAM) rxvt  $(RXVT_BINNAME)
-	$(INSTALL_PROGRAM) rxvtc $(RXVTC_BINNAME)
-	$(INSTALL_PROGRAM) rxvtd $(RXVTD_BINNAME)
+	$(INSTALL_PROGRAM) exoterm  $(RXVT_BINNAME)
+	$(INSTALL_PROGRAM) exotermc $(RXVTC_BINNAME)
+	$(INSTALL_PROGRAM) exotermd $(RXVTD_BINNAME)
 
 install: install-bin install-perl install-fonts
 

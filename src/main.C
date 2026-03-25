@@ -209,7 +209,8 @@ rxvt_term::rxvt_term ()
   settings_ui_refresh_ev.set <rxvt_term, &rxvt_term::settings_ui_refresh_cb> (this);
   context_menu_ev.set        <rxvt_term, &rxvt_term::x_context_menu_cb> (this);
   wheel_scroll_lines = 5;
-  bg_shading         = 20;
+  bg_opacity         = 50;
+  black_opacity      = 100;
   tabpopup_ev.set         <rxvt_term, &rxvt_term::x_tabpopup_cb> (this);
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
@@ -1334,6 +1335,15 @@ done:
 
   update_fade_color (idx);
   recolor_cursor ();
+#if BG_IMAGE_FROM_ROOT
+  if (idx == Color_bg && option (Opt_transparent))
+    {
+      minimap.colors_initialized = false;
+      bg_init ();
+      bg_render ();
+      return;
+    }
+#endif
   scr_recolor ();
 #endif /* XTERM_COLOR_CHANGE */
 }

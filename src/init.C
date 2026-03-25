@@ -755,6 +755,7 @@ rxvt_term::init_resources (int argc, const char *const *argv)
     if (*p) wheel_scroll_lines = atoi (p);
 
 #if ENABLE_FRILLS
+
   if (rs[Rs_visual])
     select_visual (strtol (rs[Rs_visual], 0, 0));
   else if (rs[Rs_depth])
@@ -763,7 +764,31 @@ rxvt_term::init_resources (int argc, const char *const *argv)
     #else
       printf("Built without XFT support. Depth not supported.\n");
     #endif
+
+    /*
+      If blackOpacity < 100 is configured, enable full or fake transparency automatically
+      depending if xft is available or not
+    */
+
+  #if defined(XFT)
+    if (!rs[Rs_visual] && !rs[Rs_depth])
+      {
+        int bo = rs[Rs_blackOpacity] ? atoi (rs[Rs_blackOpacity]) : 100;
+        if (bo < 100) {
+          select_depth (32);
+        }
+      }
+  #elif defined(HAVE_BG_PIXMAP)
+      if (!rs[Rs_transparent]) {
+        int bo = rs[Rs_blackOpacity] ? atoi (rs[Rs_blackOpacity]) : 100;
+        if (bo < 100) {
+          set_option (Opt_transparent, true);
+        }
+      }
+  #endif
+
 #endif
+
 
   for (int i = NUM_RESOURCES; i--; )
     if (rs [i] == resval_undef)
@@ -1539,21 +1564,31 @@ void rxvt_term::initialize_minimap_colors() {
     XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
     Colormap colormap = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
+    // semi opaque background color for the semi-transparent overlay
+
+    XColor bg_xc;
+    bg_xc.pixel = default_bg;
+    XQueryColor(dpy, colormap, &bg_xc);
+    minimap.bg_render_color.red   = 0;
+    minimap.bg_render_color.green = 0;
+    minimap.bg_render_color.blue  = 0;
+    minimap.bg_render_color.alpha = (uint16_t)(0xFFFF * 0.35);
+
     for (int i = 0; i < TOTAL_COLORS; i++) {
         minimap.color_cache[i] = lookup_color(i, pix_colors);
 
         // Pre-compute shadow colors (50% blend with background)
-        XColor xc, bg_xc, result;
+        XColor xc, result;
         xc.pixel = minimap.color_cache[i];
-        bg_xc.pixel = default_bg;
+        // bg_xc.pixel = default_bg;
 
         XQueryColor(dpy, colormap, &xc);
-        XQueryColor(dpy, colormap, &bg_xc);
+        // XQueryColor(dpy, colormap, &bg_xc);
 
         // Blend with background color
-        result.red = (xc.red + bg_xc.red) / 2;
-        result.green = (xc.green + bg_xc.green) / 2;
-        result.blue = (xc.blue + bg_xc.blue) / 2;
+        result.red = (xc.red + minimap.bg_render_color.red) / 2;
+        result.green = (xc.green + minimap.bg_render_color.green) / 2;
+        result.blue = (xc.blue + minimap.bg_render_color.blue) / 2;
 
         if (XAllocColor(dpy, colormap, &result)) {
             minimap.shadow_color_cache[i] = result.pixel;
@@ -1562,18 +1597,8 @@ void rxvt_term::initialize_minimap_colors() {
         }
     }
 
-
     // Cache XRender visual format for the buffer pixmap
     minimap.xr_format = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, display->screen));
-
-    // 50% opaque background color for the semi-transparent overlay
-    XColor bg_xc;
-    bg_xc.pixel = default_bg;
-    XQueryColor(dpy, colormap, &bg_xc);
-    minimap.bg_render_color.red   = bg_xc.red;
-    minimap.bg_render_color.green = bg_xc.green;
-    minimap.bg_render_color.blue  = bg_xc.blue;
-    minimap.bg_render_color.alpha = (uint16_t)(0xFFFF * 0.50);
 
     // Selection highlight: soft blue at ~30% opacity, readable on both dark and light themes
     minimap.sel_render_color.red   = 0x5050;

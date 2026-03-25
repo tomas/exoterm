@@ -5859,21 +5859,6 @@ rxvt_term::process_xterm_seq (int op, char *str, string_term &st)
         process_color_seq (op, Color_border, str, st);
         break;
 
-#if BG_IMAGE_FROM_ROOT
-      case URxvt_Color_tint:
-        process_color_seq (op, Color_tint, str, st);
-        {
-          bool changed = false;
-
-          // if (ISSET_PIXCOLOR (Color_tint))
-          //   changed = root_effects.set_tint (lookup_color(Color_tint, pix_colors_focused));
-
-          if (changed)
-            update_background (4);
-        }
-
-        break;
-#endif
 
       case XTerm_logfile:
         // TODO, when secure mode?

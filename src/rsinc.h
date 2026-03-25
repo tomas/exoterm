@@ -61,8 +61,8 @@
 #endif
 #if BG_IMAGE_FROM_ROOT
   def (transparent)
-  def (shade)
-  def (blurradius)
+  def (bgOpacity)
+  def (blackOpacity)
 #endif
 #if XFT
   def (buffered)
