@@ -821,6 +821,9 @@ static int build_settings_window (mu_Context *ctx) {
     if (float_slider (ctx, &s_line_space, -4.0f, 16.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
       changed |= CHANGED_LINE_SPACE;
 
+    // input_label (ctx, "Letter spacing");
+    // if (float_slider (ctx, &s_letter_space, 0.0f, 4.0f, 1.0f, "%.0f px") & MU_RES_CHANGE)
+    //   changed |= CHANGED_LETTER_SPACE;
 
 #ifdef BUILTIN_GLYPHS
     { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
@@ -872,7 +875,7 @@ static int build_settings_window (mu_Context *ctx) {
       : nullptr;
     const char *bold_current = (s_active_bold_font != -1)
       ? s_font_entries[s_active_bold_font].name
-      : (bold_display_name ? bold_display_name : "Auto-detect");
+      : (bold_display_name ? bold_display_name : "Auto-detect (from main font)");
     if (mu_begin_combo_ex(ctx, "##boldfonts", bold_current, s_num_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
       if (mu_button(ctx, "   Auto-detect (from main font)")) {
@@ -894,7 +897,13 @@ static int build_settings_window (mu_Context *ctx) {
     }
 #if XFT
     } else { /* s_use_xft */
-    input_label (ctx, "Main Font");
+
+    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
+    input_label (ctx, "Font Size (px)");
+    if (float_slider (ctx, &s_xft_font_size_f, 10.0f, 32.0f, 1.0f, "%.0f") & MU_RES_CHANGE)
+      changed |= CHANGED_XFT_FONT;
+
+    input_label (ctx, "Main Font (XFT)");
     { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
 
     const char *xft_cur = (s_active_xft_font >= 0 && s_active_xft_font < s_num_xft_fonts)
@@ -914,10 +923,10 @@ static int build_settings_window (mu_Context *ctx) {
       mu_end_combo (ctx);
     }
 
-    input_label (ctx, "Bold Font");
+    input_label (ctx, "Bold Font (XFT)");
 
     const char *xft_bold_cur = (s_active_xft_bold_font >= 0 && s_active_xft_bold_font < s_num_xft_fonts)
-      ? s_xft_font_entries[s_active_xft_bold_font].name : "Auto-detect";
+      ? s_xft_font_entries[s_active_xft_bold_font].name : "Auto-detect (from main font)";
     if (mu_begin_combo_ex(ctx, "##xftboldfonts", xft_bold_cur, s_num_xft_fonts * 34, 0)) {
       { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
       if (mu_button (ctx, "   Auto-detect (from main font)")) {
@@ -938,11 +947,6 @@ static int build_settings_window (mu_Context *ctx) {
       mu_end_combo (ctx);
     }
 
-    { int c[] = {lw, -1}; mu_layout_row (ctx, 2, c, 0); }
-    input_label (ctx, "Size (px)");
-    { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
-    if (float_slider (ctx, &s_xft_font_size_f, 8.0f, 32.0f, 1.0f, "%.0f") & MU_RES_CHANGE)
-      changed |= CHANGED_XFT_FONT;
     } /* end s_use_xft */
 #endif
 
@@ -1247,10 +1251,12 @@ static void apply_settings (int changed) {
     if (changed & CHANGED_LINE_SPACE) {
       t->lineSpace = (int) s_line_space;
       t->set_fonts ();
+      t->resize_all_windows (t->szHint.width, t->szHint.height, 1);
     }
     if (changed & CHANGED_LETTER_SPACE) {
       t->letterSpace = (int) s_letter_space;
       t->set_fonts ();
+      t->resize_all_windows (t->szHint.width, t->szHint.height, 1);
     }
     if (changed & CHANGED_SAVE_LINES) {
       t->saveLines = (int) s_save_lines;
@@ -1941,7 +1947,7 @@ static void save_to_xdefaults (rxvt_term *first_term) {
   // g_string_append_printf (block, "Exoterm.shading:           %d\n",  (int)s_shading);
 
   g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
-  // g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
+  g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
 
 #ifdef BUILTIN_GLYPHS
   g_string_append_printf (block, "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
@@ -2074,6 +2080,14 @@ rxvt_term::draw_settings_ui ()
   if (changed & CHANGED_SAVE) {
     rxvt_term *t = rxvt_term::termlist.empty () ? nullptr : rxvt_term::termlist.front ();
     save_to_xdefaults (t);
+    {
+      const char *home = getenv ("HOME");
+      if (home) {
+        char cmd[1024];
+        snprintf (cmd, sizeof (cmd), "xrdb '%s/.Xdefaults'", home);
+        system (cmd);
+      }
+    }
     hide_settings_ui ();
     return;
   }
