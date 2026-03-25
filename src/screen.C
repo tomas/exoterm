@@ -2423,14 +2423,6 @@ rxvt_term::scr_refresh () NOTHROW
   have_bg = winbg != None;
 #endif
 
-// #if XFT
-//   /* Real compositor transparency (depth-32 ARGB): treat backgrounds as transparent
-//      so non-space glyphs are drawn with Color_transparent and spaces use XClearArea,
-//      both of which let the composited ARGB window background show through. */
-//   if (!have_bg && depth == 32 && (bg_opacity < 100 || black_opacity > 0))
-//     have_bg = true;
-// #endif
-
   ocrow = oldcursor.row; /* is there an old outline cursor on screen? */
 
   /*

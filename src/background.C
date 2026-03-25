@@ -354,7 +354,6 @@ rxvt_term::bg_init_transparency () {
 void
 rxvt_term::bg_init ()
 {
-
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
       /* Free previous resources before recreating */
@@ -373,15 +372,6 @@ rxvt_term::bg_init ()
     }
   else
 #endif
-// #if XFT
-//   if (depth == 32 && (bg_opacity < 100 || black_opacity > 0))
-//     {
-//       /* Real compositor transparency: apply the newly-parsed resource values
-//          immediately so the window doesn't stay at the startup defaults. */
-//       scr_recolor (false);
-//     }
-// #endif
-    ;
 }
 
 #endif /* HAVE_BG_PIXMAP */
