@@ -241,37 +241,6 @@ struct localise_env
   }
 };
 
-#ifdef HAVE_BG_PIXMAP
-struct image_effects
-{
-  bool tint_set;
-  rxvt_color tint;
-  int shade;
-  int h_blurRadius, v_blurRadius;
-
-  image_effects ()
-  {
-    tint_set     =
-    h_blurRadius =
-    v_blurRadius = 0;
-    shade = 100;
-  }
-
-  bool need_tint ()
-  {
-    return shade != 100 || tint_set;
-  }
-
-  bool need_blur ()
-  {
-    return h_blurRadius && v_blurRadius;
-  }
-
-  bool set_tint (const rxvt_color &new_tint);
-  bool set_shade (const char *shade_str);
-  bool set_blur (const char *geom);
-};
-#endif
 
 #ifdef ENABLE_MINIMAP
 
@@ -586,7 +555,6 @@ enum {
   URxvt_version          = 702,     // request version
 
   URxvt_Color_IT         = 704,     // change actual 'Italic' colour
-  URxvt_Color_tint       = 705,     // change actual tint colour
   URxvt_Color_BD         = 706,     // change actual 'Bold' color
   URxvt_Color_UL         = 707,     // change actual 'Underline' color
   URxvt_Color_border     = 708,
@@ -670,9 +638,6 @@ enum colour_list {
   Color_scroll,
 #ifdef RXVT_SCROLLBAR
   Color_trough,
-#endif
-#if BG_IMAGE_FROM_ROOT
-  Color_tint,
 #endif
 #if OFF_FOCUS_FADING
   Color_fade,
@@ -1078,7 +1043,8 @@ struct TermWin_t
   int            lineSpace;     /* number of extra pixels between rows      */
   int            letterSpace;   /* number of extra pixels between columns   */
   int            wheel_scroll_lines; /* lines to scroll per mouse wheel tick */
-  int            bg_shading;    /* background shading % (fake transparency) */
+  int            bg_opacity;    /* bg colour blend strength % (0=transparent, 100=solid bg colour) */
+  int            bg_darken;     /* wallpaper darkening % applied before bg colour blend (0=none, 100=black) */
   int            saveLines;     /* number of lines that fit in scrollback   */
   int            total_rows;    /* total number of rows in this terminal    */
   int            term_start;    /* term lines start here                    */
@@ -1324,8 +1290,6 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   void bg_destroy ();
 
 # if BG_IMAGE_FROM_ROOT
-  // rxvt_img *root_img;
-  // image_effects root_effects;
   Pixmap root_img;
   Pixmap winbg; // = None;
 
