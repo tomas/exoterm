@@ -349,6 +349,7 @@ rxvt_term::bg_init_transparency () {
       black_opacity = atoi (rs [Rs_blackOpacity]);
       clamp_it (black_opacity, 0, 100);
     }
+
 }
 
 void
@@ -371,6 +372,24 @@ rxvt_term::bg_init ()
       rootwin_ev.start (display, display->root);
   }
 #endif
+
+  // If Color_bg is a light colour but bg_opacity is low, the visual background
+  // is effectively dark (mostly wallpaper). Replace Color_bg with black so
+  // that rendering contexts using it directly — selection inversion, overlay
+  // text colours, etc. — look correct.  Done here, after the wallpaper blend
+  // above has already consumed the original tint colour.  Matches the same
+  // check used in process_color_seq when reporting bg colour to TUI apps.
+  if (bg_opacity < 50)
+    {
+      rgba bg_rgba;
+      lookup_color (Color_bg, pix_colors_focused).get (bg_rgba);
+      bool bg_is_light = (bg_rgba.r * 299 + bg_rgba.g * 587 + bg_rgba.b * 114) / 1000 > 128;
+      if (bg_is_light)
+        {
+          pix_colors[Color_bg]         = pix_colors[Color_Black];
+          pix_colors_focused[Color_bg] = pix_colors_focused[Color_Black];
+        }
+    }
 }
 
 #endif /* HAVE_BG_PIXMAP */
