@@ -2152,12 +2152,13 @@ rxvt_term::draw_settings_ui ()
   }
 
   if (changed & CHANGED_CANCEL) {
+    hide_settings_ui ();
+
     restore_snapshot ();
 
     for (rxvt_term *t : rxvt_term::termlist)
       t->refresh_check ();
 
-    hide_settings_ui ();
     return;
   }
 
@@ -2168,6 +2169,8 @@ rxvt_term::draw_settings_ui ()
 
   if (changed & CHANGED_SAVE) {
     rxvt_term *t = rxvt_term::termlist.empty () ? nullptr : rxvt_term::termlist.front ();
+    hide_settings_ui ();
+
     save_to_xdefaults (t);
     {
       const char *home = getenv ("HOME");
@@ -2177,7 +2180,6 @@ rxvt_term::draw_settings_ui ()
         system (cmd);
       }
     }
-    hide_settings_ui ();
     return;
   }
 
