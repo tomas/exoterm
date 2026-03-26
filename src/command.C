@@ -1293,6 +1293,8 @@ rxvt_term::key_press (XKeyEvent &ev)
           minimap.visible = !minimap.visible;
           // printf("minimap is now %s\n", minimap.visible ? "visible" : "not visible");
           if (minimap.visible) {
+            XClearWindow(dpy, minimap.win);
+            render_minimap();
             XMapWindow(dpy, minimap.win);
           } else {
             XUnmapWindow(dpy, minimap.win);

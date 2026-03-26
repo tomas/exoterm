@@ -1058,6 +1058,9 @@ rxvt_term::init2 (int argc, const char *const *argv)
 #endif
 
   // printf(" -----> mapping window: %d\n", termlist.size());
+  mapped = 1;
+  bg_render ();
+  scr_recolor ();
   XMapWindow (dpy, vt);
   XMapWindow (dpy, parent);
 
@@ -1732,11 +1735,12 @@ void rxvt_term::init_minimap()
                 XChangeWindowAttributes(dpy, vt, CWBackingStore, &bs);
             }
 
-            XMapWindow(dpy, minimap.win);
             minimap.enabled = true;
 
-            // Force an initial render
+            // Render first, then map to avoid flicker
+            XClearWindow(dpy, minimap.win);
             render_minimap();
+            XMapWindow(dpy, minimap.win);
         }
     }
 }
@@ -2045,7 +2049,6 @@ rxvt_term::create_windows (int argc, const char *const *argv)
 #endif
 
   pointer_unblank ();
-  scr_recolor ();
 }
 
 /*----------------------------------------------------------------------*/

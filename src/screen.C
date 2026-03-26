@@ -4803,6 +4803,8 @@ void rxvt_term::toggle_minimap_by_cursor(int hide) {
     if (minimap.enabled && minimap.hidden_by_cursor) {
       minimap.visible = true;
       minimap.hidden_by_cursor = false;
+      XClearWindow(dpy, minimap.win);
+      render_minimap();
       XMapWindow(dpy, minimap.win);
     }
   }

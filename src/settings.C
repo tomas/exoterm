@@ -2564,8 +2564,11 @@ rxvt_term::draw_context_menu ()
 #ifdef ENABLE_MINIMAP
     case CM_TOGGLE_MINIMAP:
       t->minimap.visible = !t->minimap.visible;
-      if (t->minimap.visible)
+      if (t->minimap.visible) {
+        XClearWindow(t->dpy, t->minimap.win);
+        t->render_minimap();
         XMapWindow  (t->dpy, t->minimap.win);
+      }
       else
         XUnmapWindow (t->dpy, t->minimap.win);
       break;
