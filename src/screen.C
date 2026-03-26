@@ -3040,6 +3040,9 @@ rxvt_term::scr_remap_chars (line_t &l) NOTHROW
 void ecb_cold
 rxvt_term::scr_remap_chars () NOTHROW
 {
+  if (!row_buf)
+    return;
+
   for (int i = total_rows; i--; )
     scr_remap_chars (row_buf [i]);
 
