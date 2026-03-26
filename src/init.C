@@ -1708,6 +1708,10 @@ void rxvt_term::init_minimap()
     );
 
     if (minimap.win) {
+        // Prevent X from filling the window with Color_bg on Expose events —
+        // we double-buffer and paint via XCopyArea, so a background fill only
+        // causes a raw-color flash before render_minimap() runs.
+        XSetWindowBackgroundPixmap(dpy, minimap.win, None);
         initialize_minimap_colors();
 
         // Create GC
