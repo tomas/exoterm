@@ -29,7 +29,8 @@ On top of it, adds:
 
 It's also synced with these changes from the upstream repo:
 
-- Wide glyph rendering (`ENABLE_WIDE_GLYPHS`) — always enabled in this build
+- Wide glyph rendering (`ENABLE_WIDE_GLYPHS`)
+- Improved 24-bit to 256 color mapping
 - SGR mouse mode (1006), extended mouse reporting (1015), DECRQM (mode query)
 - Bracketed paste mode
 - Background image support with compositing
