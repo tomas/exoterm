@@ -1384,25 +1384,15 @@ rxvt_term::get_colorfgbg ()
         break;
       }
 
-  rgba bg_rgba;
-  lookup_color (Color_bg, pix_colors).get (bg_rgba);
-  bool bg_is_light = (bg_rgba.r * 299 + bg_rgba.g * 587 + bg_rgba.b * 114) / 1000 > 128;
-  if (bg_is_light && bg_opacity < 50)
-    {
-      sprintf (bstr, "0");
-    }
-  else
-    {
-      for (i = Color_Black; i <= Color_White; i++)
-        if (lookup_color(Color_bg, pix_colors) == lookup_color(i, pix_colors))
-          {
-            sprintf (bstr, "%d", i - Color_Black);
+  for (i = Color_Black; i <= Color_White; i++)
+    if (lookup_color(Color_bg, pix_colors) == lookup_color(i, pix_colors))
+      {
+        sprintf (bstr, "%d", i - Color_Black);
 #if BG_IMAGE_FROM_FILE
-            xpmb = "default;";
+        xpmb = "default;";
 #endif
-            break;
-          }
-    }
+        break;
+      }
 
   env_colorfgbg = (char *)rxvt_malloc (sizeof ("COLORFGBG=default;default;bg"));
   sprintf (env_colorfgbg, "COLORFGBG=%s;%s%s", fstr, xpmb, bstr);
