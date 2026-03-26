@@ -262,6 +262,106 @@ rxvt_font::clear_rect (rxvt_drawable &d, int x, int y, int w, int h, int color) 
     }
 }
 
+static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
+                        int W, int H, uint32_t *commands, uint16_t offs)
+{
+  uint32_t *a = commands + (offs >> 4);
+  uint32_t *b = a + (offs & 15);
+
+  int x_[16];
+  int y_[16];
+
+  for (int i = 0; i <= 8; i++)
+    {
+      x_[i] = x + ((W-1) * i + (i*7/8)) / 8;
+      y_[i] = y + ((H-1) * i + (i*7/8)) / 8;
+    }
+
+  x_[10] = x + (W - 1) / 2; x_[9] = x_[10] - 1; x_[11] = x_[10] + 1;
+  y_[10] = y + (H - 1) / 2; y_[9] = y_[10] - 1; y_[11] = y_[10] + 1;
+
+  XGCValues gcv;
+
+  gcv.cap_style = CapButt;
+  gcv.line_width = 0;
+  XChangeGC (disp, gc, GCLineWidth | GCCapStyle, &gcv);
+
+  while (a < b)
+    {
+      uint32_t command = *a++;
+
+      int op = (command >> 24) & 255;
+      int a  = (command >> 20) & 15;
+      int b  = (command >> 16) & 15;
+      int x1 = x_[(command >> 12) & 15];
+      int y1 = y_[(command >>  8) & 15];
+      int x2 = x_[(command >>  4) & 15];
+      int y2 = y_[(command >>  0) & 15];
+
+      switch (op)
+        {
+          case 0: // line
+            XDrawLine (disp, d, gc, x1, y1, x2, y2);
+            break;
+
+          case 1: // rectangle, possibly stippled
+            if (a)
+              {
+                static char bm[] = { 0,0 , 3,1 , 1,2 , 1,0 };
+
+                gcv.fill_style = FillStippled;
+                gcv.stipple = XCreateBitmapFromData (disp, d, bm + a * 2, 2, 2);
+                gcv.ts_x_origin = x;
+                gcv.ts_y_origin = y;
+
+                XChangeGC (disp, gc,
+                           GCFillStyle | GCStipple | GCTileStipXOrigin | GCTileStipYOrigin,
+                           &gcv);
+              }
+
+            XFillRectangle (disp, d, gc, x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+
+            if (a)
+              {
+                XFreePixmap (disp, gcv.stipple);
+                gcv.stipple = 0;
+                gcv.fill_style = FillSolid;
+                XChangeGC (disp, gc, GCFillStyle, &gcv);
+              }
+            break;
+          case 2: // arc (outline, center at x1/y1, full cell size)
+            {
+              // ugly hack for rounded corners in box decorations
+              int arc_h = H-1;
+
+              XDrawArc (disp, d, gc,
+                        x1 - W/2, y1 - H/2, W-1, arc_h,
+                        (a - 1) * 90*64, (b - 1) * 90*64);
+              break;
+            }
+          case 3: // filled triangle, direction in a: 1=up 2=down 3=left 4=right
+            {
+              XPoint pts[3];
+              int xm = (x1 + x2) / 2;
+              int ym = (y1 + y2) / 2;
+              if (a == 1)      { pts[0].x = xm; pts[0].y = y1; pts[1].x = x1; pts[1].y = y2; pts[2].x = x2; pts[2].y = y2; }
+              else if (a == 2) { pts[0].x = x1; pts[0].y = y1; pts[1].x = x2; pts[1].y = y1; pts[2].x = xm; pts[2].y = y2; }
+              else if (a == 3) { pts[0].x = x2; pts[0].y = y1; pts[1].x = x2; pts[1].y = y2; pts[2].x = x1; pts[2].y = ym; }
+              else             { pts[0].x = x1; pts[0].y = y1; pts[1].x = x1; pts[1].y = y2; pts[2].x = x2; pts[2].y = ym; }
+              XFillPolygon (disp, d, gc, pts, 3, Convex, CoordModeOrigin);
+              break;
+            }
+          case 4: // filled arc, bounding box x1/y1 to x2/y2
+            {
+              XFillArc (disp, d, gc,
+                        x1, y1, x2 - x1, y2 - y1,
+                        (a - 1) * 90*64, (b - 1) * 90*64);
+              break;
+            }
+        }
+    }
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 struct rxvt_font_default : rxvt_font {
@@ -309,9 +409,11 @@ struct rxvt_font_default : rxvt_font {
       return true;
 
 #ifdef BUILTIN_GLYPHS
-    if (unicode >= 0x2500 && unicode <= 0x259f &&
-        !term->option (Opt_skipBuiltinGlyphs))
-      return true;
+    if ((unicode >= 0x2500 && unicode <= 0x259f) ||
+        (unicode >= 0x23f4 && unicode <= 0x23fa) ||
+        (unicode >= 0x2b00 && unicode <= 0x2b24))
+      if (!term->option (Opt_skipBuiltinGlyphs))
+        return true;
 #endif
 
     if (IS_COMPOSE (unicode))
@@ -363,104 +465,24 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
         {
 # include "table/linedraw.h"
           uint16_t offs = linedraw_offs[t - 0x2500];
-          uint32_t *a = linedraw_command + (offs >> 4);
-          uint32_t *b = a + (offs & 15);
-
-          int W = fwidth;
-          int H = term->fheight;
-
-          int x_[16];
-          int y_[16];
-
-          for (int i = 0; i <= 8; i++)
-            {
-              x_[i] = x + ((W-1) * i + (i*7/8)) / 8;
-              y_[i] = y + ((H-1) * i + (i*7/8)) / 8;
-            }
-
-          x_[10] = x + (W - 1) / 2; x_[9] = x_[10] - 1; x_[11] = x_[10] + 1;
-          y_[10] = y + (H - 1) / 2; y_[9] = y_[10] - 1; y_[11] = y_[10] + 1;
-
-          XGCValues gcv;
-
-          gcv.cap_style = CapButt;
-          gcv.line_width = 0;
-          XChangeGC (disp, gc, GCLineWidth | GCCapStyle, &gcv);
-
-          while (a < b)
-            {
-              uint32_t command = *a++;
-
-              int op = (command >> 24) & 255;
-              int a  = (command >> 20) & 15;
-              int b  = (command >> 16) & 15;
-              int x1 = x_[(command >> 12) & 15];
-              int y1 = y_[(command >>  8) & 15];
-              int x2 = x_[(command >>  4) & 15];
-              int y2 = y_[(command >>  0) & 15];
-
-              switch (op)
-                {
-                  case 0: // line
-                    XDrawLine (disp, d, gc, x1, y1, x2, y2);
-                    break;
-
-                  case 1: // rectangle, possibly stippled
-                    if (a)
-                      {
-                        static char bm[] = { 0,0 , 3,1 , 1,2 , 1,0 };
-
-                        gcv.fill_style = FillStippled;
-                        gcv.stipple = XCreateBitmapFromData (disp, d, bm + a * 2, 2, 2);
-                        gcv.ts_x_origin = x;
-                        gcv.ts_y_origin = y;
-
-                        XChangeGC (disp, gc,
-                                   GCFillStyle | GCStipple | GCTileStipXOrigin | GCTileStipYOrigin,
-                                   &gcv);
-                      }
-
-                    XFillRectangle (disp, d, gc, x1, y1, x2 - x1 + 1, y2 - y1 + 1);
-
-                    if (a)
-                      {
-                        XFreePixmap (disp, gcv.stipple);
-                        gcv.stipple = 0;
-                        gcv.fill_style = FillSolid;
-                        XChangeGC (disp, gc, GCFillStyle, &gcv);
-                      }
-                    break;
-                  case 2: // arc
-
-                    // ugly hack for rounded corners in box decorations
-                    int arc_h = H-1;
-
-                    // printf("y1:%d y2:%d\n", y1, y2);
-                    // if (y2 == 40) arc_h = H/2;
-                    // if (y2 == 76) {
-                    //   arc_h = H/2;
-                    //   y1 += (H/2) - 1;
-                    // }
-
-                    XDrawArc (disp, d, gc,
-                              x1 - W/2, y1 - H/2, W-1, arc_h,
-                              (a - 1) * 90*64, (b - 1) * 90*64);
-                    break;
-                }
-            }
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_command, offs);
+        }
+      else if (0x23f4 <= t && t <= 0x23fa)
+        {
+# include "table/linedraw3.h"
+          uint16_t offs = linedraw3_offs[t - 0x23f4];
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw3_command, offs);
+        }
+      else if (0x2b00 <= t && t <= 0x2b24)
+        {
+# include "table/linedraw2.h"
+          uint16_t offs = linedraw2_offs[t - 0x2b00];
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
         }
 #else
       if (0)
         ;
 #endif
-
-      else if (t == 0x2b1d)
-        {
-          int size = min(fwidth, term->fheight) / 2;
-          int offset_x = x + (fwidth - size) / 2;
-          int offset_y = y + (term->fheight - size) / 2;
-          XFillRectangle(disp, d, gc, offset_x, offset_y, size, size);
-        }
 
 #if ENABLE_COMBINING
       else if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
