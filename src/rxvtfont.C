@@ -453,6 +453,15 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
       if (0)
         ;
 #endif
+
+      else if (t == 0x2b1d)
+        {
+          int size = min(fwidth, term->fheight) / 2;
+          int offset_x = x + (fwidth - size) / 2;
+          int offset_y = y + (term->fheight - size) / 2;
+          XFillRectangle(disp, d, gc, offset_x, offset_y, size, size);
+        }
+
 #if ENABLE_COMBINING
       else if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
         {
