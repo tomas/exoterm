@@ -130,7 +130,7 @@ static const struct rxvt_fallback_font {
   { CS_KSC5601_1987_0,  "-*-*-*-*-*-*-*-*-*-*-c-*-ksc5601*"        },
 # if XFT
   { CS_KSC5601_1987_0,  "xft:Baekmuk Gulim:antialias=false"        },
-  { CS_KSC5601_1987_0,  "xft::lang=ko:antialias=false"             },
+  // { CS_KSC5601_1987_0,  "xft::lang=ko:antialias=false"             },
 # endif
 #endif
 
