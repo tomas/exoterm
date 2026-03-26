@@ -365,8 +365,18 @@ rxvt_term::~rxvt_term ()
   }
 
   if (display) {
-      selection_clear ();
-      selection_clear (true);
+      // selection_clear ();
+      // selection_clear (true);
+
+      // from selection_clear, but without the push_selection_to_x11() call
+      free (selection.text);
+      selection.text = NULL;
+      selection.len = 0;
+
+      free (selection.clip_text);
+      selection.clip_text = NULL;
+      selection.clip_len = 0;
+
       // selection_clear only clears display's owner pointer when selection.len > 0.
       // Explicitly null out dangling pointers so set_selection_owner can't call
       // flush() on this (freed) term.
