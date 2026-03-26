@@ -4608,7 +4608,7 @@ void rxvt_term::render_minimap() {
 
                     if (shadow_color != current_shadow || small_char != current_is_small || col == min(ncol, line.l)) {
                         if (current_shadow != 0 && col > batch_start) {
-                            if (current_shadow != default_bg || (col == min(ncol, line.l) && batch_start != col)) {
+                            if (current_shadow != default_bg) {
                                 XSetForeground(dpy, minimap.gc, current_shadow);
                                 XFillRectangle(dpy, buffer, minimap.gc,
                                              (int)(batch_start * minimap.char_width), y,
@@ -4665,7 +4665,7 @@ void rxvt_term::render_minimap() {
 
                     if (pixel_color != current_color || small_char != current_is_small || col == min(ncol, line.l)) {
                         if (current_color != 0 && col > batch_start) {
-                            if (current_color != default_bg || (col == min(ncol, line.l) && batch_start != col)) {
+                            if (current_color != default_bg) {
                                 XSetForeground(dpy, minimap.gc, current_color);
                                 int y_offset = (minimap.line_height >= 2 ? 1 : 0);
                                 int height = minimap.line_height - (minimap.line_height >= 2 ? 1 : 0);
