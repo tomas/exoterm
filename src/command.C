@@ -4194,7 +4194,10 @@ rxvt_term::button_release (XButtonEvent &ev)
           /* mouse report from vt window */
           /* don't report release of wheel "buttons" */
           if (ev.button >= 4 && ev.button <= 7)
-            return;
+            {
+              MEvent.button = AnyButton;
+              return;
+            }
 #ifdef MOUSE_REPORT_DOUBLECLICK
           /* only report the release of 'slow' single clicks */
           if (MEvent.button != AnyButton
