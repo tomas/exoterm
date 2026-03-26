@@ -1046,6 +1046,7 @@ struct TermWin_t
   int            wheel_scroll_lines; /* lines to scroll per mouse wheel tick */
   int            bg_opacity;    /* bg colour blend strength % (0=transparent, 100=solid bg colour) */
   int            black_opacity; /* opacity % of black layer under bg colour blend (0=none, 100=full black) */
+  rgba           bg_color_raw;   /* original bg colour before tint detection (for use when opacity changes) */
   int            saveLines;     /* number of lines that fit in scrollback   */
   int            total_rows;    /* total number of rows in this terminal    */
   int            term_start;    /* term lines start here                    */

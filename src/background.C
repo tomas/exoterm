@@ -349,6 +349,7 @@ rxvt_term::bg_init_transparency () {
       black_opacity = atoi (rs [Rs_blackOpacity]);
       clamp_it (black_opacity, 0, 100);
     }
+
 }
 
 void
@@ -356,6 +357,11 @@ rxvt_term::bg_init ()
 {
 #if BG_IMAGE_FROM_ROOT
   if (option (Opt_transparent)) {
+      if (bg_color_raw.a > 0) { // restore original bg color
+        pix_colors[Color_bg].set (this, bg_color_raw);
+        pix_colors_focused[Color_bg].set (this, bg_color_raw);
+      }
+
       /* Free previous resources before recreating */
       if (root_img != None) { XFreePixmap (dpy, root_img); root_img = None; }
       if (winbg    != None) { XFreePixmap (dpy, winbg);    winbg    = None; }
@@ -378,13 +384,12 @@ rxvt_term::bg_init ()
   // text colours, etc. — look correct.  Done here, after the wallpaper blend
   // above has already consumed the original tint colour.  Matches the same
   // check used in process_color_seq when reporting bg colour to TUI apps.
-  if (bg_opacity < 50)
-    {
+  if (bg_opacity < 50) {
       rgba bg_rgba;
       lookup_color (Color_bg, pix_colors_focused).get (bg_rgba);
       bool bg_is_light = (bg_rgba.r * 299 + bg_rgba.g * 587 + bg_rgba.b * 114) / 1000 > 128;
-      if (bg_is_light)
-        {
+      if (bg_is_light) {
+          lookup_color (Color_bg, pix_colors).get (bg_color_raw);
           pix_colors[Color_bg]         = pix_colors[Color_Grey25];
           pix_colors_focused[Color_bg] = pix_colors_focused[Color_Black];
         }
