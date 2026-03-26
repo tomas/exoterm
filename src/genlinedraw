@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-open TABLE, ">", "table/linedraw.h";
+open TABLE, ">", "table/linedraw_2500.h";
 select TABLE;
 
 my $ch = 0x2500;

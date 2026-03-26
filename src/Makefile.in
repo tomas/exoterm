@@ -232,7 +232,7 @@ rxvtfont.o: ../config.h rxvt.h feature.h ../libptytty/src/ecb.h encoding.h
 rxvtfont.o: rxvtutil.h ../libptytty/src/estl.h emman.h rxvtfont.h
 rxvtfont.o: rxvttoolkit.h ev_cpp.h ../config.h ../libev/ev++.h ../libev/ev.h
 rxvtfont.o: callback.h rxvtimg.h scrollbar.h ../libptytty/src/libptytty.h
-rxvtfont.o: rxvtperl.h hookinc.h rsinc.h optinc.h table/linedraw.h
+rxvtfont.o: rxvtperl.h hookinc.h rsinc.h optinc.h table/linedraw_2500.h
 rxvtimg.o: ../config.h rxvt.h feature.h ../libptytty/src/ecb.h encoding.h
 rxvtimg.o: rxvtutil.h ../libptytty/src/estl.h emman.h rxvtfont.h
 rxvtimg.o: rxvttoolkit.h ev_cpp.h ../config.h ../libev/ev++.h ../libev/ev.h

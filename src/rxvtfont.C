@@ -434,6 +434,12 @@ struct rxvt_font_default : rxvt_font {
              int fg, int bg);
 };
 
+#ifdef BUILTIN_GLYPHS
+# include "table/linedraw_23f4.h"
+# include "table/linedraw_2500.h"
+# include "table/linedraw_2b00.h"
+#endif
+
 void
 rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
                          const text_t *text, int len,
@@ -463,19 +469,16 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
 #ifdef BUILTIN_GLYPHS
       if (0x2500 <= t && t <= 0x259f)
         {
-# include "table/linedraw.h"
           uint16_t offs = linedraw_offs[t - 0x2500];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_command, offs);
         }
       else if (0x23f4 <= t && t <= 0x23fa)
         {
-# include "table/linedraw3.h"
           uint16_t offs = linedraw3_offs[t - 0x23f4];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw3_command, offs);
         }
       else if (0x2b00 <= t && t <= 0x2b24)
         {
-# include "table/linedraw2.h"
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
         }
