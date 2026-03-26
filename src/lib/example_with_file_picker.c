@@ -1,5 +1,5 @@
 // build with:
-// cc -o example example.c microui_renderer_xrender.c microui.c -lm -lX11 -lXrender
+// cc -o example example_with_file_picker.c microui_renderer_xrender.c microui.c -lm -lX11 -lXrender
 
 #define MICROUI_FILE_PICKER_IMPLEMENTATION
 
@@ -13,26 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-SofdState* sofd;
-char selected_file[1024];
-int show_dialog;
-
 static float bg[3] = { 90, 95, 100 };
-
-
-/* Callback for file selection */
-void file_selected_callback(const char** files, int count, void* userdata) {
-    if (count == 1) {
-        strcpy(selected_file, files[0]);
-        printf("Selected: %s\n", files[0]);
-    } else {
-        printf("Selected %d files:\n", count);
-        for (int i = 0; i < count; i++) {
-            printf("  %s\n", files[i]);
-        }
-    }
-}
-
 
 static int text_width(mu_Font font, const char *text, int len) {
   if (len == -1) { len = strlen(text); }
@@ -100,6 +81,18 @@ static void r_render(mu_Context *ctx) {
   r_process_events();
 }
 
+static int audio_filter(const char *name)
+{
+    /* show only audio file formats – mirrors the sofd screenshot */
+    const char *exts[] = { ".wav", ".aiff", ".flac", ".ogg", ".mp3",
+                           ".opus", ".w64",  ".caf",  NULL };
+    const char *dot = strrchr(name, '.');
+    if (!dot) return 0;
+    for (int i = 0; exts[i]; i++)
+        if (!strcasecmp(dot, exts[i])) return 1;
+    return 0;
+}
+
 int main(int argc, char **argv) {
 
   int width = 800, height = 600;
@@ -123,11 +116,16 @@ int main(int argc, char **argv) {
   ctx->text_width = text_width;
   ctx->font_height = font_height;
 
-  /* Initialize file dialog */
-  sofd = sofd_new();
-  sofd_set_title(sofd, "Select a File");
-  sofd_set_filter(sofd, "*.txt;*.c;*.h");
-  sofd_set_callback(sofd, file_selected_callback, NULL);
+  MuFilePicker fp;
+  const char *start_dir = getenv("HOME");
+  mu_filepicker_init(&fp, start_dir ? start_dir : "/");
+
+  /* Optional: attach audio filter (List All Files toggle will bypass it) */
+  mu_filepicker_set_filter(&fp, audio_filter);
+
+  /* Optional: pre-populate recently used list */
+  mu_fp_add_recent(&fp, "/home/rgareus/Freesound/snd/161425-Guitar chord.wav", 0);
+  mu_fp_add_recent(&fp, "/home/rgareus/Freesound/snd/161697-ocean-1.wav",      0);
 
   int fps = 60;
 
@@ -142,29 +140,23 @@ int main(int argc, char **argv) {
     // if (r_needs_redraw()) {
         mu_begin(ctx);
 
-        if (mu_begin_window(ctx, "Main", mu_rect(50, 50, 300, 200))) {
-            mu_label(ctx, selected_file[0] ? selected_file : "No file selected", 0);
+        mu_filepicker_draw(&fp, ctx);
 
-            if (mu_button(ctx, "Open File")) {
-                sofd_set_mode(sofd, SOFD_MODE_OPEN_FILE);
-                sofd_show(sofd);
-            }
-
-            mu_layout_row(ctx, 2, (int[]) { 100, 100 }, 0);
-            if (mu_button(ctx, "Open Multiple")) {
-                sofd_set_mode(sofd, SOFD_MODE_OPEN_MULTIPLE);
-                sofd_show(sofd);
-            }
-
-            if (mu_button(ctx, "Select Directory")) {
-                sofd_set_mode(sofd, SOFD_MODE_SELECT_DIR);
-                sofd_show(sofd);
-            }
-
-            mu_end_window(ctx);
+        /* --- poll result --- */
+        int st = mu_filepicker_status(&fp);
+        if (st == MU_FP_SELECTED) {
+            printf("Selected file: %s\n", mu_filepicker_filename(&fp));
+            /* add to recently-used list */
+            mu_fp_add_recent(&fp, mu_filepicker_filename(&fp), 0);
+            /* reset for next use, or close your app: */
+            mu_filepicker_reset(&fp);
+            /* mu_filepicker_init(&fp, new_start_dir); */
+        } else if (st == MU_FP_CANCELLED) {
+            printf("Cancelled.\n");
+            mu_filepicker_reset(&fp);
+            // running = 0;   /* or keep the app open */
         }
 
-        sofd_render(ctx, sofd);
         mu_end(ctx);
     // }
 
@@ -180,7 +172,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  sofd_free(sofd);
   free(ctx);
 
   XFreeGC(dpy, gc);

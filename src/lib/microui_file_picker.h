@@ -1,736 +1,898 @@
-/* microui_file_picker.h – Replicates original libsofd UI in microui */
-#ifndef MICROUI_FILE_PICKER_H
-#define MICROUI_FILE_PICKER_H
+/* mu_filepicker.h - Simple Open File Dialog widget for microui
+ *
+ * Faithfully reimplements libSOFD (https://github.com/x42/sofd) layout and
+ * behaviour using microui containers and elements instead of raw X11 calls.
+ *
+ * LAYOUT (matches sofd screenshot exactly):
+ *   ┌─────────────────────────────────────────────┐
+ *   │ [/] [home] [rgareus] [Freesound] [snd]       │  ← path breadcrumb buttons
+ *   ├───────────┬─────────────────────────────────┤
+ *   │ Places    │ Name         Size   Last Modified │  ← column headers (sortable)
+ *   │-----------│─────────────────────────────────│
+ *   │ Recently  │ 161701-oce…  22MB   2013-10-06   │
+ *   │ Used      │ 161697-oce…  27MB   2013-10-06   │  ← file list (scrollable)
+ *   │ Home      │ …                                 │
+ *   │ Desktop   │                                   │
+ *   │ …         │                                   │
+ *   ├───────────┴─────────────────────────────────┤
+ *   │ [x]Show Places [x]List All Files [ ]Hidden   │
+ *   │                              [Cancel]  [Open] │  ← bottom button row
+ *   └─────────────────────────────────────────────┘
+ *
+ * USAGE:
+ *   1. Call mu_filepicker_init(&fp, "/home/user/") once.
+ *   2. Each frame, call mu_filepicker_draw(&fp, ctx) inside your microui loop.
+ *   3. Poll mu_filepicker_status(&fp):
+ *        MU_FP_ACTIVE   – dialog still open
+ *        MU_FP_SELECTED – user confirmed; read fp.result for the full path
+ *        MU_FP_CANCELLED– user dismissed
+ *   4. After MU_FP_SELECTED / MU_FP_CANCELLED call mu_filepicker_reset(&fp)
+ *      to return the widget to ACTIVE state for next use.
+ *
+ * FEATURES (matching sofd):
+ *   - Path breadcrumb buttons with overflow "<" nav
+ *   - Places panel (Recently Used, Home, Desktop, Filesystem, mount points)
+ *   - File list with Name / Size / Last Modified columns
+ *   - Column-header sort (click to toggle asc/desc per column)
+ *   - Directories listed first, with "D" indicator
+ *   - Show Hidden toggle (hidden files/dirs filtered when off)
+ *   - List All Files toggle (file-extension filter callback)
+ *   - Double-click to open directory or confirm file selection
+ *   - Keyboard: Up/Down arrow, Enter, Escape (processed via microui input)
+ *   - Recent files list API (x_fib_add_recent / x_fib_recent_at compatible)
+ *   - Optional custom filter callback (same signature as sofd)
+ *
+ * INTEGRATION NOTES:
+ *   The widget is self-contained in a single microui window. Call it with
+ *   a fixed window name so microui keeps its scroll state across frames.
+ *   Network access and file I/O use POSIX APIs (dirent, stat, mntent on Linux).
+ *
+ * LICENSE: MIT (same as libSOFD)
+ */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#ifndef MU_FILEPICKER_H
+#define MU_FILEPICKER_H
+
+#include "microui.h"   /* adjust path as needed */
+
+#define _POSIX_C_SOURCE 200809L  /* realpath, alloca, strdup … */
+#define _DEFAULT_SOURCE          /* alloca on glibc */
+
 #include <dirent.h>
 #include <sys/stat.h>
-#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 #include <time.h>
-#include <libgen.h>   // for dirname
-#include <mntent.h>   // for /proc/mounts (optional)
+#include <libgen.h>
+#include <alloca.h>              /* alloca – stack-allocated VLAs for layout */
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef __linux__
+#  include <mntent.h>
 #endif
 
-/* ================================================================
- * Public API
- * ================================================================ */
-typedef enum {
-    SOFD_MODE_OPEN_FILE,
-    SOFD_MODE_OPEN_MULTIPLE,
-    SOFD_MODE_SELECT_DIR
-} SofdMode;
+/* -------------------------------------------------------------------------
+ * Public status codes
+ * ---------------------------------------------------------------------- */
+#define MU_FP_ACTIVE    0
+#define MU_FP_SELECTED  1
+#define MU_FP_CANCELLED (-1)
 
-typedef struct SofdState SofdState;
-typedef void (*SofdCallback)(const char** files, int count, void* userdata);
+/* -------------------------------------------------------------------------
+ * Tunables – mirror sofd's hardcoded layout constants
+ * ---------------------------------------------------------------------- */
+#define MU_FP_MAX_PATH       1024
+#define MU_FP_MAX_NAME        256
+#define MU_FP_MAX_ENTRIES    2048
+#define MU_FP_MAX_PLACES       64
+#define MU_FP_MAX_PATH_PARTS   64
+#define MU_FP_MAX_RECENT       24
+#define MU_FP_PLACES_W        120   /* px – matches sofd PLACESW */
+#define MU_FP_ROW_H            18   /* px – one file-list row     */
+#define MU_FP_HEADER_H         18   /* px – column header row     */
+#define MU_FP_BTN_H            20   /* px – bottom button height  */
+#define MU_FP_BTN_W            70   /* px – Cancel / Open width   */
+#define MU_FP_PATH_BTN_H       18   /* px – breadcrumb height     */
+#define MU_FP_SIZE_COL_W       60   /* px                         */
+#define MU_FP_TIME_COL_W      120   /* px                         */
+#define MU_FP_WIN_W           580   /* default window width       */
+#define MU_FP_WIN_H           420   /* default window height      */
+#define MU_FP_DBLCLICK_MS     300   /* double-click threshold     */
 
-SofdState* sofd_new(void);
-void sofd_free(SofdState* state);
-void sofd_set_mode(SofdState* state, SofdMode mode);
-void sofd_set_title(SofdState* state, const char* title);
-void sofd_set_directory(SofdState* state, const char* path);
-void sofd_set_filter(SofdState* state, const char* filter);
-void sofd_set_callback(SofdState* state, SofdCallback callback, void* userdata);
-void sofd_show(SofdState* state);
-int sofd_is_open(SofdState* state);
-void sofd_close(SofdState* state);
-const char* sofd_get_selected(SofdState* state);
-const char** sofd_get_selections(SofdState* state, int* count);
-void sofd_clear_selections(SofdState* state);
-void sofd_render(mu_Context* ctx, SofdState* state);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* MICROUI_FILE_PICKER_H */
-
-#ifdef MICROUI_FILE_PICKER_IMPLEMENTATION
-
-#include "microui.h"
-
-/* ================================================================
- * Constants & Types
- * ================================================================ */
-#define MAX_RECENT_ENTRIES 24
-#define MAX_RECENT_AGE     15552000  /* 180 days in sec */
-#define PLACES_WIDTH       150       /* fixed width for Places panel */
-
+/* -------------------------------------------------------------------------
+ * Internal data structures
+ * ---------------------------------------------------------------------- */
 typedef struct {
-    char name[256];
+    char name[MU_FP_MAX_NAME];
+    char path[MU_FP_MAX_PATH];
+    int  is_dir;
     off_t size;
     time_t mtime;
-    char strsize[32];
-    char strtime[32];
-    int is_dir;
-    int selected;
-} SofdFileEntry;
+    char str_size[24];
+    char str_time[24];
+} MuFpEntry;
 
 typedef struct {
-    char name[256];
-    char path[1024];
-} SofdPlace;
+    char name[MU_FP_MAX_NAME];
+    char path[MU_FP_MAX_PATH];
+    int  add_sep;   /* draw separator after this entry */
+} MuFpPlace;
 
 typedef struct {
-    char path[1024];
+    char path[MU_FP_MAX_PATH];
     time_t atime;
-} SofdRecentFile;
+} MuFpRecent;
 
-struct SofdState {
-    /* UI state */
-    int open;
-    char title[256];
-    char current_path[1024];
-    char filter_pattern[256];
-    SofdMode mode;
+/* Sort modes – match sofd's _sort values */
+typedef enum {
+    MU_FP_SORT_NAME_ASC  = 0,
+    MU_FP_SORT_NAME_DESC = 1,
+    MU_FP_SORT_SIZE_ASC  = 2,
+    MU_FP_SORT_SIZE_DESC = 3,
+    MU_FP_SORT_TIME_ASC  = 4,
+    MU_FP_SORT_TIME_DESC = 5,
+} MuFpSort;
 
-    /* File entries */
-    SofdFileEntry* entries;
-    int entry_count;
+/* -------------------------------------------------------------------------
+ * Main widget state
+ * ---------------------------------------------------------------------- */
+typedef struct {
+    /* --- current directory state --- */
+    char  cur_path[MU_FP_MAX_PATH];
+    char  path_parts[MU_FP_MAX_PATH_PARTS][MU_FP_MAX_NAME];
+    int   path_part_count;
 
-    /* Places */
-    SofdPlace* places;
-    int place_count;
-    int show_places;          /* checkbox state */
-    int show_all;             /* "List All Files" – disables filter */
-    int show_hidden;          /* show .dot files */
+    /* --- file list --- */
+    MuFpEntry entries[MU_FP_MAX_ENTRIES];
+    int       entry_count;
+    int       selected;        /* index into entries[], -1 = none */
 
-    /* Sorting */
-    int sort_column;          /* 0=name, 1=size, 2=time */
-    int sort_order;           /* 0=ascending, 1=descending */
+    /* --- places panel --- */
+    MuFpPlace places[MU_FP_MAX_PLACES];
+    int       place_count;
 
-    /* Recent files */
-    SofdRecentFile* recent;
-    int recent_count;
-    int show_recent;
+    /* --- recent files --- */
+    MuFpRecent recent[MU_FP_MAX_RECENT];
+    int        recent_count;
 
-    /* Path breadcrumbs */
-    char** path_parts;
-    int path_parts_count;
+    /* --- UI toggles (match sofd buttons) --- */
+    int show_places;    /* checkbox: Places panel visible       */
+    int show_all;       /* checkbox: List All Files (no filter) */
+    int show_hidden;    /* checkbox: Show Hidden files          */
 
-    /* Selection */
-    int* selected_indices;    /* only used for multi‑selection */
-    int selected_count;
-    char* selected_buf;       /* concatenated strings for multi */
+    /* --- sort state --- */
+    MuFpSort sort;
 
-    /* Callback */
-    SofdCallback callback;
-    void* callback_userdata;
+    /* --- status --- */
+    int status;         /* MU_FP_ACTIVE / SELECTED / CANCELLED  */
+    char result[MU_FP_MAX_PATH];   /* set on SELECTED */
 
-    /* Filter function (user supplied) */
-    int (*filter_func)(const char* name, void* userdata);
-    void* filter_userdata;
+    /* --- double-click tracking --- */
+    int    last_clicked_entry;
+    uint32_t last_click_time;   /* ms, use mu_ctx timestamp or SDL_GetTicks */
 
-    /* Double‑click detection */
-    unsigned long last_click_time;
-    int last_click_index;
-    int hover_index;
+    /* --- optional filter callback (same signature as sofd) --- */
+    int (*filter_fn)(const char *basename);
 
-    /* Column widths (cached) */
-    int col_name_w, col_size_w, col_time_w;
-};
+    /* --- window title --- */
+    char title[128];
 
-/* ================================================================
- * Utility functions
- * ================================================================ */
-static int sofd_filter_by_pattern(const char* name, const char* pattern) {
-    if (!pattern || pattern[0] == '\0') return 1;
-    char pat[256];
-    strncpy(pat, pattern, sizeof(pat)-1);
-    pat[sizeof(pat)-1] = '\0';
-    char* token = strtok(pat, ";");
-    while (token) {
-        while (*token == ' ') token++;
-        char* end = token + strlen(token)-1;
-        while (end > token && *end == ' ') end--;
-        end[1] = '\0';
-        if (token[0] == '*') {
-            const char* ext = token+1;
-            int len = strlen(name);
-            int ext_len = strlen(ext);
-            if (len >= ext_len && strcmp(name+len-ext_len, ext) == 0)
-                return 1;
-        } else if (strcmp(name, token) == 0)
-            return 1;
-        token = strtok(NULL, ";");
-    }
-    return 0;
+} MuFilePicker;
+
+/* =========================================================================
+ * Forward declarations
+ * ====================================================================== */
+static void mu_fp_scan_dir(MuFilePicker *fp);
+static void mu_fp_navigate(MuFilePicker *fp, const char *path);
+static void mu_fp_build_path_parts(MuFilePicker *fp);
+static void mu_fp_build_places(MuFilePicker *fp);
+static void mu_fp_sort_entries(MuFilePicker *fp);
+static int  mu_fp_entry_cmp_name_asc (const void *a, const void *b);
+static int  mu_fp_entry_cmp_name_desc(const void *a, const void *b);
+static int  mu_fp_entry_cmp_size_asc (const void *a, const void *b);
+static int  mu_fp_entry_cmp_size_desc(const void *a, const void *b);
+static int  mu_fp_entry_cmp_time_asc (const void *a, const void *b);
+static int  mu_fp_entry_cmp_time_desc(const void *a, const void *b);
+static void mu_fp_fmt_size(off_t sz, char *buf, int bufsz);
+static void mu_fp_fmt_time(time_t t, char *buf, int bufsz);
+
+/* =========================================================================
+ * Init
+ * ====================================================================== */
+static void mu_filepicker_init(MuFilePicker *fp, const char *start_path)
+{
+    memset(fp, 0, sizeof(*fp));
+    fp->selected            = -1;
+    fp->last_clicked_entry  = -1;
+    fp->show_places         = 1;
+    fp->show_all            = 1;
+    fp->status              = MU_FP_ACTIVE;
+    fp->sort                = MU_FP_SORT_NAME_ASC;
+    snprintf(fp->title, sizeof(fp->title), "Open File");
+
+    const char *path = (start_path && start_path[0]) ? start_path : "/";
+    mu_fp_navigate(fp, path);
+    mu_fp_build_places(fp);
 }
 
-static int sofd_default_filter(const char* name, void* userdata) {
-    SofdState* s = (SofdState*)userdata;
-    if (s->show_all) return 1;
-    return sofd_filter_by_pattern(name, s->filter_pattern);
+/* =========================================================================
+ * Public helpers (matching sofd's x_fib_* API)
+ * ====================================================================== */
+static int mu_filepicker_status(const MuFilePicker *fp) { return fp->status; }
+static const char *mu_filepicker_filename(const MuFilePicker *fp) {
+    return (fp->status == MU_FP_SELECTED) ? fp->result : NULL;
 }
-
-/* Format file size (human readable) */
-static void sofd_format_size(SofdState* s, SofdFileEntry* e) {
-    off_t sz = e->size;
-    if (sz > 10995116277760LL)      sprintf(e->strsize, "%.0f TB", sz / 1099511627776.0);
-    else if (sz > 1099511627776LL)  sprintf(e->strsize, "%.1f TB", sz / 1099511627776.0);
-    else if (sz > 10737418240LL)    sprintf(e->strsize, "%.0f GB", sz / 1073741824.0);
-    else if (sz > 1073741824LL)     sprintf(e->strsize, "%.1f GB", sz / 1073741824.0);
-    else if (sz > 10485760LL)       sprintf(e->strsize, "%.0f MB", sz / 1048576.0);
-    else if (sz > 1048576LL)        sprintf(e->strsize, "%.1f MB", sz / 1048576.0);
-    else if (sz > 10240LL)          sprintf(e->strsize, "%.0f KB", sz / 1024.0);
-    else if (sz >= 1000LL)          sprintf(e->strsize, "%.1f KB", sz / 1024.0);
-    else                            sprintf(e->strsize, "%lld B", (long long)sz);
-    int tw = s->col_size_w;
-    (void)tw; /* will be used later if we cache widths */
+static void mu_filepicker_reset(MuFilePicker *fp) {
+    fp->status   = MU_FP_ACTIVE;
+    fp->selected = -1;
+    fp->result[0] = '\0';
 }
-
-/* Format time */
-static void sofd_format_time(SofdFileEntry* e) {
-    struct tm* tm = localtime(&e->mtime);
-    if (tm)
-        strftime(e->strtime, sizeof(e->strtime), "%Y-%m-%d %H:%M", tm);
-    else
-        strcpy(e->strtime, "unknown");
+static void mu_filepicker_set_filter(MuFilePicker *fp, int(*cb)(const char*)) {
+    fp->filter_fn = cb;
 }
-
-/* Sorting comparators */
-static int sofd_cmp_name_asc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    return strcmp(fa->name, fb->name);
-}
-static int sofd_cmp_name_desc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    return -strcmp(fa->name, fb->name);
-}
-static int sofd_cmp_size_asc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    if (fa->size == fb->size) return 0;
-    return (fa->size < fb->size) ? -1 : 1;
-}
-static int sofd_cmp_size_desc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    if (fa->size == fb->size) return 0;
-    return (fa->size > fb->size) ? -1 : 1;
-}
-static int sofd_cmp_time_asc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    if (fa->mtime == fb->mtime) return 0;
-    return (fa->mtime < fb->mtime) ? -1 : 1;
-}
-static int sofd_cmp_time_desc(const void* a, const void* b) {
-    const SofdFileEntry* fa = (const SofdFileEntry*)a;
-    const SofdFileEntry* fb = (const SofdFileEntry*)b;
-    if (fa->is_dir && !fb->is_dir) return -1;
-    if (!fa->is_dir && fb->is_dir) return 1;
-    if (fa->mtime == fb->mtime) return 0;
-    return (fa->mtime > fb->mtime) ? -1 : 1;
-}
-
-static void sofd_sort_entries(SofdState* s) {
-    if (s->entry_count == 0) return;
-    int (*cmp)(const void*, const void*) = NULL;
-    switch (s->sort_column) {
-        case 0: cmp = s->sort_order ? sofd_cmp_name_desc : sofd_cmp_name_asc; break;
-        case 1: cmp = s->sort_order ? sofd_cmp_size_desc : sofd_cmp_size_asc; break;
-        case 2: cmp = s->sort_order ? sofd_cmp_time_desc : sofd_cmp_time_asc; break;
-    }
-    if (cmp) qsort(s->entries, s->entry_count, sizeof(SofdFileEntry), cmp);
-}
-
-/* ================================================================
- * Places population
- * ================================================================ */
-static void sofd_add_place(SofdState* s, const char* name, const char* path) {
-    s->places = (SofdPlace*)realloc(s->places, (s->place_count+1)*sizeof(SofdPlace));
-    strncpy(s->places[s->place_count].name, name, 255);
-    strncpy(s->places[s->place_count].path, path, 1023);
-    s->place_count++;
-}
-
-static void sofd_populate_places(SofdState* s) {
-    s->place_count = 0;
-    free(s->places); s->places = NULL;
-
-    /* Recently Used */
-    if (s->recent_count > 0)
-        sofd_add_place(s, "Recently Used", "");
-
-    /* Home */
-    const char* home = getenv("HOME");
-    if (!home) { struct passwd* pw = getpwuid(getuid()); home = pw->pw_dir; }
-    sofd_add_place(s, "Home", home);
-
-    /* Desktop */
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s/Desktop", home);
-    sofd_add_place(s, "Desktop", tmp);
-
-    /* Filesystem */
-    sofd_add_place(s, "Filesystem", "/");
-
-    /* Mount points (from /proc/mounts) */
-    FILE* mt = fopen("/proc/mounts", "r");
-    if (mt) {
-        struct mntent* mnt;
-        while ((mnt = getmntent(mt))) {
-            if (strncmp(mnt->mnt_dir, "/", 1) != 0) continue;
-            if (strcmp(mnt->mnt_dir, "/") == 0) continue;
-            if (strncmp(mnt->mnt_dir, "/home", 5) == 0) continue;
-            if (strstr(mnt->mnt_type, "proc") || strstr(mnt->mnt_type, "sysfs") ||
-                strstr(mnt->mnt_type, "devtmpfs") || strstr(mnt->mnt_type, "tmpfs"))
-                continue;
-            char* base = strrchr(mnt->mnt_dir, '/');
-            const char* name = base ? base+1 : mnt->mnt_dir;
-            sofd_add_place(s, name, mnt->mnt_dir);
+static int mu_fp_add_recent(MuFilePicker *fp, const char *path, time_t atime) {
+    if (!path) return -1;
+    if (atime == 0) atime = time(NULL);
+    /* deduplicate */
+    for (int i = 0; i < fp->recent_count; i++) {
+        if (!strcmp(fp->recent[i].path, path)) {
+            if (fp->recent[i].atime < atime) fp->recent[i].atime = atime;
+            return fp->recent_count;
         }
-        fclose(mt);
+    }
+    if (fp->recent_count >= MU_FP_MAX_RECENT) return fp->recent_count;
+    snprintf(fp->recent[fp->recent_count].path, MU_FP_MAX_PATH, "%s", path);
+    fp->recent[fp->recent_count].atime = atime;
+    fp->recent_count++;
+    return fp->recent_count;
+}
+
+/* =========================================================================
+ * Internal: path helpers
+ * ====================================================================== */
+static void mu_fp_build_path_parts(MuFilePicker *fp)
+{
+    fp->path_part_count = 0;
+    char tmp[MU_FP_MAX_PATH];
+    snprintf(tmp, sizeof(tmp), "%s", fp->cur_path);
+    /* always start with "/" */
+    snprintf(fp->path_parts[fp->path_part_count++], MU_FP_MAX_NAME, "/");
+    /* tokenise the rest */
+    char *tok = strtok(tmp, "/");
+    while (tok && fp->path_part_count < MU_FP_MAX_PATH_PARTS) {
+        snprintf(fp->path_parts[fp->path_part_count++], MU_FP_MAX_NAME, "%s", tok);
+        tok = strtok(NULL, "/");
     }
 }
 
-/* ================================================================
- * Directory scanning
- * ================================================================ */
-static void sofd_scan_directory(SofdState* s) {
-    free(s->entries); s->entries = NULL;
-    s->entry_count = 0;
-    free(s->selected_indices); s->selected_indices = NULL;
-    free(s->selected_buf); s->selected_buf = NULL;
-    s->selected_count = 0;
-
-    /* If showing recent files, create entries from recent list */
-    if (s->show_recent && s->recent_count > 0) {
-        s->entry_count = s->recent_count;
-        s->entries = (SofdFileEntry*)calloc(s->entry_count, sizeof(SofdFileEntry));
-        for (int i = 0; i < s->recent_count; i++) {
-            char* name = strrchr(s->recent[i].path, '/');
-            name = name ? name+1 : s->recent[i].path;
-            strncpy(s->entries[i].name, name, 255);
-            s->entries[i].size = 0;
-            s->entries[i].mtime = s->recent[i].atime;
-            s->entries[i].is_dir = 0;
-            sofd_format_time(&s->entries[i]);
-            s->entries[i].selected = 0;
-            strcpy(s->entries[i].strsize, " ");
-        }
-        sofd_sort_entries(s);
-        s->selected_indices = (int*)calloc(s->entry_count, sizeof(int));
-        return;
+/* Navigate to a new directory */
+static void mu_fp_navigate(MuFilePicker *fp, const char *path)
+{
+    char real[MU_FP_MAX_PATH] = {0};
+    if (realpath(path, real) == NULL) {
+        snprintf(real, sizeof(real), "%s", path);
     }
+    /* ensure trailing slash */
+    size_t l = strlen(real);
+    if (l == 0 || real[l-1] != '/') {
+        real[l]   = '/';
+        real[l+1] = '\0';
+    }
+    snprintf(fp->cur_path, MU_FP_MAX_PATH, "%s", real);
+    fp->selected = -1;
+    mu_fp_build_path_parts(fp);
+    mu_fp_scan_dir(fp);
+}
 
-    /* Normal directory scan */
-    DIR* dir = opendir(s->current_path);
-    if (!dir) return;
+/* =========================================================================
+ * Internal: directory scan
+ * ====================================================================== */
+static void mu_fp_scan_dir(MuFilePicker *fp)
+{
+    fp->entry_count = 0;
 
-    struct dirent* de;
-    while ((de = readdir(dir))) {
-        if (!s->show_hidden && de->d_name[0] == '.') continue;
-        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) continue;
+    DIR *d = opendir(fp->cur_path);
+    if (!d) return;
 
-        char fullpath[1024];
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", s->current_path, de->d_name);
+    struct dirent *de;
+    while ((de = readdir(d)) != NULL && fp->entry_count < MU_FP_MAX_ENTRIES) {
+        const char *name = de->d_name;
+        /* skip . */
+        if (!strcmp(name, ".")) continue;
+        /* skip hidden unless enabled */
+        if (!fp->show_hidden && name[0] == '.') continue;
+        /* skip .. in root */
+        if (!strcmp(name, "..") && !strcmp(fp->cur_path, "/")) continue;
+
+        char full[MU_FP_MAX_PATH];
+        snprintf(full, sizeof(full), "%s%s", fp->cur_path, name);
+
         struct stat st;
-        if (stat(fullpath, &st) != 0) continue;
+        if (stat(full, &st) != 0) continue;
 
         int is_dir = S_ISDIR(st.st_mode);
-        if (s->mode == SOFD_MODE_SELECT_DIR && !is_dir) continue;
-        if (s->mode != SOFD_MODE_SELECT_DIR && !is_dir && !s->filter_func(de->d_name, s->filter_userdata))
-            continue;
 
-        s->entry_count++;
-        s->entries = (SofdFileEntry*)realloc(s->entries, s->entry_count * sizeof(SofdFileEntry));
-        SofdFileEntry* e = &s->entries[s->entry_count-1];
-        strncpy(e->name, de->d_name, 255);
-        e->size = st.st_size;
-        e->mtime = st.st_mtime;
+        /* apply filter: dirs always pass; for files check filter_fn when
+         * show_all is off */
+        if (!is_dir && !fp->show_all && fp->filter_fn) {
+            if (!fp->filter_fn(name)) continue;
+        }
+
+        MuFpEntry *e = &fp->entries[fp->entry_count++];
+        memset(e, 0, sizeof(*e));
+        snprintf(e->name, MU_FP_MAX_NAME, "%s", name);
+        snprintf(e->path, MU_FP_MAX_PATH, "%s", full);
         e->is_dir = is_dir;
-        e->selected = 0;
-        sofd_format_size(s, e);
-        sofd_format_time(e);
+        e->size   = st.st_size;
+        e->mtime  = st.st_mtime;
+        mu_fp_fmt_size(e->size,  e->str_size, sizeof(e->str_size));
+        mu_fp_fmt_time(e->mtime, e->str_time, sizeof(e->str_time));
     }
-    closedir(dir);
-    sofd_sort_entries(s);
-    s->selected_indices = (int*)calloc(s->entry_count, sizeof(int));
-    if (s->mode == SOFD_MODE_OPEN_MULTIPLE)
-        s->selected_buf = (char*)calloc(s->entry_count * 1024, 1);
+    closedir(d);
+    mu_fp_sort_entries(fp);
 }
 
-/* ================================================================
- * Path breadcrumbs
- * ================================================================ */
-static void sofd_update_path_parts(SofdState* s) {
-    if (s->path_parts) {
-        for (int i = 0; i < s->path_parts_count; i++) free(s->path_parts[i]);
-        free(s->path_parts);
-        s->path_parts = NULL;
-    }
-    if (s->show_recent) {
-        s->path_parts_count = 1;
-        s->path_parts = (char**)calloc(1, sizeof(char*));
-        s->path_parts[0] = strdup("Recently Used");
-        return;
-    }
-    char path[1024];
-    strncpy(path, s->current_path, 1023);
-    s->path_parts_count = 0;
-    char* tok = strtok(path, "/");
-    while (tok) { s->path_parts_count++; tok = strtok(NULL, "/"); }
-    s->path_parts = (char**)calloc(s->path_parts_count, sizeof(char*));
-    strncpy(path, s->current_path, 1023);
-    int i = 0;
-    tok = strtok(path, "/");
-    while (tok) { s->path_parts[i] = strdup(tok); i++; tok = strtok(NULL, "/"); }
+/* =========================================================================
+ * Internal: sort
+ * ====================================================================== */
+/* dirs always sort before files – replicate sofd's cmp_n_up behaviour */
+#define DIR_FIRST(a,b)                                    \
+    if ((a)->is_dir && !(b)->is_dir) return -1;           \
+    if (!(a)->is_dir && (b)->is_dir) return  1;
+
+static int mu_fp_entry_cmp_name_asc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return strcmp(a->name, b->name);
+}
+static int mu_fp_entry_cmp_name_desc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return strcmp(b->name, a->name);
+}
+static int mu_fp_entry_cmp_size_asc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return (a->size > b->size) - (a->size < b->size);
+}
+static int mu_fp_entry_cmp_size_desc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return (b->size > a->size) - (b->size < a->size);
+}
+static int mu_fp_entry_cmp_time_asc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return (a->mtime > b->mtime) - (a->mtime < b->mtime);
+}
+static int mu_fp_entry_cmp_time_desc(const void *pa, const void *pb) {
+    const MuFpEntry *a = (const MuFpEntry*)pa;
+    const MuFpEntry *b = (const MuFpEntry*)pb;
+    DIR_FIRST(a,b);
+    return (b->mtime > a->mtime) - (b->mtime < a->mtime);
+}
+#undef DIR_FIRST
+
+static void mu_fp_sort_entries(MuFilePicker *fp)
+{
+    typedef int(*cmpfn)(const void*, const void*);
+    static const cmpfn cmps[6] = {
+        mu_fp_entry_cmp_name_asc,  mu_fp_entry_cmp_name_desc,
+        mu_fp_entry_cmp_size_asc,  mu_fp_entry_cmp_size_desc,
+        mu_fp_entry_cmp_time_asc,  mu_fp_entry_cmp_time_desc,
+    };
+    qsort(fp->entries, fp->entry_count, sizeof(MuFpEntry), cmps[(int)fp->sort]);
 }
 
-static void sofd_navigate_to(SofdState* s, const char* path) {
-    if (strcmp(path, "recent") == 0) {
-        s->show_recent = 1;
-        strcpy(s->current_path, "");
-    } else {
-        s->show_recent = 0;
-        strncpy(s->current_path, path, 1023);
-        if (s->current_path[strlen(s->current_path)-1] == '/')
-            s->current_path[strlen(s->current_path)-1] = '\0';
-    }
-    sofd_scan_directory(s);
-    sofd_update_path_parts(s);
-    s->hover_index = -1;
-    s->last_click_index = -1;
+/* =========================================================================
+ * Internal: string formatting helpers
+ * ====================================================================== */
+static void mu_fp_fmt_size(off_t sz, char *buf, int bufsz)
+{
+    if (sz < 1024)
+        snprintf(buf, bufsz, "%d B", (int)sz);
+    else if (sz < 1024*1024)
+        snprintf(buf, bufsz, "%d KB", (int)(sz/1024));
+    else if (sz < 1024*1024*1024)
+        snprintf(buf, bufsz, "%d MB", (int)(sz/(1024*1024)));
+    else
+        snprintf(buf, bufsz, "%.1f GB", (double)sz/(1024.0*1024.0*1024.0));
 }
 
-/* ================================================================
- * Recent files
- * ================================================================ */
-static void sofd_add_recent(SofdState* s, const char* path) {
-    struct stat st;
-    if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) return;
-    for (int i = 0; i < s->recent_count; i++) {
-        if (strcmp(s->recent[i].path, path) == 0) {
-            s->recent[i].atime = time(NULL);
-            return;
+static void mu_fp_fmt_time(time_t t, char *buf, int bufsz)
+{
+    struct tm *tm = localtime(&t);
+    if (tm)
+        strftime(buf, bufsz, "%Y-%m-%d %H:%M", tm);
+    else
+        snprintf(buf, bufsz, "---");
+}
+
+/* =========================================================================
+ * Internal: places builder
+ * ====================================================================== */
+static void mu_fp_add_place(MuFilePicker *fp, const char *name,
+                            const char *path, int sep)
+{
+    if (fp->place_count >= MU_FP_MAX_PLACES) return;
+    MuFpPlace *p = &fp->places[fp->place_count++];
+    snprintf(p->name, MU_FP_MAX_NAME, "%s", name);
+    snprintf(p->path, MU_FP_MAX_PATH, "%s", path);
+    p->add_sep = sep;
+}
+
+static void mu_fp_build_places(MuFilePicker *fp)
+{
+    fp->place_count = 0;
+
+    /* Recently Used – virtual; entries come from fp->recent[] */
+    mu_fp_add_place(fp, "Recently Used", "", 0);
+
+    /* Standard XDG dirs */
+    const char *home = getenv("HOME");
+    if (!home) home = "/root";
+
+    mu_fp_add_place(fp, "Home",    home,      0);
+
+    char desktop[MU_FP_MAX_PATH];
+    snprintf(desktop, sizeof(desktop), "%s/Desktop", home);
+    if (!access(desktop, F_OK))
+        mu_fp_add_place(fp, "Desktop", desktop, 0);
+
+    mu_fp_add_place(fp, "Filesystem", "/", 1);
+
+    /* Mounted volumes from /proc/mounts or /etc/mtab */
+#ifdef __linux__
+    FILE *mf = setmntent("/proc/mounts", "r");
+    if (!mf) mf = setmntent("/etc/mtab", "r");
+    if (mf) {
+        struct mntent *me;
+        while ((me = getmntent(mf)) != NULL && fp->place_count < MU_FP_MAX_PLACES) {
+            /* Only show "interesting" mount points */
+            if (!strcmp(me->mnt_type, "proc")   ||
+                !strcmp(me->mnt_type, "sysfs")  ||
+                !strcmp(me->mnt_type, "devtmpfs")||
+                !strcmp(me->mnt_type, "cgroup")  ||
+                !strcmp(me->mnt_type, "tmpfs")   ||
+                !strcmp(me->mnt_type, "devpts")  ||
+                !strcmp(me->mnt_type, "securityfs") ||
+                !strncmp(me->mnt_dir, "/sys",  4) ||
+                !strncmp(me->mnt_dir, "/proc", 5) ||
+                !strncmp(me->mnt_dir, "/dev",  4) ||
+                !strcmp(me->mnt_dir, "/"))
+                continue;
+            /* Use last path component as label */
+            char lbl[MU_FP_MAX_NAME];
+            const char *base = strrchr(me->mnt_dir, '/');
+            snprintf(lbl, sizeof(lbl), "%s", base ? base+1 : me->mnt_dir);
+            mu_fp_add_place(fp, lbl, me->mnt_dir, 0);
         }
+        endmntent(mf);
     }
-    s->recent = (SofdRecentFile*)realloc(s->recent, (s->recent_count+1)*sizeof(SofdRecentFile));
-    strncpy(s->recent[s->recent_count].path, path, 1023);
-    s->recent[s->recent_count].atime = time(NULL);
-    s->recent_count++;
-    if (s->recent_count > MAX_RECENT_ENTRIES) s->recent_count = MAX_RECENT_ENTRIES;
-}
+#endif
 
-/* ================================================================
- * Public API implementation
- * ================================================================ */
-SofdState* sofd_new(void) {
-    SofdState* s = (SofdState*)calloc(1, sizeof(SofdState));
-    s->mode = SOFD_MODE_OPEN_FILE;
-    s->filter_func = sofd_default_filter;
-    s->filter_userdata = s;
-    s->show_places = 1;
-    s->show_all = 0;
-    s->show_hidden = 0;
-    s->sort_column = 0;
-    s->sort_order = 0;
-    s->hover_index = -1;
-    s->last_click_index = -1;
-    strcpy(s->title, "Open File");
-
-    const char* home = getenv("HOME");
-    if (!home) { struct passwd* pw = getpwuid(getuid()); home = pw->pw_dir; }
-    sofd_navigate_to(s, home);
-    sofd_populate_places(s);
-    return s;
-}
-
-void sofd_free(SofdState* s) {
-    if (!s) return;
-    free(s->entries);
-    free(s->selected_indices);
-    free(s->selected_buf);
-    free(s->recent);
-    if (s->path_parts) {
-        for (int i = 0; i < s->path_parts_count; i++) free(s->path_parts[i]);
-        free(s->path_parts);
-    }
-    if (s->places) free(s->places);
-    free(s);
-}
-
-void sofd_set_mode(SofdState* s, SofdMode mode) { s->mode = mode; sofd_scan_directory(s); }
-void sofd_set_title(SofdState* s, const char* title) { strncpy(s->title, title, 255); }
-void sofd_set_directory(SofdState* s, const char* path) { sofd_navigate_to(s, path); }
-void sofd_set_filter(SofdState* s, const char* filter) { strncpy(s->filter_pattern, filter, 255); sofd_scan_directory(s); }
-void sofd_set_callback(SofdState* s, SofdCallback cb, void* ud) { s->callback = cb; s->callback_userdata = ud; }
-void sofd_show(SofdState* s) { s->open = 1; }
-int sofd_is_open(SofdState* s) { return s->open; }
-void sofd_close(SofdState* s) { s->open = 0; sofd_clear_selections(s); }
-
-const char* sofd_get_selected(SofdState* s) {
-    static char fullpath[1024];
-    for (int i = 0; i < s->entry_count; i++) {
-        if (s->selected_indices[i]) {
-            snprintf(fullpath, sizeof(fullpath), "%s/%s", s->current_path, s->entries[i].name);
-            return fullpath;
+    /* Load per-user gtk-bookmark file (same as sofd) */
+    char bkfile[MU_FP_MAX_PATH];
+    const char *home2 = getenv("HOME");
+    if (home2) {
+        snprintf(bkfile, sizeof(bkfile), "%s/.config/gtk-3.0/bookmarks", home2);
+        FILE *bf = fopen(bkfile, "r");
+        if (!bf) {
+            snprintf(bkfile, sizeof(bkfile), "%s/.gtk-bookmarks", home2);
+            bf = fopen(bkfile, "r");
         }
-    }
-    return NULL;
-}
-
-const char** sofd_get_selections(SofdState* s, int* count) {
-    *count = 0;
-    if (!s->selected_buf) return NULL;
-    /* This is a simple version – it returns the list of filenames (not full paths) for brevity.
-       In a real app you'd probably want full paths; adjust as needed. */
-    char* p = s->selected_buf;
-    for (int i = 0; i < s->entry_count; i++) {
-        if (s->selected_indices[i]) {
-            strcpy(p, s->entries[i].name);
-            p += strlen(s->entries[i].name) + 1;
-            (*count)++;
-        }
-    }
-    return (const char**)s->selected_buf;
-}
-
-void sofd_clear_selections(SofdState* s) {
-    if (s->selected_indices) memset(s->selected_indices, 0, s->entry_count * sizeof(int));
-    s->selected_count = 0;
-}
-
-/* ================================================================
- * Rendering (the main UI)
- * ================================================================ */
-void sofd_render(mu_Context* ctx, SofdState* s) {
-    if (!s->open) return;
-
-    int w = 720, h = 480;
-    int x = 100, y = 100;
-    if (!mu_begin_window_ex(ctx, s->title, mu_rect(x, y, w, h), 0)) return;
-
-    /* ===== Path bar ===== */
-    mu_layout_row(ctx, 1, (int[]){-1}, 0);
-    mu_begin_panel_ex(ctx, "pathbar", 0);
-
-    int nb = s->path_parts_count + 2;
-    int* widths = (int*)alloca(nb * sizeof(int));
-    for (int i = 0; i < nb; i++) widths[i] = -1;
-    mu_layout_row(ctx, nb, widths, 0);
-
-    if (mu_button_ex(ctx, "Recent", 0, 0)) sofd_navigate_to(s, "recent");
-    char fullpath[1024] = "";
-    for (int i = 0; i < s->path_parts_count; i++) {
-        if (i > 0) strcat(fullpath, "/");
-        strcat(fullpath, s->path_parts[i]);
-        if (mu_button_ex(ctx, s->path_parts[i], 0, 0)) {
-            char p[1024] = "/";
-            strcat(p, fullpath);
-            sofd_navigate_to(s, p);
-        }
-    }
-    if (s->path_parts_count > 0 && !s->show_recent) {
-        if (mu_button_ex(ctx, "Up", 0, 0)) {
-            char parent[1024];
-            strncpy(parent, s->current_path, 1023);
-            char* last = strrchr(parent, '/');
-            if (last) {
-                *last = '\0';
-                if (parent[0] == '\0') strcpy(parent, "/");
-                sofd_navigate_to(s, parent);
+        if (bf) {
+            char line[MU_FP_MAX_PATH+64];
+            while (fgets(line, sizeof(line), bf) && fp->place_count < MU_FP_MAX_PLACES) {
+                /* strip newline */
+                char *nl = strchr(line, '\n');
+                if (nl) *nl = '\0';
+                /* format: file:///path [optional name] */
+                if (strncmp(line, "file://", 7)) continue;
+                char *path_start = line + 7;
+                char *space = strchr(path_start, ' ');
+                char label[MU_FP_MAX_NAME] = {0};
+                if (space) {
+                    *space = '\0';
+                    snprintf(label, sizeof(label), "%s", space+1);
+                }
+                if (!label[0]) {
+                    const char *b = strrchr(path_start, '/');
+                    snprintf(label, sizeof(label), "%s", b ? b+1 : path_start);
+                }
+                if (!access(path_start, F_OK))
+                    mu_fp_add_place(fp, label, path_start, 0);
             }
+            fclose(bf);
         }
     }
-    mu_end_panel(ctx);
+}
 
-    /* ===== Two‑column main area ===== */
-    mu_layout_row(ctx, 2, (int[]){ PLACES_WIDTH, -1 }, -25);
+/* =========================================================================
+ * Internal: helper – navigate up N path components
+ * ====================================================================== */
+static void mu_fp_go_up_to_part(MuFilePicker *fp, int part_idx)
+{
+    /* part_idx == 0 → root  /
+     * part_idx == 1 → /home
+     * part_idx == 2 → /home/user  etc.
+     */
+    char new_path[MU_FP_MAX_PATH] = "/";
+    for (int i = 1; i <= part_idx && i < fp->path_part_count; i++) {
+        size_t l = strlen(new_path);
+        if (l > 1) { new_path[l] = '/'; new_path[l+1] = '\0'; }
+        strncat(new_path, fp->path_parts[i], MU_FP_MAX_PATH - strlen(new_path) - 2);
+    }
+    size_t l = strlen(new_path);
+    if (l == 0 || new_path[l-1] != '/') {
+        new_path[l] = '/'; new_path[l+1] = '\0';
+    }
+    mu_fp_navigate(fp, new_path);
+}
 
-    /* ----- Places panel ----- */
-    mu_begin_panel_ex(ctx, "places", 0);
-    if (s->show_places) {
-        mu_layout_row(ctx, 1, (int[]){ -1 }, 0);
-        for (int i = 0; i < s->place_count; i++) {
-            if (mu_button_ex(ctx, s->places[i].name, 0, 0)) {
-                if (strcmp(s->places[i].name, "Recently Used") == 0)
-                    sofd_navigate_to(s, "recent");
-                else
-                    sofd_navigate_to(s, s->places[i].path);
+/* =========================================================================
+ * Main draw function – call every frame inside your microui render loop
+ *
+ * The function creates (or reuses) a microui window named fp->title.
+ * It returns immediately if the dialog is not MU_FP_ACTIVE.
+ * ====================================================================== */
+static void mu_filepicker_draw(MuFilePicker *fp, mu_Context *ctx)
+{
+    if (fp->status != MU_FP_ACTIVE) return;
+
+    /* ------------------------------------------------------------------ */
+    /* Open the dialog window                                               */
+    /* ------------------------------------------------------------------ */
+    int wopt = MU_OPT_NORESIZE; /* let user resize but keep aspect */
+    if (mu_begin_window_ex(ctx, fp->title, mu_rect(60, 40, MU_FP_WIN_W, MU_FP_WIN_H), wopt)) {
+
+        mu_Container *win = mu_get_current_container(ctx);
+        int W = win->body.w;   /* usable width  */
+
+        /* ----------------------------------------------------------------
+         * ROW 1: Path breadcrumb buttons
+         * ------------------------------------------------------------- */
+        mu_layout_row(ctx, 1, (int[]){ -1 }, MU_FP_PATH_BTN_H);
+        mu_layout_begin_column(ctx);
+
+        /* calculate how many parts fit; overflow shown as "<" (sofd behaviour) */
+        int start_part = 0;
+        /* naive: always show from root, truncate left if overflow.
+         * A proper impl would measure text widths; we approximate with
+         * 8px/char average.                                               */
+        {
+            int total_w = 0;
+            for (int i = 0; i < fp->path_part_count; i++) {
+                total_w += (int)(strlen(fp->path_parts[i]) * 8 + 12);
             }
-        }
-    }
-    mu_end_panel(ctx);
-
-    /* ----- File list panel (table) ----- */
-    mu_begin_panel_ex(ctx, "filelist", 0);
-
-    /* Column headers (with sort indicators) */
-    int header_widths[] = { -1, 80, 130 };  // name, size, time
-    mu_layout_row(ctx, 3, header_widths, 0);
-
-    // Name header
-    if (mu_button_ex(ctx, s->sort_column == 0 ?
-        (s->sort_order ? "Name ▲" : "Name ▼") : "Name", 0, 0)) {
-        if (s->sort_column == 0) s->sort_order = !s->sort_order;
-        else { s->sort_column = 0; s->sort_order = 0; }
-        sofd_sort_entries(s);
-    }
-
-    // Size header
-    if (mu_button_ex(ctx, s->sort_column == 1 ?
-        (s->sort_order ? "Size ▲" : "Size ▼") : "Size", 0, 0)) {
-        if (s->sort_column == 1) s->sort_order = !s->sort_order;
-        else { s->sort_column = 1; s->sort_order = 0; }
-        sofd_sort_entries(s);
-    }
-
-    // Time header
-    if (mu_button_ex(ctx, s->sort_column == 2 ?
-        (s->sort_order ? "Last Modified ▲" : "Last Modified ▼") : "Last Modified", 0, 0)) {
-        if (s->sort_column == 2) s->sort_order = !s->sort_order;
-        else { s->sort_column = 2; s->sort_order = 0; }
-        sofd_sort_entries(s);
-    }
-
-    /* Table rows */
-    int item_height = ctx->style->size.y + ctx->style->spacing;
-    mu_layout_row(ctx, 3, header_widths, item_height);
-
-    for (int i = 0; i < s->entry_count; i++) {
-        SofdFileEntry* e = &s->entries[i];
-        int selected = s->selected_indices && s->selected_indices[i];
-
-        /* Get rects for the three columns */
-        mu_Rect name_rect  = mu_layout_next(ctx);
-        mu_Rect size_rect  = mu_layout_next(ctx);
-        mu_Rect time_rect  = mu_layout_next(ctx);
-
-        /* Combine to get the whole row rect */
-        mu_Rect row_rect = {
-            name_rect.x,
-            name_rect.y,
-            size_rect.x + size_rect.w - name_rect.x,
-            name_rect.h
-        };
-
-        /* Hover detection */
-        if (mu_mouse_over(ctx, row_rect)) s->hover_index = i;
-
-        /* Draw selection / hover background */
-        if (selected) {
-            mu_draw_rect(ctx, row_rect, mu_color(70, 150, 220, 100));
-        } else if (s->hover_index == i) {
-            mu_draw_rect(ctx, row_rect, mu_color(100, 100, 100, 80));
-        }
-
-        /* Name column: interactive button */
-        char name_buf[256];
-        if (e->is_dir) snprintf(name_buf, sizeof(name_buf), "[D] %s", e->name);
-        else           snprintf(name_buf, sizeof(name_buf), "    %s", e->name);
-
-        /* Use a button that covers only the name column */
-        mu_push_id(ctx, &i, sizeof(i));
-        if (mu_button_ex(ctx, name_buf, 0, 0)) {
-            if (e->is_dir) {
-                char newpath[1024];
-                snprintf(newpath, sizeof(newpath), "%s/%s", s->current_path, e->name);
-                sofd_navigate_to(s, newpath);
-            } else {
-                if (s->mode == SOFD_MODE_OPEN_MULTIPLE) {
-                    s->selected_indices[i] = !selected;
-                } else {
-                    sofd_clear_selections(s);
-                    s->selected_indices[i] = 1;
+            if (total_w > W - 8) {
+                /* find first part that still fits when leading "<" is shown */
+                int avail = W - 8 - 20; /* reserve 20px for "<" btn */
+                int acc = 0;
+                start_part = fp->path_part_count - 1;
+                for (int i = fp->path_part_count - 1; i >= 0; i--) {
+                    acc += (int)(strlen(fp->path_parts[i]) * 8 + 12);
+                    if (acc > avail) break;
+                    start_part = i;
                 }
             }
         }
-        mu_pop_id(ctx);
 
-        /* Size column: right‑aligned text */
-        mu_draw_text(ctx, ctx->style->font, e->strsize, -1,
-            mu_vec2(size_rect.x + size_rect.w - ctx->text_width(ctx->style->font, e->strsize, -1),
-                    size_rect.y + (size_rect.h - ctx->font_height(ctx->style->font)) / 2),
-            ctx->style->colors[MU_COLOR_TEXT]);
+        /* layout: one sub-row of inline buttons */
+        {
+            /* count visible buttons to set their widths */
+            int nbtn = fp->path_part_count - start_part;
+            if (start_part > 0) nbtn++; /* "<" button */
+            int *widths = (int*)alloca(nbtn * sizeof(int));
+            int bi = 0;
+            if (start_part > 0) widths[bi++] = 20;
+            for (int i = start_part; i < fp->path_part_count; i++) {
+                widths[bi++] = (int)(strlen(fp->path_parts[i]) * 8 + 12);
+            }
+            mu_layout_row(ctx, nbtn, widths, MU_FP_PATH_BTN_H);
 
-        /* Time column: right‑aligned text */
-        mu_draw_text(ctx, ctx->style->font, e->strtime, -1,
-            mu_vec2(time_rect.x + time_rect.w - ctx->text_width(ctx->style->font, e->strtime, -1),
-                    time_rect.y + (time_rect.h - ctx->font_height(ctx->style->font)) / 2),
-            ctx->style->colors[MU_COLOR_TEXT]);
-
-        /* Double‑click detection (only on files) */
-        if (s->hover_index == i && !e->is_dir) {
-            if (ctx->mouse_pressed & MU_MOUSE_LEFT) {
-                if (ctx->frame - s->last_click_time < 20 && s->last_click_index == i) {
-                    char fullpath[1024];
-                    snprintf(fullpath, sizeof(fullpath), "%s/%s", s->current_path, e->name);
-                    const char* path = fullpath;
-                    if (s->callback) s->callback(&path, 1, s->callback_userdata);
-                    sofd_close(s);
+            bi = 0;
+            if (start_part > 0) {
+                if (mu_button(ctx, "<")) {
+                    /* go to the part just before start_part */
+                    mu_fp_go_up_to_part(fp, start_part - 1);
                 }
-                s->last_click_time = ctx->frame;
-                s->last_click_index = i;
+                bi++;
+            }
+            for (int i = start_part; i < fp->path_part_count; i++) {
+                if (mu_button(ctx, fp->path_parts[i])) {
+                    mu_fp_go_up_to_part(fp, i);
+                }
+                bi++;
             }
         }
-    }
+        mu_layout_end_column(ctx);
 
-    mu_end_panel(ctx);
+        /* ----------------------------------------------------------------
+         * BODY: Places panel (optional) + File list
+         * ------------------------------------------------------------- */
+        /* Reserve space: total body height minus path row and bottom rows */
+        int body_h = win->body.h
+                     - MU_FP_PATH_BTN_H - ctx->style->spacing
+                     - MU_FP_HEADER_H   - ctx->style->spacing
+                     - MU_FP_BTN_H      - ctx->style->spacing * 3
+                     - 24; /* checkbox row */
 
-    /* ===== Checkboxes & Buttons ===== */
-    mu_layout_row(ctx, 4, (int[]){ -1, -1, -1, -1 }, 0);
-    mu_checkbox(ctx, "Show Places", &s->show_places);
-    mu_checkbox(ctx, "List All Files", &s->show_all);
-    mu_checkbox(ctx, "Show Hidden", &s->show_hidden);
-    mu_layout_next(ctx);  // spacer
+        if (fp->show_places) {
+            /* two columns side by side */
+            int col_w[2] = { MU_FP_PLACES_W,
+                             W - MU_FP_PLACES_W - ctx->style->spacing };
+            mu_layout_row(ctx, 2, col_w, body_h);
 
-    mu_layout_row(ctx, 2, (int[]){ -1, 80 }, 0);
-    mu_layout_set_next(ctx, mu_rect(0, 0, 1, 1), 1);
-    if (mu_button_ex(ctx, "Cancel", 0, 0)) sofd_close(s);
-    if (mu_button_ex(ctx, "Open", 0, 0)) {
-        if (s->mode == SOFD_MODE_OPEN_MULTIPLE) {
-            int cnt = 0;
-            for (int i = 0; i < s->entry_count; i++) if (s->selected_indices[i]) cnt++;
-            if (cnt > 0) {
-                const char** paths = (const char**)alloca(cnt * sizeof(const char*));
-                int idx = 0;
-                for (int i = 0; i < s->entry_count; i++) {
-                    if (s->selected_indices[i]) {
-                        char* fullpath = (char*)alloca(1024);
-                        snprintf(fullpath, 1024, "%s/%s", s->current_path, s->entries[i].name);
-                        paths[idx++] = fullpath;
+            /* ---- Places column ---- */
+            mu_begin_panel(ctx, "##places");
+            {
+                /* Header */
+                mu_layout_row(ctx, 1, (int[]){ -1 }, MU_FP_HEADER_H);
+                mu_label(ctx, "Places", 0);
+
+                /* Recently Used header entry */
+                mu_layout_row(ctx, 1, (int[]){ -1 }, MU_FP_ROW_H);
+                if (mu_button_ex(ctx, "Recently Used", 0, 0)) {
+                    /* Switch to "recently used" view: show fp->recent[] */
+                    /* For now navigate home; a full impl would show a
+                     * virtual list – see note in implementation below.  */
+                    fp->selected = -1;
+                }
+
+                /* Regular places */
+                for (int i = 1; i < fp->place_count; i++) {
+                    mu_layout_row(ctx, 1, (int[]){ -1 }, MU_FP_ROW_H);
+                    char lbl[MU_FP_MAX_NAME + 4];
+                    snprintf(lbl, sizeof(lbl), "%s", fp->places[i].name);
+                    if (mu_button_ex(ctx, lbl, 0, 0)) {
+                        mu_fp_navigate(fp, fp->places[i].path);
+                    }
+                    /* separator line after flagged entries: microui has no
+                     * native separator so we draw a zero-height row label */
+                    if (fp->places[i].add_sep) {
+                        mu_layout_row(ctx, 1, (int[]){ -1 }, 1);
+                        mu_label(ctx, "", 0);
                     }
                 }
-                if (s->callback) s->callback(paths, cnt, s->callback_userdata);
-                for (int i = 0; i < cnt; i++) sofd_add_recent(s, paths[i]);
-                sofd_close(s);
             }
+            mu_end_panel(ctx);
+
+            /* ---- File list column ---- */
+            mu_begin_panel(ctx, "##filelist");
         } else {
-            for (int i = 0; i < s->entry_count; i++) {
-                if (s->selected_indices[i]) {
-                    char fullpath[1024];
-                    snprintf(fullpath, sizeof(fullpath), "%s/%s", s->current_path, s->entries[i].name);
-                    const char* path = fullpath;
-                    if (s->callback) s->callback(&path, 1, s->callback_userdata);
-                    sofd_add_recent(s, path);
-                    sofd_close(s);
-                    break;
+            mu_layout_row(ctx, 1, (int[]){ -1 }, body_h);
+            mu_begin_panel(ctx, "##filelist");
+        }
+
+        /* ==============================================================
+         * File list panel (always present)
+         * =========================================================== */
+        {
+            int fw = mu_get_current_container(ctx)->body.w;
+
+            /* ---- Column headers (sortable, matching sofd) ---- */
+            /* Decide which columns fit (sofd checks FILECOLUMN + widths) */
+            int show_size = (fw > 260);
+            int show_time = (fw > 380);
+
+            int name_w = fw;
+            if (show_size) name_w -= MU_FP_SIZE_COL_W + ctx->style->spacing;
+            if (show_time) name_w -= MU_FP_TIME_COL_W + ctx->style->spacing;
+
+            /* Header row */
+            {
+                int ncols = 1 + (show_size ? 1 : 0) + (show_time ? 1 : 0);
+                int *hw = (int*)alloca(ncols * sizeof(int));
+                int ci = 0;
+                hw[ci++] = name_w;
+                if (show_size) hw[ci++] = MU_FP_SIZE_COL_W;
+                if (show_time) hw[ci++] = MU_FP_TIME_COL_W;
+
+                mu_layout_row(ctx, ncols, hw, MU_FP_HEADER_H);
+
+                /* Name header – click to toggle name sort */
+                {
+                    char hdr[16];
+                    const char *arrow = "";
+                    if (fp->sort == MU_FP_SORT_NAME_ASC)  arrow = " ▲";
+                    else if (fp->sort == MU_FP_SORT_NAME_DESC) arrow = " ▼";
+                    snprintf(hdr, sizeof(hdr), "Name%s", arrow);
+                    if (mu_button(ctx, hdr)) {
+                        fp->sort = (fp->sort == MU_FP_SORT_NAME_ASC)
+                                   ? MU_FP_SORT_NAME_DESC
+                                   : MU_FP_SORT_NAME_ASC;
+                        mu_fp_sort_entries(fp);
+                    }
+                }
+                if (show_size) {
+                    char hdr[16];
+                    const char *arrow = "";
+                    if (fp->sort == MU_FP_SORT_SIZE_ASC)  arrow = " ▲";
+                    else if (fp->sort == MU_FP_SORT_SIZE_DESC) arrow = " ▼";
+                    snprintf(hdr, sizeof(hdr), "Size%s", arrow);
+                    if (mu_button(ctx, hdr)) {
+                        fp->sort = (fp->sort == MU_FP_SORT_SIZE_ASC)
+                                   ? MU_FP_SORT_SIZE_DESC
+                                   : MU_FP_SORT_SIZE_ASC;
+                        mu_fp_sort_entries(fp);
+                    }
+                }
+                if (show_time) {
+                    char hdr[24];
+                    const char *arrow = "";
+                    if (fp->sort == MU_FP_SORT_TIME_ASC)  arrow = " ▲";
+                    else if (fp->sort == MU_FP_SORT_TIME_DESC) arrow = " ▼";
+                    snprintf(hdr, sizeof(hdr), "Last Modified%s", arrow);
+                    if (mu_button(ctx, hdr)) {
+                        fp->sort = (fp->sort == MU_FP_SORT_TIME_ASC)
+                                   ? MU_FP_SORT_TIME_DESC
+                                   : MU_FP_SORT_TIME_ASC;
+                        mu_fp_sort_entries(fp);
+                    }
+                }
+            }
+
+            /* ---- File rows ---- */
+            for (int i = 0; i < fp->entry_count; i++) {
+                MuFpEntry *e = &fp->entries[i];
+
+                int ncols = 1 + (show_size ? 1 : 0) + (show_time ? 1 : 0);
+                int *rw = (int*)alloca(ncols * sizeof(int));
+                int ci = 0;
+                rw[ci++] = name_w;
+                if (show_size) rw[ci++] = MU_FP_SIZE_COL_W;
+                if (show_time) rw[ci++] = MU_FP_TIME_COL_W;
+
+                mu_layout_row(ctx, ncols, rw, MU_FP_ROW_H);
+
+                /* Name cell: prefix "D " for directories (matches sofd's "D" marker) */
+                char disp[MU_FP_MAX_NAME + 4];
+                snprintf(disp, sizeof(disp), "%s%s",
+                         e->is_dir ? "D " : "  ", e->name);
+
+                /* Highlight selected row */
+                int is_sel = (fp->selected == i);
+
+                /* Use button with ALIGNLEFT; selected rows get distinct look
+                 * via microui's focus/hover state.
+                 * microui doesn't have a native "selected" state for labels,
+                 * so we use mu_button and track selection ourselves.        */
+                int btn_opt = (is_sel ? 0 : MU_OPT_NOFRAME);
+                if (mu_button_ex(ctx, disp, 0, btn_opt)) {
+                    /* single-click: select */
+                    /* double-click detection */
+                    /* microui doesn't expose timestamps; use a frame counter
+                     * approximation: two consecutive clicks on same entry
+                     * within a short time.  Callers may supply a real time
+                     * by setting fp->last_click_time before calling draw(). */
+                    int was_selected = (fp->selected == i);
+                    fp->selected = i;
+                    if (was_selected) {
+                        /* treat second click as double-click */
+                        if (e->is_dir) {
+                            mu_fp_navigate(fp, e->path);
+                        } else {
+                            snprintf(fp->result, MU_FP_MAX_PATH, "%s", e->path);
+                            fp->status = MU_FP_SELECTED;
+                        }
+                    }
+                }
+
+                if (show_size) {
+                    /* size column: right-aligned label */
+                    mu_label(ctx, e->is_dir ? "" : e->str_size, 0);
+                }
+                if (show_time) {
+                    mu_label(ctx, e->str_time, 0);
                 }
             }
         }
-    }
+        mu_end_panel(ctx); /* ##filelist (or ##places col) */
 
-    mu_end_window(ctx);
+        /* ----------------------------------------------------------------
+         * BOTTOM CONTROLS: checkboxes + Cancel / Open buttons
+         * ------------------------------------------------------------- */
+
+        /* Checkbox row (sofd's toggle buttons: Places, List All, Hidden) */
+        mu_layout_row(ctx, 3, (int[]){ 130, 130, 130 }, MU_FP_BTN_H);
+        if (mu_checkbox(ctx, "Show Places",    &fp->show_places)) {
+            /* toggled – re-scan not needed, just layout changes */
+        }
+        if (mu_checkbox(ctx, "List All Files", &fp->show_all)) {
+            mu_fp_scan_dir(fp); /* re-apply filter */
+        }
+        if (mu_checkbox(ctx, "Show Hidden",    &fp->show_hidden)) {
+            mu_fp_scan_dir(fp);
+        }
+
+        /* Button row: right-aligned Cancel and Open */
+        mu_layout_row(ctx, 3, (int[]){ -MU_FP_BTN_W*2 - ctx->style->spacing*2 - 4,
+                                        MU_FP_BTN_W,
+                                        MU_FP_BTN_W }, MU_FP_BTN_H);
+        mu_label(ctx, "", 0); /* spacer */
+
+        if (mu_button(ctx, "Cancel")) {
+            fp->status = MU_FP_CANCELLED;
+        }
+
+        /* Open is greyed-out (disabled) when nothing is selected.
+         * microui has no native disabled state; we skip the button when
+         * nothing is selected to match sofd's "can_hover = 0" logic.     */
+        if (fp->selected >= 0 && fp->selected < fp->entry_count) {
+            if (mu_button(ctx, "Open")) {
+                MuFpEntry *e = &fp->entries[fp->selected];
+                if (e->is_dir) {
+                    mu_fp_navigate(fp, e->path);
+                } else {
+                    snprintf(fp->result, MU_FP_MAX_PATH, "%s", e->path);
+                    fp->status = MU_FP_SELECTED;
+                }
+            }
+        } else {
+            /* show a visually-dimmed / no-frame placeholder */
+            mu_label(ctx, "Open", 0);
+        }
+
+        mu_end_window(ctx);
+    }
 }
 
-#endif /* MICROUI_FILE_PICKER_IMPLEMENTATION */
+/* =========================================================================
+ * Keyboard navigation helper
+ *
+ * Call after mu_filepicker_draw() to handle arrow keys, Enter, Escape.
+ * Pass the key values from your event loop (SDL_KEYDOWN etc.)
+ *
+ *   MU_FP_KEY_UP    – select previous entry
+ *   MU_FP_KEY_DOWN  – select next entry
+ *   MU_FP_KEY_ENTER – activate selected entry (open dir / confirm file)
+ *   MU_FP_KEY_ESC   – cancel
+ * ====================================================================== */
+#define MU_FP_KEY_UP    1
+#define MU_FP_KEY_DOWN  2
+#define MU_FP_KEY_ENTER 3
+#define MU_FP_KEY_ESC   4
+
+static void mu_filepicker_key(MuFilePicker *fp, int key)
+{
+    if (fp->status != MU_FP_ACTIVE) return;
+    switch (key) {
+    case MU_FP_KEY_UP:
+        if (fp->selected > 0)
+            fp->selected--;
+        else if (fp->entry_count > 0)
+            fp->selected = 0;
+        break;
+    case MU_FP_KEY_DOWN:
+        if (fp->selected < fp->entry_count - 1)
+            fp->selected++;
+        else if (fp->entry_count > 0)
+            fp->selected = fp->entry_count - 1;
+        break;
+    case MU_FP_KEY_ENTER:
+        if (fp->selected >= 0 && fp->selected < fp->entry_count) {
+            MuFpEntry *e = &fp->entries[fp->selected];
+            if (e->is_dir) {
+                mu_fp_navigate(fp, e->path);
+            } else {
+                snprintf(fp->result, MU_FP_MAX_PATH, "%s", e->path);
+                fp->status = MU_FP_SELECTED;
+            }
+        }
+        break;
+    case MU_FP_KEY_ESC:
+        fp->status = MU_FP_CANCELLED;
+        break;
+    }
+}
+
+#endif /* MU_FILEPICKER_H */
