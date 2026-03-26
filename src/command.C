@@ -5735,7 +5735,7 @@ rxvt_term::process_color_seq (int report, int color, const char *str, string_ter
       if (color == Color_bg)
         {
           bool bg_is_light = (c.r * 299 + c.g * 587 + c.b * 114) / 1000 > 128;
-          if (bg_is_light && c.a < rgba::MAX_CC / 2)
+          if (bg_is_light && bg_opacity < 50)
             {
               c.r = 0;
               c.g = 0;

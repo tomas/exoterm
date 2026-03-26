@@ -1387,7 +1387,7 @@ rxvt_term::get_colorfgbg ()
   rgba bg_rgba;
   lookup_color (Color_bg, pix_colors).get (bg_rgba);
   bool bg_is_light = (bg_rgba.r * 299 + bg_rgba.g * 587 + bg_rgba.b * 114) / 1000 > 128;
-  if (bg_is_light && bg_rgba.a < rgba::MAX_CC / 2)
+  if (bg_is_light && bg_opacity < 50)
     {
       sprintf (bstr, "0");
     }
