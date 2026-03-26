@@ -349,7 +349,6 @@ rxvt_term::bg_init_transparency () {
       black_opacity = atoi (rs [Rs_blackOpacity]);
       clamp_it (black_opacity, 0, 100);
     }
-
 }
 
 void
@@ -386,7 +385,7 @@ rxvt_term::bg_init ()
       bool bg_is_light = (bg_rgba.r * 299 + bg_rgba.g * 587 + bg_rgba.b * 114) / 1000 > 128;
       if (bg_is_light)
         {
-          pix_colors[Color_bg]         = pix_colors[Color_Black];
+          pix_colors[Color_bg]         = pix_colors[Color_Grey25];
           pix_colors_focused[Color_bg] = pix_colors_focused[Color_Black];
         }
     }
