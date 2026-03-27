@@ -1657,13 +1657,14 @@ rxvt_term::show_settings_ui ()
     attr.border_pixel     = 0;
     attr.colormap         = cmap;
 
-    settings_ui.backdrop_win = XCreateWindow (
-      dpy, root_win,
-      0, 0, pw, ph, 0,
-      depth, InputOutput, visual,
-      CWBackPixel | CWBorderPixel | CWColormap, &attr);
+    // disable backdrop for now
+    // settings_ui.backdrop_win = XCreateWindow (
+    //   dpy, root_win,
+    //   0, 0, pw, ph, 0,
+    //   depth, InputOutput, visual,
+    //   CWBackPixel | CWBorderPixel | CWColormap, &attr);
 
-    settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
+    // settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
 
     settings_ui.win = XCreateWindow (
       dpy, root_win,
@@ -1705,7 +1706,9 @@ rxvt_term::show_settings_ui ()
 
   } else {
     /* Reusing existing windows: update size/position. */
-    XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
+    if (settings_ui.backdrop_win != None)
+      XResizeWindow (dpy, settings_ui.backdrop_win, pw, ph);
+
     if (settings_ui.backdrop_buf != None)
       XFreePixmap (dpy, settings_ui.backdrop_buf);
       settings_ui.backdrop_buf = XCreatePixmap (dpy, root_win, pw, ph, depth);
@@ -1751,7 +1754,9 @@ rxvt_term::show_settings_ui ()
 
   /* Use XMapRaised for both so they land on top of any split-pane child
      windows that are already mapped as siblings of root_win. */
-  XMapRaised (dpy, settings_ui.backdrop_win);
+  if (settings_ui.backdrop_win != None)
+    XMapRaised (dpy, settings_ui.backdrop_win);
+
   XMapRaised (dpy, settings_ui.win);
 
   XSetInputFocus (dpy, settings_ui.win, RevertToParent, CurrentTime);
@@ -1810,12 +1815,15 @@ rxvt_term::hide_settings_ui ()
 #ifdef ENABLE_MINIMAP
   for (rxvt_term *t : termlist) {
     if (t->minimap.enabled && t->minimap.win != None) {
-      XRaiseWindow(dpy, t->minimap.win);
-      XSetWindowAttributes attr;
-      attr.background_pixmap = ParentRelative;
-      XChangeWindowAttributes(dpy, t->minimap.win, CWBackPixmap, &attr);
-      XClearArea(dpy, t->minimap.win, 0, 0, 0, 0, False);
-      t->render_minimap();
+      // Only raise and render minimap for the currently active tab
+      // Other tabs' minimaps will be shown/hidden when switching tabs
+      if (t == GET_R) {
+        XSetWindowAttributes attr;
+        attr.background_pixmap = ParentRelative;
+        XChangeWindowAttributes(dpy, t->minimap.win, CWBackPixmap, &attr);
+        XClearArea(dpy, t->minimap.win, 0, 0, 0, 0, False);
+        t->render_minimap();
+      }
     }
   }
 #endif

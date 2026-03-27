@@ -3098,7 +3098,7 @@ rxvt_term::scr_recolor (bool refresh) NOTHROW
         {
           int eff_pct = bg_opacity + black_opacity * (100 - bg_opacity) / 100;
           rgba bg;
-          lookup_color (Color_bg, pix_colors_focused).get (bg);
+          lookup_color (Color_bg, pix_colors).get (bg);
           unsigned long ea = (unsigned long)eff_pct * 0xFF / 100;
           /* premultiplied RGB: bg_channel * bgOpacity/100 */
           unsigned long r  = (unsigned long)(bg.r >> 8) * bg_opacity / 100;
