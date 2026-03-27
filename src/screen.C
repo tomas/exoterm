@@ -4526,32 +4526,53 @@ void rxvt_term::render_minimap() {
 
     Pixmap buffer = minimap.buffer;
 
-    // Seed the buffer with the wallpaper content behind the minimap.
-    // In fake transparent mode use winbg (the pre-blended root pixmap) so that
-    // bgOpacity/blackOpacity are already applied, matching real transparent mode.
-    int src_x = max(0, vt_width - minimap.width);
-// #ifdef HAVE_BG_PIXMAP
-//     if (winbg != None && (bg_flags & BG_IS_TRANSPARENT))
-//         XCopyArea(dpy, winbg, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
-//     else
-// #endif
-        XCopyArea(dpy, vt, buffer, minimap.gc, src_x, 0, minimap.width, win_height, 0, 0);
+    // Determine rendering range.  Only do a partial (viewport-strip) redraw
+    // when both display_start and view_start are unchanged — meaning the minimap
+    // hasn't scrolled and the terminal viewport hasn't moved.  Any other change
+    // (scrolling, new output pushing content up, etc.) triggers a full redraw.
+    bool full_redraw = minimap.needs_full_redraw                           ||
+                       (minimap.display_start != minimap.last_display_start) ||
+                       (view_start        != minimap.last_view_start)    ||
+                       (top_row           != minimap.last_top_row);
+    minimap.needs_full_redraw  = false;
+    minimap.last_display_start = minimap.display_start;
+    minimap.last_view_start    = view_start;
+    minimap.last_top_row       = top_row;
 
-    if (minimap.xr_format) {
-        Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
-        XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.bg_render_color,
-                             0, 0, minimap.width, win_height);
-        XRenderFreePicture(dpy, buf_pic);
-    }
+    int vp_i_start = view_start - minimap.display_start;
+    int vp_i_end   = vp_i_start + nrow;
+    if (vp_i_start < 0) vp_i_start = 0;
+    if (vp_i_end > minimap.display_lines) vp_i_end = minimap.display_lines;
+
+    int draw_i_start = full_redraw ? 0                    : vp_i_start;
+    int draw_i_end   = full_redraw ? minimap.display_lines : vp_i_end;
+
+    int draw_y      = draw_i_start * total_line_height;
+    int draw_height = (draw_i_end - draw_i_start) * total_line_height;
+    if (draw_height <= 0) draw_height = win_height; // safety fallback
 
     // Cache common colors for performance
     unsigned long default_fg = lookup_color(Color_fg, pix_colors);
     unsigned long default_bg = lookup_color(Color_bg, pix_colors);
     unsigned long viewport_highlight = lookup_color(Color_scroll, pix_colors);
 
+    // Seed the background for the rendered region from the vt window for
+    // translucency.  We only copy the strip we are about to redraw — the
+    // pixels for static lines above the viewport are left untouched in the
+    // buffer, which is what prevents those lines from flickering.
+    int src_x = max(0, vt_width - minimap.width);
+    XCopyArea(dpy, vt, buffer, minimap.gc, src_x, draw_y, minimap.width, draw_height, 0, draw_y);
+
+    if (minimap.xr_format) {
+        Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
+        XRenderFillRectangle(dpy, PictOpOver, buf_pic, &minimap.bg_render_color,
+                             0, draw_y, minimap.width, draw_height);
+        XRenderFreePicture(dpy, buf_pic);
+    }
+
     // Draw each visible line in the minimap
-    if (minimap.display_lines > 0 && total_line_height > 0) { // Ensure valid drawing parameters
-        for (int i = 0; i < minimap.display_lines; i++) {
+    if (draw_i_end > draw_i_start && total_line_height > 0) {
+        for (int i = draw_i_start; i < draw_i_end; i++) {
             int row = minimap.display_start + i;
 
             // Skip if outside buffer
@@ -4698,7 +4719,7 @@ void rxvt_term::render_minimap() {
 
         Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
 
-        for (int i = 0; i < minimap.display_lines; i++) {
+        for (int i = draw_i_start; i < draw_i_end; i++) {
             int row = minimap.display_start + i;
             if (row < top_row || row >= top_row + total_rows)
                 continue;
@@ -4743,7 +4764,7 @@ void rxvt_term::render_minimap() {
     // Draw prompt mark highlights (RS_PromptMark in rend_t r[0])
     if (minimap.xr_format) {
         Picture buf_pic = XRenderCreatePicture(dpy, buffer, minimap.xr_format, 0, NULL);
-        for (int i = 0; i < minimap.display_lines; i++) {
+        for (int i = draw_i_start; i < draw_i_end; i++) {
             int row = minimap.display_start + i;
             if (row < top_row || row >= top_row + total_rows)
                 continue;
