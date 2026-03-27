@@ -1349,6 +1349,7 @@ done:
   if (idx == Color_bg && option (Opt_transparent))
     {
       minimap.colors_initialized = false;
+      bg_color_raw = (rgba) pix_colors_focused[Color_bg];
       bg_init ();
       bg_render ();
       return;
