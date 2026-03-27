@@ -147,14 +147,18 @@ struct settings_snapshot_t {
 
 static settings_snapshot_t s_snapshot = {};
 
-static void color_to_hex (rxvt_term *t, int idx, char *dst) {
-  rgba c = (rgba) t->pix_colors_focused[idx];
+static void rgba_to_hex (rgba c, char *dst) {
   if (c.a < rgba::MAX_CC) {
     int alpha_pct = (int)((uint32_t)c.a * 100 / rgba::MAX_CC);
     snprintf (dst, 16, "[%d]#%02x%02x%02x", alpha_pct, c.r >> 8, c.g >> 8, c.b >> 8);
   } else {
     snprintf (dst, 16, "#%02x%02x%02x", c.r >> 8, c.g >> 8, c.b >> 8);
   }
+}
+
+static void color_to_hex (rxvt_term *t, int idx, char *dst) {
+  rgba c = (rgba) t->pix_colors_focused[idx];
+  rgba_to_hex(c, dst);
 }
 
 static void save_snapshot (rxvt_term *t) {
@@ -185,7 +189,13 @@ static void save_snapshot (rxvt_term *t) {
   memcpy (s_snapshot.geometry,     s_geometry,     sizeof (s_geometry));
 
   color_to_hex (t, Color_fg, s_snapshot.colors[0]);
-  color_to_hex (t, Color_bg, s_snapshot.colors[1]);
+
+  if (t->bg_color_raw.a > 0) {
+    rgba_to_hex (t->bg_color_raw, s_snapshot.colors[1]);
+  } else {
+    color_to_hex (t, Color_bg, s_snapshot.colors[1]);
+  }
+
   for (int i = 0; i < 16; i++)
     color_to_hex (t, minCOLOR + i, s_snapshot.colors[2 + i]);
 
@@ -1394,6 +1404,7 @@ static void restore_snapshot () {
             CHANGED_PTR_BLANK | CHANGED_LOGIN_SHELL | CHANGED_AUTO_COPY_SEL |
             CHANGED_SKIP_BUILTIN_GLYPHS | CHANGED_TRANSPARENT | CHANGED_CURSOR_COLOR |
             CHANGED_BG_OPACITY | CHANGED_BLACK_OPACITY;
+
   apply_settings (all);
 
   for (rxvt_term *t : rxvt_term::termlist) {
@@ -1402,6 +1413,7 @@ static void restore_snapshot () {
     t->set_window_color (Color_border, s_snapshot.colors[1]); // border tracks bg
     for (int i = 0; i < 16; i++)
       t->set_window_color (minCOLOR + i, s_snapshot.colors[2 + i]);
+
     if (s_snapshot.font) {
       replace_rs_str (t, Rs_font, s_snapshot.font);
       t->set_fonts ();
@@ -2186,12 +2198,15 @@ rxvt_term::draw_settings_ui ()
 
   if (changed) {
     apply_settings (changed);
+
     /* Start the flush timer for every pane so colour/cursor changes are
        painted immediately.  Normally refresh_check() is only called for
        GET_R inside x_cb, so split child panes would never repaint from
        a programmatic settings change without this explicit kick. */
+
     for (rxvt_term *t : rxvt_term::termlist)
       t->refresh_check ();
+
     /* Re-assert focus: some operations (set_fonts → resize_all_windows)
        can cause the X server or WM to redirect focus away from our panel. */
     if (settings_ui.visible)
