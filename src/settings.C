@@ -1810,12 +1810,15 @@ rxvt_term::hide_settings_ui ()
 #ifdef ENABLE_MINIMAP
   for (rxvt_term *t : termlist) {
     if (t->minimap.enabled && t->minimap.win != None) {
-      XRaiseWindow(dpy, t->minimap.win);
-      XSetWindowAttributes attr;
-      attr.background_pixmap = ParentRelative;
-      XChangeWindowAttributes(dpy, t->minimap.win, CWBackPixmap, &attr);
-      XClearArea(dpy, t->minimap.win, 0, 0, 0, 0, False);
-      t->render_minimap();
+      // Only raise and render minimap for the currently active tab
+      // Other tabs' minimaps will be shown/hidden when switching tabs
+      if (t == GET_R) {
+        XSetWindowAttributes attr;
+        attr.background_pixmap = ParentRelative;
+        XChangeWindowAttributes(dpy, t->minimap.win, CWBackPixmap, &attr);
+        XClearArea(dpy, t->minimap.win, 0, 0, 0, 0, False);
+        t->render_minimap();
+      }
     }
   }
 #endif
