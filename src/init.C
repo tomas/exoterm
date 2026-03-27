@@ -1652,6 +1652,10 @@ void rxvt_term::init_minimap()
     minimap.drag_offset = 0;
     minimap.display_start = top_row;
     minimap.display_lines = 0; // Will be calculated in render_minimap
+    minimap.last_display_start = INT_MIN; // Force full redraw on first render (INT_MIN can't collide with any valid display_start)
+    minimap.last_view_start = INT_MIN;
+    minimap.last_top_row = top_row; // initialised to real value; only changes trigger full redraws
+    minimap.needs_full_redraw = false;
     minimap.is_hovered = false;
     minimap.opacity_normal = 0.5; // 50% visual opacity when not hovered
     minimap.colors_initialized = false;
@@ -1741,9 +1745,14 @@ void rxvt_term::init_minimap()
 
             minimap.enabled = true;
 
-            // Render first, then map to avoid flicker
+            // Render first, then map to avoid flicker.
+            // Flag a forced full redraw for the Expose event that XMapWindow
+            // will generate — by then vt is fully painted, so the entire
+            // buffer gets correctly seeded.  The flag survives any intermediate
+            // render_minimap() calls that may update the tracking vars.
             XClearWindow(dpy, minimap.win);
             render_minimap();
+            minimap.needs_full_redraw = true;
             XMapWindow(dpy, minimap.win);
         }
     }

@@ -1492,6 +1492,8 @@ void rxvt_term::resize_minimap()
     if (minimap.buffer != None && (minimap.width != old_width || minimap.height != old_height)) {
         XFreePixmap(dpy, minimap.buffer);
         minimap.buffer = None;
+        minimap.last_display_start = INT_MIN; // Force full redraw after resize
+        minimap.last_view_start    = INT_MIN;
     }
     if (minimap.buffer == None && minimap.gc != None && minimap.width > 0 && minimap.height > 0) {
         minimap.buffer = XCreatePixmap(dpy, minimap.win, minimap.width, minimap.height, minimap.depth);

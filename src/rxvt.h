@@ -259,6 +259,10 @@ struct minimap_t {
     int drag_offset;        // Drag offset from top of viewport
     int display_start;      // First line displayed in the minimap
     int display_lines;      // Number of lines displayed in the minimap
+    int last_display_start; // display_start from the previous render (for partial updates)
+    int last_view_start;    // view_start from the previous render (for partial updates)
+    int last_top_row;       // top_row from the previous render (for partial updates)
+    bool needs_full_redraw; // force a full redraw on the next render_minimap() call
 
     bool is_hovered;             // Whether mouse is currently over the minimap
     double opacity_normal;       // Visual opacity when not hovered (0.0-1.0)
