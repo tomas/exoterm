@@ -2250,6 +2250,9 @@ rxvt_term::update_background_cb (ev::timer &w, int revents)
 
   // make_current ();
   update_background_ev.stop ();
+#if ENABLE_MINIMAP
+  if (minimap.enabled) minimap.needs_full_redraw = true;
+#endif
   bg_render ();
   refresh_check ();
 }
