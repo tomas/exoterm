@@ -1241,6 +1241,15 @@ rxvt_term::set_fonts ()
 #endif
     }
 
+#if !XFT
+  if (fontset[2] && fontset[2] != fontset[0])
+    delete fontset[2];
+  fontset[2] = fontset[0];
+  if (fontset[3] && fontset[3] != fontset[0])
+    delete fontset[3];
+  fontset[3] = fontset[0];
+#endif
+
   if (parent)
     {
       resize_all_windows (0, 0, 0);
