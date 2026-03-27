@@ -2092,17 +2092,6 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
     }
   }
 
-  // Show minimap for the tab we're switching to
-  if (tab->minimap.enabled && tab->minimap.win != None && tab->minimap.visible) {
-    XMapWindow(dpy, tab->minimap.win);
-    tab->render_minimap();
-  }
-  
-  // Hide minimap for the tab we're switching away from (if it's tab 0, whose parent is never unmapped)
-  if (this->tab_index == 0 && this->minimap.enabled && this->minimap.win != None) {
-    XUnmapWindow(dpy, this->minimap.win);
-  }
-
   // XGetWindowAttributes is a round-trip that flushes all prior requests and
   // waits for the server to process them (equivalent to XSync).  We then only
   // call XSetInputFocus when the window is actually viewable: if a compositing
