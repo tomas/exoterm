@@ -1798,13 +1798,12 @@ rxvt_term::draw_tabpopup ()
     rxvt_term *tab   = tabs[i];
     bool is_active   = (tab->tab_index == active_idx);
     bool is_done     = !is_active && tab->process_done && tab->blink_state;
-    bool is_success  = is_done && tab->last_exit_code == 0;
     int x            = i * tab_w;
     int w            = (i == ntabs - 1) ? (total_width - x) : tab_w;
 
     XSetForeground (dpy, tabpopup.gc,
                     is_active  ? tabpopup.bg_active
-                    : is_done  ? (is_success ? tabpopup.bg_success : tabpopup.bg_done)
+                    : is_done  ? tabpopup.bg_notify
                     :            tabpopup.bg_inactive);
     XFillRectangle (dpy, tabpopup.win, tabpopup.gc, x, 0, w - 1, h);
 
@@ -1916,8 +1915,7 @@ static void
 notify_process_done (rxvt_term *t, int exit_code)
 {
   t->process_done   = true;
-  t->last_exit_code = exit_code;
-  t->blink_ticks    = 10;   // 10 half-cycles × 0.5 s = 5 s of blinking
+  t->blink_ticks    = 4;   // 4 half-cycles × 0.5 s = 5 s of blinking
   t->blink_state    = true;
 }
 
@@ -2141,7 +2139,6 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   focus_out();
   tab->process_done   = false;
   tab->had_fg_process = false;
-  tab->last_exit_code = -1;
   tab->blink_ticks    = 0;
   tab->blink_state    = false;
   tab->make_current();
@@ -6006,21 +6003,6 @@ rxvt_term::process_xterm_seq (int op, char *str, string_term &st)
                      op,
                      rs[Rs_name], VERSION[0], VERSION[2],
                      st.v);
-        break;
-
-      case OSC_ShellIntegration:
-        // Handle OSC 133;D;{exit_code} — command completion notification.
-        // Add to shell config:
-        //   bash: PROMPT_COMMAND='printf "\e]133;D;$?\a"'
-        //   zsh:  precmd() { printf "\e]133;D;$?\a" }
-        //   fish: function fish_prompt; printf "\e]133;D;$status\a"; end
-        if (str[0] == 'D' && str[1] == ';' && this != GET_R) {
-          int code = atoi (str + 2);
-          notify_process_done (this, code);
-          this->had_fg_process = false;  // OSC takes precedence over pgid polling
-          GET_R->want_refresh = 1;
-          GET_R->refresh_check ();
-        }
         break;
 
       case URxvt_cellinfo:

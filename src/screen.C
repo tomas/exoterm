@@ -2330,10 +2330,8 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   XAllocColor(dpy, cm, &focused);
   XParseColor(dpy, cm, "#465163", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
-  XParseColor(dpy, cm, "#e8a020", &done_clr);   // amber: failure or unknown exit
+  XParseColor(dpy, cm, "#ffffff", &done_clr); // white: program exit
   XAllocColor(dpy, cm, &done_clr);
-  XParseColor(dpy, cm, "#ffffff", &success_clr); // white: clean exit (code 0)
-  XAllocColor(dpy, cm, &success_clr);
 
   // Get the full terminal width from root's WM window.
   // apply_split_geometry may have called window_calc(half_w,...) on root,
@@ -2370,11 +2368,10 @@ void rxvt_term::scr_draw_bar() NOTHROW {
     bool is_split  = (t->split_partner != nullptr);
     // blink_state gates visibility during the blink phase; after settling it stays true
     bool is_done    = !is_active && t->process_done && t->blink_state;
-    bool is_success = is_done && t->last_exit_code == 0;
 
     XSetForeground(dpy, gc, is_active  ? focused.pixel
-                          : is_done    ? (is_success ? success_clr.pixel : done_clr.pixel)
-                          :               unfocused.pixel);
+                          : is_done    ? done_clr.pixel
+                          :              unfocused.pixel);
 
     int x = visual_i * tab_width - pane_x;
 

@@ -316,8 +316,7 @@ struct tabpopup_t {
     unsigned long fg_inactive;
     unsigned long bg_active;
     unsigned long bg_inactive;
-    unsigned long bg_done;    // amber background: process finished with failure (or unknown)
-    unsigned long bg_success; // white/bright background: process finished with exit code 0
+    unsigned long bg_notify;  // background for tabs with a completed process
     unsigned long bar_bg;
 };
 
@@ -575,8 +574,6 @@ enum {
 
   URxvt_cellinfo         = 776,     // returns font cell width, height etc.
   URxvt_perl             = 777,     // for use by perl extensions, starts with "extension-name;"
-
-  OSC_ShellIntegration   = 133,     // shell integration: "D;{exit_code}" on command end
 };
 
 /* Words starting with `Color_' are colours.  Others are counts */
@@ -1207,7 +1204,6 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   pid_t        shell_pgid;      // pgid of the shell (= cmd_pid, set after fork)
   bool         process_done;    // true when a fg process finished in this inactive tab
   bool         had_fg_process;  // internal: observed a non-shell fg process since last switch
-  int          last_exit_code;  // exit code from OSC 133;D (-1 = unknown)
   int          blink_ticks;     // half-cycles remaining (each ~0.5 s); 0 = settled
   bool         blink_state;     // current blink phase: true = show color, false = dim
 

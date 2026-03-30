@@ -223,7 +223,6 @@ rxvt_term::rxvt_term ()
   shell_pgid        = 0;
   process_done      = false;
   had_fg_process    = false;
-  last_exit_code    = -1;
   blink_ticks       = 0;
   blink_state       = false;
 

@@ -1827,8 +1827,7 @@ rxvt_term::init_tabpopup ()
   XParseColor (dpy, cm, "#0d1117", &c); XAllocColor (dpy, cm, &c); tabpopup.fg_active   = c.pixel;
   XParseColor (dpy, cm, "#2a2f3d", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_inactive = c.pixel;
   tabpopup.fg_inactive = WhitePixel (dpy, screen);
-  XParseColor (dpy, cm, "#7a4400", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_done     = c.pixel;
-  XParseColor (dpy, cm, "#c8c8c8", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_success  = c.pixel;
+  XParseColor (dpy, cm, "#c8c8c8", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_notify   = c.pixel;
   XParseColor (dpy, cm, "#111118", &c); XAllocColor (dpy, cm, &c); tabpopup.bar_bg      = c.pixel;
 }
 
