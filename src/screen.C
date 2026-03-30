@@ -2325,13 +2325,15 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
-  XColor focused, unfocused, done_clr;
+  XColor focused, unfocused, done_clr, success_clr;
   XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
   XParseColor(dpy, cm, "#465163", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
-  XParseColor(dpy, cm, "#e8a020", &done_clr);
+  XParseColor(dpy, cm, "#e8a020", &done_clr);   // amber: failure or unknown exit
   XAllocColor(dpy, cm, &done_clr);
+  XParseColor(dpy, cm, "#ffffff", &success_clr); // white: clean exit (code 0)
+  XAllocColor(dpy, cm, &success_clr);
 
   // Get the full terminal width from root's WM window.
   // apply_split_geometry may have called window_calc(half_w,...) on root,
@@ -2363,13 +2365,16 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   for (int i = 0; i < (int)termlist.size(); i++) {
     if (termlist.at(i)->split_is_child) continue;
 
+    rxvt_term *t   = termlist.at(i);
     bool is_active = (i == active_termlist_idx);
-    bool is_split  = (termlist.at(i)->split_partner != nullptr);
-    bool is_done   = !is_active && termlist.at(i)->process_done;
+    bool is_split  = (t->split_partner != nullptr);
+    // blink_state gates visibility during the blink phase; after settling it stays true
+    bool is_done    = !is_active && t->process_done && t->blink_state;
+    bool is_success = is_done && t->last_exit_code == 0;
 
-    XSetForeground(dpy, gc, is_active ? focused.pixel
-                          : is_done   ? done_clr.pixel
-                          :             unfocused.pixel);
+    XSetForeground(dpy, gc, is_active  ? focused.pixel
+                          : is_done    ? (is_success ? success_clr.pixel : done_clr.pixel)
+                          :               unfocused.pixel);
 
     int x = visual_i * tab_width - pane_x;
 

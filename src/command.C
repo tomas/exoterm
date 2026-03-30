@@ -1797,13 +1797,14 @@ rxvt_term::draw_tabpopup ()
   for (int i = 0; i < ntabs; i++) {
     rxvt_term *tab   = tabs[i];
     bool is_active   = (tab->tab_index == active_idx);
-    bool is_done     = !is_active && tab->process_done;
+    bool is_done     = !is_active && tab->process_done && tab->blink_state;
+    bool is_success  = is_done && tab->last_exit_code == 0;
     int x            = i * tab_w;
     int w            = (i == ntabs - 1) ? (total_width - x) : tab_w;
 
     XSetForeground (dpy, tabpopup.gc,
-                    is_active ? tabpopup.bg_active
-                    : is_done  ? tabpopup.bg_done
+                    is_active  ? tabpopup.bg_active
+                    : is_done  ? (is_success ? tabpopup.bg_success : tabpopup.bg_done)
                     :            tabpopup.bg_inactive);
     XFillRectangle (dpy, tabpopup.win, tabpopup.gc, x, 0, w - 1, h);
 
@@ -1910,6 +1911,16 @@ rxvt_term::tabpopup_refresh_cb (ev::timer &w, int revents)
     draw_tabpopup ();
 }
 
+// Helper: mark a background tab as done and start its blink cycle.
+static void
+notify_process_done (rxvt_term *t, int exit_code)
+{
+  t->process_done   = true;
+  t->last_exit_code = exit_code;
+  t->blink_ticks    = 10;   // 10 half-cycles × 0.5 s = 5 s of blinking
+  t->blink_state    = true;
+}
+
 void
 rxvt_term::proc_poll_cb (ev::timer &w, int revents)
 {
@@ -1921,19 +1932,31 @@ rxvt_term::proc_poll_cb (ev::timer &w, int revents)
                             : GET_R->tab_index;
 
   bool changed = false;
+
   for (int i = 0; i < (int)termlist.size (); i++) {
     rxvt_term *t = termlist[i];
-    if (t->split_is_child)           continue;
-    if ((unsigned)i == active_idx)   continue;
-    if (t->shell_pgid <= 0)          continue;
-    if (t->process_done)             continue;  // already notified; wait for tab switch
-    if (!t->pty || t->pty->pty < 0)  continue;
+    if (t->split_is_child) continue;
+
+    // Advance blink state for tabs already notified
+    if (t->process_done && t->blink_ticks > 0) {
+      t->blink_ticks--;
+      t->blink_state = !t->blink_state;
+      if (t->blink_ticks == 0)
+        t->blink_state = true;  // settle on showing the color
+      changed = true;
+    }
+
+    // Poll for new completions in inactive tabs that haven't been notified yet
+    if ((unsigned)i == active_idx)    continue;
+    if (t->shell_pgid <= 0)           continue;
+    if (t->process_done)              continue;  // already notified via OSC or prior poll
+    if (!t->pty || t->pty->pty < 0)   continue;
 
     pid_t pgid = tcgetpgrp (t->pty->pty);
     if (pgid > 0 && pgid != t->shell_pgid) {
       t->had_fg_process = true;
     } else if (pgid == t->shell_pgid && t->had_fg_process) {
-      t->process_done = true;
+      notify_process_done (t, -1);  // exit code unknown (no shell integration)
       changed = true;
     }
   }
@@ -2118,6 +2141,9 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   focus_out();
   tab->process_done   = false;
   tab->had_fg_process = false;
+  tab->last_exit_code = -1;
+  tab->blink_ticks    = 0;
+  tab->blink_state    = false;
   tab->make_current();
   tab->focus_in();
 
@@ -5980,6 +6006,21 @@ rxvt_term::process_xterm_seq (int op, char *str, string_term &st)
                      op,
                      rs[Rs_name], VERSION[0], VERSION[2],
                      st.v);
+        break;
+
+      case OSC_ShellIntegration:
+        // Handle OSC 133;D;{exit_code} — command completion notification.
+        // Add to shell config:
+        //   bash: PROMPT_COMMAND='printf "\e]133;D;$?\a"'
+        //   zsh:  precmd() { printf "\e]133;D;$?\a" }
+        //   fish: function fish_prompt; printf "\e]133;D;$status\a"; end
+        if (str[0] == 'D' && str[1] == ';' && this != GET_R) {
+          int code = atoi (str + 2);
+          notify_process_done (this, code);
+          this->had_fg_process = false;  // OSC takes precedence over pgid polling
+          GET_R->want_refresh = 1;
+          GET_R->refresh_check ();
+        }
         break;
 
       case URxvt_cellinfo:
