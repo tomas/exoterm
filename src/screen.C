@@ -2325,11 +2325,13 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
-  XColor focused, unfocused;
+  XColor focused, unfocused, done_clr;
   XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
   XParseColor(dpy, cm, "#465163", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
+  XParseColor(dpy, cm, "#e8a020", &done_clr);
+  XAllocColor(dpy, cm, &done_clr);
 
   // Get the full terminal width from root's WM window.
   // apply_split_geometry may have called window_calc(half_w,...) on root,
@@ -2363,8 +2365,11 @@ void rxvt_term::scr_draw_bar() NOTHROW {
 
     bool is_active = (i == active_termlist_idx);
     bool is_split  = (termlist.at(i)->split_partner != nullptr);
+    bool is_done   = !is_active && termlist.at(i)->process_done;
 
-    XSetForeground(dpy, gc, is_active ? focused.pixel : unfocused.pixel);
+    XSetForeground(dpy, gc, is_active ? focused.pixel
+                          : is_done   ? done_clr.pixel
+                          :             unfocused.pixel);
 
     int x = visual_i * tab_width - pane_x;
 

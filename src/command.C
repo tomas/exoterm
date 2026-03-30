@@ -1797,11 +1797,14 @@ rxvt_term::draw_tabpopup ()
   for (int i = 0; i < ntabs; i++) {
     rxvt_term *tab   = tabs[i];
     bool is_active   = (tab->tab_index == active_idx);
+    bool is_done     = !is_active && tab->process_done;
     int x            = i * tab_w;
     int w            = (i == ntabs - 1) ? (total_width - x) : tab_w;
 
     XSetForeground (dpy, tabpopup.gc,
-                    is_active ? tabpopup.bg_active : tabpopup.bg_inactive);
+                    is_active ? tabpopup.bg_active
+                    : is_done  ? tabpopup.bg_done
+                    :            tabpopup.bg_inactive);
     XFillRectangle (dpy, tabpopup.win, tabpopup.gc, x, 0, w - 1, h);
 
     if (is_active)
@@ -1905,6 +1908,40 @@ rxvt_term::tabpopup_refresh_cb (ev::timer &w, int revents)
 {
   if (tabpopup.visible)
     draw_tabpopup ();
+}
+
+void
+rxvt_term::proc_poll_cb (ev::timer &w, int revents)
+{
+  if (termlist.size () <= 1 || !GET_R)
+    return;
+
+  unsigned int active_idx = GET_R->split_is_child && GET_R->split_partner
+                            ? GET_R->split_partner->tab_index
+                            : GET_R->tab_index;
+
+  bool changed = false;
+  for (int i = 0; i < (int)termlist.size (); i++) {
+    rxvt_term *t = termlist[i];
+    if (t->split_is_child)           continue;
+    if ((unsigned)i == active_idx)   continue;
+    if (t->shell_pgid <= 0)          continue;
+    if (t->process_done)             continue;  // already notified; wait for tab switch
+    if (!t->pty || t->pty->pty < 0)  continue;
+
+    pid_t pgid = tcgetpgrp (t->pty->pty);
+    if (pgid > 0 && pgid != t->shell_pgid) {
+      t->had_fg_process = true;
+    } else if (pgid == t->shell_pgid && t->had_fg_process) {
+      t->process_done = true;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    GET_R->want_refresh = 1;
+    GET_R->refresh_check ();
+  }
 }
 
 void
@@ -2079,6 +2116,8 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // (If destination is somehow a split child, geometry was already set by apply_split_geometry.)
 
   focus_out();
+  tab->process_done   = false;
+  tab->had_fg_process = false;
   tab->make_current();
   tab->focus_in();
 

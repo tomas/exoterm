@@ -1827,6 +1827,8 @@ rxvt_term::init_tabpopup ()
   XParseColor (dpy, cm, "#0d1117", &c); XAllocColor (dpy, cm, &c); tabpopup.fg_active   = c.pixel;
   XParseColor (dpy, cm, "#2a2f3d", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_inactive = c.pixel;
   tabpopup.fg_inactive = WhitePixel (dpy, screen);
+  XParseColor (dpy, cm, "#7a4400", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_done     = c.pixel;
+  XParseColor (dpy, cm, "#c8c8c8", &c); XAllocColor (dpy, cm, &c); tabpopup.bg_success  = c.pixel;
   XParseColor (dpy, cm, "#111118", &c); XAllocColor (dpy, cm, &c); tabpopup.bar_bg      = c.pixel;
 }
 
@@ -2164,6 +2166,10 @@ rxvt_term::run_command (const char *const *argv)
         pty->close_tty ();
 
         child_ev.start (cmd_pid);
+
+        shell_pgid = cmd_pid;   // shell is its own process-group leader
+        if (tab_index == 0)
+          proc_poll_ev.start (0.5, 0.5);  // root polls all inactive tabs every 0.5 s
 
         HOOK_INVOKE ((this, HOOK_CHILD_START, DT_INT, cmd_pid, DT_END));
         break;

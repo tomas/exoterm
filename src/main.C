@@ -215,10 +215,17 @@ rxvt_term::rxvt_term ()
   tabpopup_hide_ev.set    <rxvt_term, &rxvt_term::tabpopup_hide_cb> (this);
   tabpopup_refresh_ev.set <rxvt_term, &rxvt_term::tabpopup_refresh_cb> (this);
   split_bar_ev.set        <rxvt_term, &rxvt_term::x_split_bar_cb> (this);
+  proc_poll_ev.set        <rxvt_term, &rxvt_term::proc_poll_cb> (this);
   split_bar_win    = None;
   split_ratio      = 0.5f;
   split_drag_active = false;
   last_vt_motion_y  = -1;
+  shell_pgid        = 0;
+  process_done      = false;
+  had_fg_process    = false;
+  last_exit_code    = -1;
+  blink_ticks       = 0;
+  blink_state       = false;
 
   cmdbuf_ptr = cmdbuf_endp = cmdbuf_base;
 

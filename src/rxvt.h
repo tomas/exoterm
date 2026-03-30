@@ -316,6 +316,8 @@ struct tabpopup_t {
     unsigned long fg_inactive;
     unsigned long bg_active;
     unsigned long bg_inactive;
+    unsigned long bg_done;    // amber background: process finished with failure (or unknown)
+    unsigned long bg_success; // white/bright background: process finished with exit code 0
     unsigned long bar_bg;
 };
 
@@ -573,6 +575,8 @@ enum {
 
   URxvt_cellinfo         = 776,     // returns font cell width, height etc.
   URxvt_perl             = 777,     // for use by perl extensions, starts with "extension-name;"
+
+  OSC_ShellIntegration   = 133,     // shell integration: "D;{exit_code}" on command end
 };
 
 /* Words starting with `Color_' are colours.  Others are counts */
@@ -1199,6 +1203,14 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   int         split_drag_root_x, split_drag_root_y;   // root->parent screen origin at drag start
   int         split_drag_total_w, split_drag_total_h; // window size at drag start
 
+  // process-done notification
+  pid_t        shell_pgid;      // pgid of the shell (= cmd_pid, set after fork)
+  bool         process_done;    // true when a fg process finished in this inactive tab
+  bool         had_fg_process;  // internal: observed a non-shell fg process since last switch
+  int          last_exit_code;  // exit code from OSC 133;D (-1 = unknown)
+  int          blink_ticks;     // half-cycles remaining (each ~0.5 s); 0 = settled
+  bool         blink_state;     // current blink phase: true = show color, false = dim
+
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
   static const char resval_on [];       // boolean options switched on
@@ -1452,6 +1464,9 @@ Pixmap icon_mask; //  = None;
   void tabpopup_hide_cb (ev::timer &w, int revents);
   void tabpopup_refresh_cb (ev::timer &w, int revents);
   static void get_tab_label (rxvt_term *tab, char *buf, int bufsize);
+
+  ev::timer proc_poll_ev;
+  void proc_poll_cb (ev::timer &w, int revents);
 
   xevent_watcher split_bar_ev;
   void create_split_bar ();
