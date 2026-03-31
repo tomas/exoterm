@@ -127,6 +127,10 @@ static int   s_transparent        = 0;
 static int   s_auto_copy_sel      = 1;
 static char  s_cursor_color[16]   = "";
 static char  s_geometry[32]       = "";
+static char  s_cutchars[64]        = "";
+static int   s_active_italic_font = -1;
+static int   s_pending_italic_font = -1;
+static char *s_active_italic_xlfd = nullptr;
 
 /* ======================================================================
    Snapshot — saved on open, restored on Cancel
@@ -726,14 +730,11 @@ enum {
   CHANGED_AUTO_COPY_SEL       = 1 << 23,
   CHANGED_CURSOR_COLOR        = 1 << 24,
   CHANGED_GEOMETRY            = 1 << 25,
-#if XFT
-  CHANGED_XFT_FONT            = 1 << 26,
-  CHANGED_XFT_BOLD_FONT       = 1 << 27,
-#endif
-  CHANGED_SAVE           = 1 << 28,
-  CHANGED_APPLY          = 1 << 29,
-  CHANGED_CANCEL         = 1 << 30,
-  CHANGED_CLOSE          = 1 << 31,
+  CHANGED_CUTCHARS           = 1 << 26,
+  CHANGED_SAVE           = 1 << 27,
+  CHANGED_APPLY          = 1 << 28,
+  CHANGED_CANCEL         = 1 << 29,
+  CHANGED_CLOSE          = 1 << 30,
 };
 
 /* --- section header --- */
@@ -928,6 +929,34 @@ static int build_settings_window (mu_Context *ctx) {
       }
       mu_end_combo(ctx);
     }
+
+    input_label (ctx, "Italic Font");
+
+    char *italic_display_name = (s_active_italic_font == -1 && s_active_italic_xlfd)
+      ? xlfd_to_name (s_active_italic_xlfd)
+      : nullptr;
+    const char *italic_current = (s_active_italic_font != -1)
+      ? s_font_entries[s_active_italic_font].name
+      : (italic_display_name ? italic_display_name : "None");
+    if (mu_begin_combo_ex(ctx, "##italicfonts", italic_current, s_num_fonts * 34, 0)) {
+      { int c[] = {-1}; mu_layout_row (ctx, 1, c, 0); }
+      if (mu_button(ctx, "   None")) {
+        s_pending_italic_font = -1;
+        changed |= CHANGED_FONT;
+        mu_close_popup(ctx, "##italicfonts");
+      }
+      for (int i = 0; i < s_num_fonts; i++) {
+        char label[128];
+        snprintf (label, sizeof (label), "%s%s",
+            (s_active_italic_font == i) ? ">  " : "   ", s_font_entries[i].name);
+        if (mu_button(ctx, label)) {
+          s_pending_italic_font = i;
+          changed |= CHANGED_FONT;
+          mu_close_popup(ctx, "##italicfonts");
+        }
+      }
+      mu_end_combo(ctx);
+    }
 #if XFT
     } else { /* s_use_xft */
 
@@ -991,6 +1020,10 @@ static int build_settings_window (mu_Context *ctx) {
     input_label (ctx, "Autocopy selection");
     if (mu_checkbox (ctx, NULL, &s_auto_copy_sel) & MU_RES_CHANGE)
       changed |= CHANGED_AUTO_COPY_SEL;
+
+    input_label (ctx, "Selection chars");
+    if (mu_textbox (ctx, s_cutchars, sizeof (s_cutchars)) & MU_RES_CHANGE)
+      changed |= CHANGED_CUTCHARS;
 
     // input_label (ctx, "Cursor Color");
     // if (mu_textbox (ctx, s_cursor_color, sizeof (s_cursor_color)) & MU_RES_CHANGE)
@@ -1180,6 +1213,28 @@ static void apply_settings (int changed) {
       }
     }
     s_pending_font = -1;
+
+    if (s_pending_italic_font >= 0 || s_pending_italic_font == -1) {
+      int idx = s_pending_italic_font;
+      for (rxvt_term *t : rxvt_term::termlist) {
+        if (idx >= 0 && idx < s_num_fonts) {
+          replace_rs_str (t, Rs_italicFont, s_font_entries[idx].xlfd);
+        } else {
+          replace_rs_str (t, Rs_italicFont, nullptr);
+        }
+        t->set_fonts ();
+      }
+      if (idx >= 0 && idx < s_num_fonts) {
+        s_active_italic_font = idx;
+        free(s_active_italic_xlfd);
+        s_active_italic_xlfd = strdup(s_font_entries[idx].xlfd);
+      } else {
+        s_active_italic_font = -1;
+        free(s_active_italic_xlfd);
+        s_active_italic_xlfd = nullptr;
+      }
+      s_pending_italic_font = -2;  // -2 means "already applied"
+    }
   }
 
   if (changed & CHANGED_BOLD_FONT) {
@@ -1208,6 +1263,12 @@ static void apply_settings (int changed) {
       s_active_bold_xlfd = nullptr;
     }
     s_pending_bold_font = -1;
+  }
+
+  if (changed & CHANGED_CUTCHARS) {
+    for (rxvt_term *t : rxvt_term::termlist) {
+      replace_rs_str (t, Rs_cutchars, s_cutchars[0] ? s_cutchars : nullptr);
+    }
   }
 
 #if XFT
@@ -1474,6 +1535,14 @@ static void read_settings_from_term (rxvt_term *t) {
 
   free(s_active_bold_xlfd);
   s_active_bold_xlfd = t->rs[Rs_boldFont] ? strdup(t->rs[Rs_boldFont]) : nullptr;
+
+  free(s_active_italic_xlfd);
+  s_active_italic_xlfd = t->rs[Rs_italicFont] ? strdup(t->rs[Rs_italicFont]) : nullptr;
+
+  if (t->rs[Rs_cutchars])
+    snprintf (s_cutchars, sizeof (s_cutchars), "%s", t->rs[Rs_cutchars]);
+  else
+    s_cutchars[0] = '\0';
 
 #if XFT
   s_use_xft = (s_active_font_xlfd && strncmp (s_active_font_xlfd, "xft:", 4) == 0) ? 1 : 0;
@@ -1946,6 +2015,10 @@ rxvt_term::destroy_settings_ui ()
     s_active_bold_xlfd = nullptr;
     s_active_bold_font = -1;
     s_pending_bold_font = -1;
+    free(s_active_italic_xlfd);
+    s_active_italic_xlfd = nullptr;
+    s_active_italic_font = -1;
+    s_pending_italic_font = -1;
 #if XFT
     for (int i = 0; i < s_num_xft_fonts; i++) {
       free (s_xft_font_entries[i].name);
@@ -2067,9 +2140,13 @@ static void save_to_xdefaults (rxvt_term *first_term) {
     g_string_append_printf (block, "Exoterm.font:              %s\n", s_active_font_xlfd);
   if (s_active_bold_xlfd && *s_active_bold_xlfd)
     g_string_append_printf (block, "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
+  if (s_active_italic_xlfd && *s_active_italic_xlfd)
+    g_string_append_printf (block, "Exoterm.italicFont:        %s\n", s_active_italic_xlfd);
 
   // cursor and selection
   g_string_append_printf (block, "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel   ? "true" : "false");
+  if (s_cutchars[0])
+    g_string_append_printf (block, "Exoterm.cutchars:          %s\n", s_cutchars);
 
   // if (s_cursor_color[0])
   //   g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
