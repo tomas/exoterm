@@ -364,15 +364,15 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
             // a=3: bottom-left cell  → sector   0°.. 90° (upper-right quarter)
             // a=4: bottom-right cell → sector  90°..180° (upper-left quarter)
             {
-              int dw = 2 * (W - 1);
-              int dh = 2 * (H - 1);
+              int dw = 2 * (W);
+              int dh = 2 * (H);
               int bbx, bby, angle1;
               switch (a)
                 {
-                  case 1: bbx = x - (W-1); bby = y - (H-1); angle1 = 270*64; break;
-                  case 2: bbx = x;         bby = y - (H-1); angle1 = 180*64; break;
-                  case 3: bbx = x - (W-1); bby = y;         angle1 = 0;      break;
-                  default:bbx = x;         bby = y;         angle1 =  90*64; break;
+                  case 1: dw += 1; bbx = x-1;         bby = y;         angle1 =  90*64;  break;
+                  case 2: bbx = x-1 - (W-1); bby = y;         angle1 = 0;       break;
+                  case 3: dw += 1; bbx = x-1;         bby = y - (H); angle1 = 180*64;  break;
+                  default: bbx = x-1 - (W-1); bby = y - (H); angle1 = 270*64; break;
                 }
               XFillArc (disp, d, gc, bbx, bby, dw, dh, angle1, 90*64);
               break;
