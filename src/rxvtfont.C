@@ -358,6 +358,25 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
                         (a - 1) * 90*64, (b - 1) * 90*64);
               break;
             }
+          case 5: // filled rounded corner sector (no clipping needed: sector stays in-cell)
+            // a=1: top-left cell     → sector 270°..360° (lower-right quarter)
+            // a=2: top-right cell    → sector 180°..270° (lower-left quarter)
+            // a=3: bottom-left cell  → sector   0°.. 90° (upper-right quarter)
+            // a=4: bottom-right cell → sector  90°..180° (upper-left quarter)
+            {
+              int dw = 2 * (W - 1);
+              int dh = 2 * (H - 1);
+              int bbx, bby, angle1;
+              switch (a)
+                {
+                  case 1: bbx = x - (W-1); bby = y - (H-1); angle1 = 270*64; break;
+                  case 2: bbx = x;         bby = y - (H-1); angle1 = 180*64; break;
+                  case 3: bbx = x - (W-1); bby = y;         angle1 = 0;      break;
+                  default:bbx = x;         bby = y;         angle1 =  90*64; break;
+                }
+              XFillArc (disp, d, gc, bbx, bby, dw, dh, angle1, 90*64);
+              break;
+            }
         }
     }
 }
@@ -412,7 +431,8 @@ struct rxvt_font_default : rxvt_font {
     if ((unicode >= 0x2500 && unicode <= 0x259f) ||
         (unicode >= 0x25a0 && unicode <= 0x25af) ||
         (unicode >= 0x23f4 && unicode <= 0x23fa) ||
-        (unicode >= 0x2b00 && unicode <= 0x2b24))
+        (unicode >= 0x2b00 && unicode <= 0x2b24) ||
+        (unicode >= 0xe200 && unicode <= 0xe203))
       if (!term->option (Opt_skipBuiltinGlyphs))
         return true;
 #endif
@@ -440,6 +460,7 @@ struct rxvt_font_default : rxvt_font {
 # include "table/linedraw_2500.h"
 # include "table/linedraw_25a0.h"
 # include "table/linedraw_2b00.h"
+# include "table/linedraw_e200.h"
 #endif
 
 void
@@ -488,6 +509,11 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
         {
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
+        }
+      else if (0xe200 <= t && t <= 0xe203)
+        {
+          uint16_t offs = linedraw_e200_offs[t - 0xe200];
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, offs);
         }
 #else
       if (0)
