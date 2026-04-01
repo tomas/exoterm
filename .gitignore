@@ -12,4 +12,7 @@ fonts
 src/lib/microui.o
 src/lib/microui_renderer_xrender.o
 sandbox
-libsixel/
+libsixel
+src/exoterm
+src/exotermc
+src/exotermd
