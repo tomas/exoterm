@@ -358,29 +358,43 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
                         (a - 1) * 90*64, (b - 1) * 90*64);
               break;
             }
-          case 5: // filled rounded corner sector (no clipping needed: sector stays in-cell)
-            // a=1: top-left cell     → sector 270°..360° (lower-right quarter)
-            // a=2: top-right cell    → sector 180°..270° (lower-left quarter)
-            // a=3: bottom-left cell  → sector   0°.. 90° (upper-right quarter)
-            // a=4: bottom-right cell → sector  90°..180° (upper-left quarter)
-            // b=0: full size, b=1: half size
+          case 5: // filled rounded corner (full or half size)
+
             {
               int is_half = (b == 1);
-              int dw = is_half ? W : 2 * (W);
-              int dh = is_half ? H : 2 * (H);
-              int bbx, bby, angle1;
-              switch (a)
-                {
-                  case 1: dw += 1; bbx = x-1;         bby = y;         angle1 =  90*64;  break;
-                  case 2: bbx = x-1 - (is_half ? W : (W-1)); bby = y;         angle1 = 0;       break;
-                  case 3: dw += 1; bbx = x-1;         bby = y - (H); angle1 = 180*64;  break;
-                  default: bbx = x-1 - (is_half ? W : (W-1)); bby = y - (H); angle1 = 270*64; break;
-                }
-              // Half-size arcs need to be centered in the corner region
-              if (is_half)
-                XFillArc (disp, d, gc, bbx + W/2, bby + H/2, dw, dh, angle1, 90*64);
-              else
-                XFillArc (disp, d, gc, bbx, bby, dw, dh, angle1, 90*64);
+              int dw = is_half ? W : 2 * W;
+              int dh = is_half ? H : 2 * H;
+
+              // Apply the half-size centering offsets directly to the base coordinates
+              int bbx = x - 1 + (is_half ? W / 2 : 0);
+              int bby = y     + (is_half ? H / 2 : 0);
+
+              // Extract the repetitive X-offset calculation
+              int x_offset = is_half ? W : (W - 1);
+              int angle1;
+
+              switch (a) {
+                case 1:
+                  dw += 1;
+                  angle1 = 90 * 64;
+                  break;
+                case 2:
+                  bbx -= x_offset;
+                  angle1 = 0;
+                  break;
+                case 3:
+                  dw += 1;
+                  bby -= H;
+                  angle1 = 180 * 64;
+                  break;
+                default:
+                  bbx -= x_offset;
+                  bby -= H;
+                  angle1 = 270 * 64;
+                  break;
+              }
+
+              XFillArc(disp, d, gc, bbx, bby, dw, dh, angle1, 90 * 64);
               break;
             }
         }
