@@ -34,6 +34,8 @@ BR_half = "\uE207"   # bot-right corner fill  (inner = upper-left  sector) - hal
 # Half-block characters
 UPPER_HALF = "\u2580"  # ▀
 LOWER_HALF = "\u2584"  # ▄
+LEFT_HALF = "\u258C"   # ▌
+RIGHT_HALF = "\u2590"  # ▐
 
 def draw_box(row, col, w, h, box_color, outer_color, label=""):
     """
@@ -92,82 +94,36 @@ def draw_halfsize_box(row, col, w, h_half, box_color, outer_color, label=""):
         is_upper_half = (r % 2 == 0)
 
         if logical_row == 0:
-            # # Top row: upper half uses TL_half, lower half is empty
+            # Top row: upper half uses TL_half, lower half is empty
             if is_upper_half:
                 buf.append(fg256(box_color) + bg256(outer_color) + TL_half)
-                buf.append(bg256(box_color) + fg256(outer_color) + UPPER_HALF * (w - 2))
+                buf.append(fg256(box_color) + bg256(outer_color) + LOWER_HALF * (w - 2))
                 buf.append(fg256(box_color) + bg256(outer_color) + TR_half)
             else:
-                # Lower half of top row: just the box color
-                buf.append(bg256(box_color) + fg256(outer_color) + " " * w)
+                buf.append(bg256(box_color) + fg256(outer_color) + LEFT_HALF)
+                buf.append(bg256(box_color) + fg256(outer_color) + " " * (w - 2))
+                buf.append(bg256(box_color) + fg256(outer_color) + RIGHT_HALF)
 
         elif logical_row == h_half - 1:
             # Bottom row: upper half is box color, lower half uses BL_half/BR_half
             if is_upper_half:
-                buf.append(bg256(box_color) + fg256(outer_color) + " " * w)
+                # Upper half of bottom row: use LEFT_HALF and RIGHT_HALF for the sides
+                buf.append(bg256(box_color) + fg256(outer_color) + LEFT_HALF +
+                          bg256(box_color) + fg256(box_color) + " " * (w - 2) +
+                          bg256(box_color) + fg256(outer_color) + RIGHT_HALF)
             else:
                 buf.append(fg256(box_color) + bg256(outer_color) + BL_half)
                 buf.append(bg256(box_color) + fg256(outer_color) + LOWER_HALF * (w - 2))
                 buf.append(fg256(box_color) + bg256(outer_color) + BR_half)
 
         else:
-            # Interior rows
-            if is_upper_half:
-                # Upper half: box color
-                buf.append(bg256(box_color) + fg256(outer_color) + " " * w)
-            else:
-                # Lower half: also box color (creates solid interior)
-                if logical_row == h_half // 2 and label:
-                    pad = (w - len(label)) // 2
-                    buf.append(bg256(box_color) + fg256(outer_color) + " " * pad + label + " " * (w - pad - len(label)))
-                else:
-                    buf.append(bg256(box_color) + fg256(outer_color) + " " * w)
+            buf.append(bg256(box_color) + fg256(outer_color) + LEFT_HALF +
+                      bg256(box_color) + fg256(box_color) + " " * (w - 2) +
+                      bg256(box_color) + fg256(outer_color) + RIGHT_HALF)
+
 
     buf.append(reset())
     return "".join(buf)
-
-
-def draw_box_with_half_blocks(row, col, w, h, box_color, outer_color, label=""):
-    """
-    Draw a box using half-size arcs ACTUALLY combined with half-block characters.
-    This shows how to properly use half-size arcs with half-blocks.
-
-    h is in full rows, but we use half-blocks to get finer vertical resolution.
-    """
-    buf = []
-
-    for r in range(h * 2):  # Double the vertical resolution
-        buf.append(cup(row + r, col))
-        logical_row = r // 2
-        is_upper_half = (r % 2 == 0)
-
-        if r == 0:
-            # Very top: use upper half-block with half-size top-left arc
-            buf.append(fg256(box_color) + bg256(outer_color) + TL_half)
-            buf.append(bg256(box_color) + fg256(outer_color) + UPPER_HALF * (w - 2))
-            buf.append(fg256(box_color) + bg256(outer_color) + TR_half)
-        elif r == h * 2 - 1:
-            # Very bottom: use lower half-block with half-size bottom-right arc
-            buf.append(fg256(box_color) + bg256(outer_color) + BL_half)
-            buf.append(bg256(box_color) + fg256(outer_color) + LOWER_HALF * (w - 2))
-            buf.append(fg256(box_color) + bg256(outer_color) + BR_half)
-        else:
-            # Interior: use appropriate half-blocks
-            if is_upper_half:
-                # Upper half of a row
-                if logical_row == h // 2 and label and r == h:  # Middle row
-                    pad = (w - len(label)) // 2
-                    buf.append(bg256(box_color) + fg256(outer_color) +
-                               UPPER_HALF * pad + label + UPPER_HALF * (w - pad - len(label)))
-                else:
-                    buf.append(bg256(box_color) + fg256(outer_color) + UPPER_HALF * w)
-            else:
-                # Lower half of a row
-                buf.append(bg256(box_color) + fg256(outer_color) + LOWER_HALF * w)
-
-    buf.append(reset())
-    return "".join(buf)
-
 
 out = []
 out.append(clear())

@@ -389,9 +389,9 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
               switch (a)
                 {
                   case 1: dw += 1; bbx = x-1;         bby = y;         angle1 =  90*64;  break;
-                  case 2: bbx = x-1 - (W-1); bby = y;         angle1 = 0;       break;
+                  case 2: bbx = x-1 - (W); bby = y;         angle1 = 0;       break;
                   case 3: dw += 1; bbx = x-1;         bby = y - (H); angle1 = 180*64;  break;
-                  default: bbx = x-1 - (W-1); bby = y - (H); angle1 = 270*64; break;
+                  default: bbx = x-1 - (W); bby = y - (H); angle1 = 270*64; break;
                 }
               XFillArc (disp, d, gc, bbx + W/2, bby + H/2, dw, dh, angle1, 90*64);
               break;
