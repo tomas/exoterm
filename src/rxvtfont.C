@@ -377,6 +377,25 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
               XFillArc (disp, d, gc, bbx, bby, dw, dh, angle1, 90*64);
               break;
             }
+          case 6: // half-size filled rounded corner sector (for use with half-width blocks)
+            // a=1: top-left cell     → sector 270°..360° (lower-right quarter)
+            // a=2: top-right cell    → sector 180°..270° (lower-left quarter)
+            // a=3: bottom-left cell  → sector   0°.. 90° (upper-right quarter)
+            // a=4: bottom-right cell → sector  90°..180° (upper-left quarter)
+            {
+              int dw = W;  // Half the diameter of case 5
+              int dh = H;
+              int bbx, bby, angle1;
+              switch (a)
+                {
+                  case 1: dw += 1; bbx = x-1;         bby = y;         angle1 =  90*64;  break;
+                  case 2: bbx = x-1 - (W-1); bby = y;         angle1 = 0;       break;
+                  case 3: dw += 1; bbx = x-1;         bby = y - (H); angle1 = 180*64;  break;
+                  default: bbx = x-1 - (W-1); bby = y - (H); angle1 = 270*64; break;
+                }
+              XFillArc (disp, d, gc, bbx + W/2, bby + H/2, dw, dh, angle1, 90*64);
+              break;
+            }
         }
     }
 }
@@ -510,7 +529,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
         }
-      else if (0xe200 <= t && t <= 0xe203)
+      else if (0xe200 <= t && t <= 0xe207)
         {
           uint16_t offs = linedraw_e200_offs[t - 0xe200];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, offs);
