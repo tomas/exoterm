@@ -277,7 +277,7 @@ struct minimap_t {
     int height;                  // Cached height in pixels (= vt_height)
     Pixmap buffer;               // Persistent off-screen buffer (recreated on resize only)
     bool auto_hidden;            // Hidden automatically because cursor overlaps minimap
-    bool hidden_by_cursor;       // Hidden automatically because cursor was hidden by TUI
+    int hidden_by_cursor;        // 1=hidden by TUI cursor hide, 2=show pending (deferred until next flush)
 
     XRenderPictFormat *xr_format;    // Cached XRender visual format for buffer pixmap
     XRenderColor bg_render_color;    // 80% opaque background color for XRender composite

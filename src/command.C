@@ -1659,6 +1659,17 @@ rxvt_term::flush () {
         }
 
       scr_refresh ();
+#ifdef ENABLE_MINIMAP
+      if (minimap.hidden_by_cursor == 2)
+        {
+          minimap.hidden_by_cursor = 0;
+          minimap.visible = true;
+          minimap.needs_full_redraw = true;
+          XClearWindow (dpy, minimap.win);
+          render_minimap ();
+          XMapWindow (dpy, minimap.win);
+        }
+#endif
       scrollBar.show (1);
 #if USE_XIM
       im_send_spot ();

@@ -4824,16 +4824,13 @@ void rxvt_term::toggle_minimap_by_cursor(int hide) {
   if (hide) {
     if (minimap.enabled && minimap.visible) {
       minimap.visible = false;
-      minimap.hidden_by_cursor = true;
+      minimap.hidden_by_cursor = 1;
       XUnmapWindow(dpy, minimap.win);
     }
   } else {
     if (minimap.enabled && minimap.hidden_by_cursor) {
-      minimap.visible = true;
-      minimap.hidden_by_cursor = false;
-      XClearWindow(dpy, minimap.win);
-      render_minimap();
-      XMapWindow(dpy, minimap.win);
+      minimap.hidden_by_cursor = 2; // show pending: defer map/render to next flush
+      want_refresh = 1;
     }
   }
 }
