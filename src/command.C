@@ -4049,14 +4049,8 @@ rxvt_term::button_press (XButtonEvent &ev)
                 break;
 
               case Button3:
-                if (ev.state & ShiftMask) {
-                  /* Shift+Button3 preserves old selection-extend behaviour. */
-                  if (MEvent.button == Button3 && clickintime)
-                    selection_rotate (ev.x, ev.y);
-                  else
-                    selection_extend (ev.x, ev.y, 1);
-                } else {
-                  /* Plain right-click → context menu. */
+                {
+                  /* Right-click (plain or Shift) → context menu. */
                   rxvt_term *root = termlist.at (0);
                   root->show_context_menu (ev.x_root, ev.y_root, this);
                 }
