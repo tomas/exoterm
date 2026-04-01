@@ -262,6 +262,26 @@ rxvt_font::clear_rect (rxvt_drawable &d, int x, int y, int w, int h, int color) 
     }
 }
 
+
+void draw_arc_segment(Display *disp, Drawable d, GC gc,
+                      int x, int y, int W, int H,
+                      int is_half, int angle,
+                      int x_mult, int y_mult, int dw_extra)  {
+    // 1. Calculate base dimensions
+    int dw = (is_half ? W : 2 * W) + dw_extra;
+    int dh = (is_half ? H : 2 * H);
+
+    // 2. Calculate offsets
+    // x_mult and y_mult should be 0, 1, or -1 based on the corner
+    int x_offset = is_half ? W : (W - 1);
+
+    // 3. Final coordinates with centering logic baked in
+    int bbx = x - 1 + (is_half ? W / 2 : 0) + (x_mult * x_offset);
+    int bby = y     + (is_half ? H / 2 : 0) + (y_mult * H);
+
+    XFillArc(disp, d, gc, bbx, bby, dw, dh, angle * 64, 90 * 64);
+}
+
 static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
                         int W, int H, uint32_t *commands, uint16_t offs)
 {
@@ -362,40 +382,10 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
 
             {
               int is_half = (b == 1);
-              int dw = is_half ? W : 2 * W;
-              int dh = is_half ? H : 2 * H;
-
-              // Apply the half-size centering offsets directly to the base coordinates
-              int bbx = x - 1 + (is_half ? W / 2 : 0);
-              int bby = y     + (is_half ? H / 2 : 0);
-
-              // Extract the repetitive X-offset calculation
-              int x_offset = is_half ? W : (W - 1);
-              int angle1;
-
-              switch (a) {
-                case 1:
-                  dw += 1;
-                  angle1 = 90 * 64;
-                  break;
-                case 2:
-                  bbx -= x_offset;
-                  angle1 = 0;
-                  break;
-                case 3:
-                  dw += 1;
-                  bby -= H;
-                  angle1 = 180 * 64;
-                  break;
-                default:
-                  bbx -= x_offset;
-                  bby -= H;
-                  angle1 = 270 * 64;
-                  break;
-              }
-
-              XFillArc(disp, d, gc, bbx, bby, dw, dh, angle1, 90 * 64);
-              break;
+              if (a == 1) draw_arc_segment(disp, d, gc, x, y, W, H, is_half,       90,  0,  0, 1);
+              else if (a == 2) draw_arc_segment(disp, d, gc, x, y, W, H, is_half,   0, -1,  0, 0);
+              else if (a == 3) draw_arc_segment(disp, d, gc, x, y, W, H, is_half, 180,  0, -1, 1);
+              else draw_arc_segment(disp, d, gc, x, y, W, H, is_half,             270, -1, -1, 0);
             }
         }
     }
