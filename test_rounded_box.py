@@ -20,21 +20,21 @@ def reset():            return f"{ESC}[0m"
 def clear():            return f"{ESC}[2J"
 
 # PUA glyphs defined in linedraw_e200.h
-TL = "\uE200"   # top-left  corner fill  (inner = lower-right sector) - full size
-TR = "\uE201"   # top-right corner fill  (inner = lower-left  sector) - full size
-BL = "\uE202"   # bot-left  corner fill  (inner = upper-right sector) - full size
-BR = "\uE203"   # bot-right corner fill  (inner = upper-left  sector) - full size
+TL = "\u2552"   # top-left  corner fill  (inner = lower-right sector) - full size
+TR = "\u2555"   # top-right corner fill  (inner = lower-left  sector) - full size
+BL = "\u2558"   # bot-left  corner fill  (inner = upper-right sector) - full size
+BR = "\u255B"   # bot-right corner fill  (inner = upper-left  sector) - full size
 
 # Half-size arcs for use with half-height blocks
-TL_half = "\uE204"   # top-left  corner fill  (inner = lower-right sector) - half size
-TR_half = "\uE205"   # top-right corner fill  (inner = lower-left  sector) - half size
-BL_half = "\uE206"   # bot-left  corner fill  (inner = upper-right sector) - half size
-BR_half = "\uE207"   # bot-right corner fill  (inner = upper-left  sector) - half size
+TL_half = "\u2553"   # top-left  corner fill  (inner = lower-right sector) - half size
+TR_half = "\u2556"   # top-right corner fill  (inner = lower-left  sector) - half size
+BL_half = "\u2559"   # bot-left  corner fill  (inner = upper-right sector) - half size
+BR_half = "\u255C"   # bot-right corner fill  (inner = upper-left  sector) - half size
 
 # Half-block characters
 UPPER_HALF = "\u2580"  # ▀
 LOWER_HALF = "\u2584"  # ▄
-LEFT_HALF = "\u258C"   # ▌
+LEFT_HALF  = "\u258C"   # ▌
 RIGHT_HALF = "\u2590"  # ▐
 
 def draw_box(row, col, w, h, box_color, outer_color, label=""):
@@ -129,31 +129,31 @@ out = []
 out.append(clear())
 out.append(cup(1, 1))
 
-# # Box 1 — steel blue on default background (full-size arcs)
-# out.append(draw_box(2, 4, 32, 7, box_color=24, outer_color=0,
-#                     label="full-size arcs"))
+# Box 1 — steel blue on default background (full-size arcs)
+out.append(draw_box(2, 4, 32, 7, box_color=24, outer_color=0,
+                    label="full-size arcs"))
 
-# # Box 2 — dark red on default background (full-size arcs)
-# out.append(draw_box(11, 4, 32, 7, box_color=88, outer_color=0,
-#                     label="another box"))
+# Box 2 — dark red on default background (full-size arcs)
+out.append(draw_box(11, 4, 32, 7, box_color=88, outer_color=0,
+                    label="another box"))
 
-# # Box 3 — nested: green box on blue background (demonstrates corners blend)
-# out.append(bg256(24) + "".join(
-#     cup(20 + r, 4) + " " * 40 for r in range(9)
-# ))
-# out.append(draw_box(21, 6, 28, 7, box_color=22, outer_color=24,
-#                     label="nested box"))
-
-# Box 4 — magenta using half-size arcs (positioned below box 3)
-out.append(draw_halfsize_box(2, 4, 32, 5, box_color=127, outer_color=0,
-                             label="half-size arcs"))
-
-# Box 5 — cyan using half-size arcs, nested on magenta background
-out.append(bg256(127) + "".join(
-    cup(13 + r, 4) + " " * 32 for r in range(10)
+# Box 3 — nested: green box on blue background (demonstrates corners blend)
+out.append(bg256(24) + "".join(
+    cup(20 + r, 4) + " " * 40 for r in range(9)
 ))
-out.append(draw_halfsize_box(14, 6, 28, 4, box_color=51, outer_color=127,
-                             label="nested half"))
+out.append(draw_box(21, 6, 28, 7, box_color=22, outer_color=24,
+                    label="nested box"))
+
+# # Box 4 — magenta using half-size arcs (positioned below box 3)
+# out.append(draw_halfsize_box(2, 4, 32, 5, box_color=127, outer_color=0,
+#                              label="half-size arcs"))
+
+# # Box 5 — cyan using half-size arcs, nested on magenta background
+# out.append(bg256(127) + "".join(
+#     cup(13 + r, 4) + " " * 32 for r in range(10)
+# ))
+# out.append(draw_halfsize_box(14, 6, 28, 4, box_color=51, outer_color=127,
+#                              label="nested half"))
 
 out.append(reset())
 out.append(cup(50, 1))
