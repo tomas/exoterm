@@ -56,7 +56,7 @@ struct rxvt_font
   virtual void draw (rxvt_drawable &d,
                      int x, int y,
                      const text_t *text, int len,
-                     int fg, int bg) = 0;
+                     int fg, int bg, rend_t rend) = 0;
 
   void unref ()
   {

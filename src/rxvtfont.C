@@ -462,7 +462,7 @@ struct rxvt_font_default : rxvt_font {
 
   void draw (rxvt_drawable &d, int x, int y,
              const text_t *text, int len,
-             int fg, int bg);
+             int fg, int bg, rend_t rend);
 };
 
 #ifdef BUILTIN_GLYPHS
@@ -476,7 +476,7 @@ struct rxvt_font_default : rxvt_font {
 void
 rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
                          const text_t *text, int len,
-                         int fg, int bg)
+                         int fg, int bg, rend_t rend)
 {
   dTermDisplay;
   dTermGC;
@@ -484,6 +484,19 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
   clear_rect (d, x, y, term->fwidth * len, term->fheight, bg);
 
   XSetForeground (disp, gc, term->lookup_color(fg, term->pix_colors));
+
+  bool use_bold = (rend & RS_Bold) != 0;
+
+  static const uint16_t quad_to_arc_offs[] = {
+    0x0031, // 0x259B bottom right -> full (U+E203)
+    0x0021, // 0x259C bottom left  -> full (U+E202)
+    0x0011, // 0x259D bottom left  -> half (U+E206)
+    0x0001, // 0x259E (unused)
+    0x0071, // 0x259F top left    -> full (U+E200)
+    0x0041, // 0x25A0 (unused)
+    0x0051, // 0x25A1 (unused)
+    0x0061, // 0x2598 bottom right -> half (U+E207)
+  };
 
   while (len)
     {
@@ -498,6 +511,17 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
 
       int width = text - tp;
       int fwidth = term->fwidth * width;
+
+      if (use_bold && 0x2598 <= t && t <= 0x259f)
+        {
+          int idx = t - 0x2598;
+          uint16_t arc_offs = quad_to_arc_offs[idx];
+          if (arc_offs)
+            {
+              draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, arc_offs);
+              goto done_glyph;
+            }
+        }
 
 #ifdef BUILTIN_GLYPHS
       if (0x2500 <= t && t <= 0x259f)
@@ -525,13 +549,40 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
           uint16_t offs = linedraw_e200_offs[t - 0xe200];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, offs);
         }
+      else
+        {
+          switch (t)
+            {
+              case ' ':
+              case '\t':
+              case ZERO_WIDTH_CHAR:
+              case NOCHAR:
+                break;
+
+              default:
+                XDrawRectangle (disp, d, gc, x + 1, y + 2,
+                                fwidth - 3, term->fheight - 9);
+            }
+        }
 #else
-      if (0)
-        ;
+      switch (t)
+        {
+          case ' ':
+          case '\t':
+          case ZERO_WIDTH_CHAR:
+          case NOCHAR:
+            break;
+
+          default:
+            XDrawRectangle (disp, d, gc, x + 1, y + 2,
+                            fwidth - 3, term->fheight - 9);
+        }
 #endif
 
+      done_glyph:
+
 #if ENABLE_COMBINING
-      else if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
+      if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
         {
           min_it (width, 2); // we only support wcwidth up to 2
 
@@ -540,7 +591,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
 
           *chrs = cc->c1;
           rxvt_font *f1 = (*fs)[fs->find_font_idx (cc->c1)];
-          f1->draw (d, x, y, chrs, width, fg, bg);
+          f1->draw (d, x, y, chrs, width, fg, bg, rend);
 
           if (cc->c2 != NOCHAR)
             {
@@ -552,7 +603,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
                                 ? f1
                                 : (*fs)[fs->find_font_idx (cc->c2)];
 
-              f2->draw (d, x, y, chrs, width, fg, Color_none);
+              f2->draw (d, x, y, chrs, width, fg, Color_none, rend);
             }
         }
 #endif
@@ -613,7 +664,7 @@ struct rxvt_font_overflow : rxvt_font {
 
   void draw (rxvt_drawable &d, int x, int y,
              const text_t *text, int len,
-             int fg, int bg)
+             int fg, int bg, rend_t rend)
   {
     while (len)
       {
@@ -621,7 +672,7 @@ struct rxvt_font_overflow : rxvt_font {
         int w = 1;
         while (w < len && text[w] == NOCHAR)
           w++;
-        (*fs)[fid]->draw (d, x, y, text, w, fg, bg);
+        (*fs)[fid]->draw (d, x, y, text, w, fg, bg, rend);
         text += w;
         len -= w;
         x += term->fwidth * w;
@@ -644,7 +695,7 @@ struct rxvt_font_x11 : rxvt_font {
 
   void draw (rxvt_drawable &d, int x, int y,
              const text_t *text, int len,
-             int fg, int bg);
+             int fg, int bg, rend_t rend);
 
   bool slow; // whether this is a proportional font or has other funny characteristics
   XFontStruct *f;
@@ -1127,7 +1178,7 @@ rxvt_font_x11::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
 void
 rxvt_font_x11::draw (rxvt_drawable &d, int x, int y,
                      const text_t *text, int len,
-                     int fg, int bg)
+                     int fg, int bg, rend_t rend)
 {
   // this looks like a mess /.
   // and it is a mess /.
@@ -1229,7 +1280,7 @@ struct rxvt_font_xft : rxvt_font {
 
   void draw (rxvt_drawable &d, int x, int y,
              const text_t *text, int len,
-             int fg, int bg);
+             int fg, int bg, rend_t rend);
 
   bool has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &careful) const;
 
@@ -1465,7 +1516,7 @@ rxvt_font_xft::has_char (unicode_t unicode, const rxvt_fontprop *prop, bool &car
 void
 rxvt_font_xft::draw (rxvt_drawable &d, int x, int y,
                      const text_t *text, int len,
-                     int fg, int bg)
+                     int fg, int bg, rend_t rend)
 {
   XGlyphInfo extents;
   XftGlyphSpec *enc = rxvt_temp_buf<XftGlyphSpec> (len);

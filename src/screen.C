@@ -2778,7 +2778,7 @@ rxvt_term::scr_refresh () NOTHROW
               for (i = 0; i < count; i++) /* don't draw empty strings */
                 if (text[i] != ' ')
                   {
-                    font->draw (*drawable, xpixel, ypixel, text, count, fore, Color_transparent);
+                    font->draw (*drawable, xpixel, ypixel, text, count, fore, Color_transparent, rend);
                     goto did_clear;
                   }
 
@@ -2786,7 +2786,7 @@ rxvt_term::scr_refresh () NOTHROW
               did_clear: ;
             }
           else
-            font->draw (*drawable, xpixel, ypixel, text, count, fore, back);
+            font->draw (*drawable, xpixel, ypixel, text, count, fore, back, rend);
 
           if (ecb_unlikely (rend & RS_Uline && font->descent > 1 && fore != back))
             {
