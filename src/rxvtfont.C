@@ -470,8 +470,66 @@ struct rxvt_font_default : rxvt_font {
 # include "table/linedraw_2500.h"
 # include "table/linedraw_25a0.h"
 # include "table/linedraw_2b00.h"
-# include "table/linedraw_e200.h"
 #endif
+
+static const uint32_t rounded_glyph_mappings[] = {
+  // 0, // U+2580  ▀ Upper half block
+  // 0, // U+2581  ▁ Lower one eighth block
+  // 0, // U+2582  ▂ Lower one quarter block
+  // 0, // U+2583  ▃ Lower three eighths block
+  // 0, // U+2584  ▄ Lower half block
+  // 0, // U+2585  ▅ Lower five eighths block
+  // 0, // U+2586  ▆ Lower three quarters block
+  // 0, // U+2587  ▇ Lower seven eighths block
+  // 0, // U+2588  █ Full block
+  // 0, // U+2589  ▉ Left seven eighths block
+  // 0, // U+258A  ▊ Left three quarters block
+  // 0, // U+258B  ▋ Left five eighths block
+  // 0, // U+258C  ▌ Left half block
+  // 0, // U+258D  ▍ Left three eighths block
+  // 0, // U+258E  ▎ Left one quarter block
+  // 0, // U+258F  ▏ Left one eighth block
+  // 0, // U+2590  ▐ Right half block
+  // 0, // U+2591  ░ Light shade
+  // 0, // U+2592  ▒ Medium shade
+  // 0, // U+2593  ▓ Dark shade
+  // 0, // U+2594  ▔ Upper one eighth block
+  // 0, // U+2595  ▕ Right one eighth block
+  0xE205, // U+2596  ▖ Quadrant lower left
+  0xE204, // U+2597  ▗ Quadrant lower right
+  0xE207, // U+2598  ▘ Quadrant upper left
+  0xE201, // U+2599  ▙ Quadrant upper left and lower left and lower right
+  0, // U+259A  ▚ Quadrant upper left and lower right
+  0xE203, // U+259B  ▛ Quadrant upper left and upper right and lower left
+  0xE202, // U+259C  ▜ Quadrant upper left and upper right and lower right
+  0xE206, // U+259D  ▝ Quadrant upper right
+  0, // U+259E  ▞ Quadrant upper right and lower left
+  0xE200, // U+259F  ▟ Quadrant upper right and lower left and lower right
+};
+
+static uint32_t linedraw_rounded_command[] = {
+  0x05100000, // E200  top-left  corner fill (full size, b=0)
+  0x05200000, // E201  top-right corner fill (full size, b=0)
+  0x05300000, // E202  bot-left  corner fill (full size, b=0)
+  0x05400000, // E203  bot-right corner fill (full size, b=0)
+  0x05110000, // E204  top-left  corner fill (half size, b=1)
+  0x05210000, // E205  top-right corner fill (half size, b=1)
+  0x05310000, // E206  bot-left  corner fill (half size, b=1)
+  0x05410000, // E207  bot-right corner fill (half size, b=1)
+};
+
+// offs encoding: high 12 bits = start index, low 4 bits = command count
+static uint16_t linedraw_rounded_offs[] = {
+  0x0001, // E200: index 0, 1 command
+  0x0011, // E201: index 1, 1 command
+  0x0021, // E202: index 2, 1 command
+  0x0031, // E203: index 3, 1 command
+  0x0041, // E204: index 4, 1 command
+  0x0051, // E205: index 5, 1 command
+  0x0061, // E206: index 6, 1 command
+  0x0071, // E207: index 7, 1 command
+};
+
 
 void
 rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
@@ -482,21 +540,9 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
   dTermGC;
 
   clear_rect (d, x, y, term->fwidth * len, term->fheight, bg);
-
   XSetForeground (disp, gc, term->lookup_color(fg, term->pix_colors));
 
   bool use_bold = (rend & RS_Bold) != 0;
-
-  static const uint16_t quad_to_arc_offs[] = {
-    0x0031, // 0x259B bottom right -> full (U+E203)
-    0x0021, // 0x259C bottom left  -> full (U+E202)
-    0x0011, // 0x259D bottom left  -> half (U+E206)
-    0x0001, // 0x259E (unused)
-    0x0071, // 0x259F top left    -> full (U+E200)
-    0x0041, // 0x25A0 (unused)
-    0x0051, // 0x25A1 (unused)
-    0x0061, // 0x2598 bottom right -> half (U+E207)
-  };
 
   while (len)
     {
@@ -512,19 +558,16 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
       int width = text - tp;
       int fwidth = term->fwidth * width;
 
-      if (use_bold && 0x2598 <= t && t <= 0x259f)
-        {
-          int idx = t - 0x2598;
-          uint16_t arc_offs = quad_to_arc_offs[idx];
-          if (arc_offs)
-            {
-              draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, arc_offs);
-              goto done_glyph;
-            }
-        }
-
 #ifdef BUILTIN_GLYPHS
-      if (0x2500 <= t && t <= 0x259f)
+
+      // check if we have a rounded variant of that glyph, and if so, draw it
+      if (use_bold && 0x2596 <= t && t <= 0x259f && rounded_glyph_mappings[t - 0x2596])
+        {
+          int mapping = rounded_glyph_mappings[t - 0x2596];
+          uint16_t offs = linedraw_rounded_offs[mapping - 0xE200];
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_rounded_command, offs);
+        }
+      else if (0x2500 <= t && t <= 0x259f)
         {
           uint16_t offs = linedraw_offs[t - 0x2500];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_command, offs);
@@ -544,45 +587,13 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
         }
-      else if (0xe200 <= t && t <= 0xe207)
-        {
-          uint16_t offs = linedraw_e200_offs[t - 0xe200];
-          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, offs);
-        }
-      else
-        {
-          switch (t)
-            {
-              case ' ':
-              case '\t':
-              case ZERO_WIDTH_CHAR:
-              case NOCHAR:
-                break;
-
-              default:
-                XDrawRectangle (disp, d, gc, x + 1, y + 2,
-                                fwidth - 3, term->fheight - 9);
-            }
-        }
 #else
-      switch (t)
-        {
-          case ' ':
-          case '\t':
-          case ZERO_WIDTH_CHAR:
-          case NOCHAR:
-            break;
-
-          default:
-            XDrawRectangle (disp, d, gc, x + 1, y + 2,
-                            fwidth - 3, term->fheight - 9);
-        }
+      if (0)
+        ;
 #endif
 
-      done_glyph:
-
 #if ENABLE_COMBINING
-      if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
+      else if (IS_COMPOSE (t) && (cc = rxvt_composite[t]))
         {
           min_it (width, 2); // we only support wcwidth up to 2
 
