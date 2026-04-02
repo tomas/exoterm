@@ -268,8 +268,11 @@ void draw_arc_segment(Display *disp, Drawable d, GC gc,
                       int is_half, int angle,
                       int x_mult, int y_mult, int dw_extra)  {
     // 1. Calculate base dimensions
+    // For half-size corners, the vertical boundary is at ~3/8 of cell height
+    // to match the shifted half-block boundary (y-index 3 instead of 4).
+    int half_h = is_half ? (3 * H + 7) / 8 : H;
     int dw = (is_half ? W : 2 * W) + dw_extra;
-    int dh = (is_half ? H : 2 * H);
+    int dh = 2 * half_h;
 
     // 2. Calculate offsets
     // x_mult and y_mult should be 0, 1, or -1 based on the corner
@@ -277,7 +280,7 @@ void draw_arc_segment(Display *disp, Drawable d, GC gc,
 
     // 3. Final coordinates with centering logic baked in
     int bbx = x - 1 + (is_half ? W / 2 : 0) + (x_mult * x_offset);
-    int bby = y     + (is_half ? H / 2 : 0) + (y_mult * H);
+    int bby = y     + (is_half ? half_h : 0) + (y_mult * (is_half ? dh : H));
 
     XFillArc(disp, d, gc, bbx, bby, dw, dh, angle * 64, 90 * 64);
 }

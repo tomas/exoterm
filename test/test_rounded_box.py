@@ -159,14 +159,14 @@ out.append(draw_box(21, 6, 28, 7, box_color=22, outer_color=24,
                     label="nested box"))
 
 # Box 4 — magenta using half-size arcs (positioned below box 3)
-out.append(draw_halfsize_box(33, 4, 32, 5, box_color=127, outer_color=0,
+out.append(draw_halfsize_box(8, 50, 32, 5, box_color=127, outer_color=0,
                              label="half-size arcs"))
 
 # Box 5 — cyan using half-size arcs, nested on magenta background
 out.append(bg256(127) + "".join(
-    cup(44 + r, 4) + " " * 32 for r in range(10)
+    cup(20 + r, 50) + " " * 32 for r in range(10)
 ))
-out.append(draw_halfsize_box(45, 6, 28, 4, box_color=51, outer_color=127,
+out.append(draw_halfsize_box(21, 52, 28, 4, box_color=51, outer_color=127,
                              label="nested half"))
 
 out.append(reset())

@@ -1,0 +1,22 @@
+--- 23F4-23FA (media controls) ---
+⏴ 23F4 black medium left-pointing triangle
+⏵ 23F5 black medium right-pointing triangle
+⏶ 23F6 black medium up-pointing triangle
+⏷ 23F7 black medium down-pointing triangle
+⏸ 23F8 double vertical bar (pause)
+⏹ 23F9 black medium square (stop)
+⏺ 23FA black medium circle (record)
+
+--- 2B00-2B24 (geometric shapes extended) ---
+⬒ 2B12 square with top half black
+⬓ 2B13 square with bottom half black
+⬚ 2B1A dotted square
+⬛ 2B1B black large square
+⬜ 2B1C white large square
+⬝ 2B1D black very small square
+⬞ 2B1E white very small square
+⬤ 2B24 black large circle
+
+--- side by side ---
+⏴⏵⏶⏷⏸⏹⏺
+⬒⬓⬚⬛⬜⬝⬞⬤

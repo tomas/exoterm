@@ -1,0 +1,43 @@
+Block Elements U+2580–U+259F
+─────────────────────────────────────────────────────────────────────────────
+
+All glyphs in a row:
+▀ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █ ▉ ▊ ▋ ▌ ▍ ▎ ▏ ▐ ░ ▒ ▓ ▔ ▕ ▖ ▗ ▘ ▙ ▚ ▛ ▜ ▝ ▞ ▟
+
+Enlarged (repeated):
+▀▀▀  ▁▁▁  ▂▂▂  ▃▃▃  ▄▄▄  ▅▅▅  ▆▆▆  ▇▇▇  ███  ▉▉▉  ▊▊▊  ▋▋▋  ▌▌▌  ▍▍▍  ▎▎▎  ▏▏▏
+▐▐▐  ░░░  ▒▒▒  ▓▓▓  ▔▔▔  ▕▕▕  ▖▖▖  ▗▗▗  ▘▘▘  ▙▙▙  ▚▚▚  ▛▛▛  ▜▜▜  ▝▝▝  ▞▞▞  ▟▟▟
+
+Half blocks (affected by change):
+U+2580 ▀  upper half
+U+2584 ▄  lower half
+
+Quadrant blocks (affected by change):
+U+2596 ▖  lower-left
+U+2597 ▗  lower-right
+U+2598 ▘  upper-left
+U+2599 ▙  upper-left + lower-left + lower-right
+U+259A ▚  upper-left + lower-right (diagonal)
+U+259B ▛  upper-left + upper-right + lower-left
+U+259C ▜  upper-left + upper-right + lower-right
+U+259D ▝  upper-right
+U+259E ▞  lower-left + upper-right (diagonal)
+U+259F ▟  lower-left + upper-right + lower-right
+
+Alignment check (half-block vs fractional):
+█ full
+▀ upper half     ▄ lower half
+▁▂▃▄▅▆▇ lower eighths (1–7)
+▔ upper eighth   ▕ right eighth
+
+Quadrant grid:
+▘▝  ▛▜  ▙▟
+▖▗  ▚▞  ▜▟
+
+Combined with box drawing:
+┌──────────┐
+│▀▀▀▀▀▀▀▀▀▀│
+│▄▄▄▄▄▄▄▄▄▄│
+│▌▌▌▌▌▌▌▌▌▌│
+│▐▐▐▐▐▐▐▐▐▐│
+└──────────┘
