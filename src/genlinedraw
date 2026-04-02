@@ -10,7 +10,7 @@ my $ch = 0x2500;
 # 0..8 (equally spaced) 9,11 mid-1,mid+1, makes 4 bit
 # one point = 8 bit, two points = 16 bit
 
-# 8 bit opcode 0 line, 1 rect, 2 arc, 5 filled sector
+# 8 bit opcode 0 line, 1 rect, 2 arc
 # 8 bit opcode arg
 
 # OOOOOOOO AAAABBBB X1X1Y1Y1 X2X2Y2Y2
@@ -36,49 +36,15 @@ while (<DATA>) {
    next if /^\//;
    next unless /\S/;
 
-push @offs, $offs;
+   push @offs, $offs;
 
-    my ($v, $V, $h, $H, $s);
+   my ($v, $V, $h, $H, $s);
 
-    # Check if this is one of the characters we want to replace with filled arcs
-    if ($ch == 0x2552) { # full block top left
-        emit 5, 0, 0, 0, 0, 1, 0;  # op=5, a=1 (top-left), b=0 (full)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x2553) { # half block top left
-        emit 5, 0, 0, 0, 0, 1, 1;  # op=5, a=1 (top-left), b=1 (half)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x2555) { # full block top right
-        emit 5, 0, 0, 0, 0, 2, 0;  # op=5, a=2 (top-right), b=0 (full)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x2556) { # half block top right
-        emit 5, 0, 0, 0, 0, 2, 1;  # op=5, a=2 (top-right), b=1 (half)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x2558) { # full block bottom left
-        emit 5, 0, 0, 0, 0, 3, 0;  # op=5, a=3 (bottom-left), b=0 (full)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x2559) { # half block bottom left
-        emit 5, 0, 0, 0, 0, 3, 1;  # op=5, a=3 (bottom-left), b=1 (half)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x255B) { # full block bottom right
-        emit 5, 0, 0, 0, 0, 4, 0;  # op=5, a=4 (bottom-right), b=0 (full)
-        goto SKIP_NORMAL;
-    }
-    if ($ch == 0x255C) { # half block bottom right
-        emit 5, 0, 0, 0, 0, 4, 1;  # op=5, a=4 (bottom-right), b=1 (half)
-        goto SKIP_NORMAL;
-    }
+   for (;;) {
+      /\G-/gc and last;
+      /\G$/gc and last;
 
-    for (;;) {
-       /\G-/gc and last;
-       /\G$/gc and last;
-
-       /\G([123])/gc and $w = $1;
+      /\G([123])/gc and $w = $1;
 
       /\Gh/gc and $h = $w;
       /\GH/gc and $H = $w;
@@ -140,18 +106,16 @@ push @offs, $offs;
       emit 0,11,  0,11, 10 if $v > 1;
    }
 
-if ($V) {
-       emit 0, 9, 10, 9,  8 if $V > 1;
-       emit 0,10, 10,10,  8 if $V & 1;
-       emit 0,11, 10,11,  8 if $V > 1;
-    }
+   if ($V) {
+      emit 0, 9, 10, 9,  8 if $V > 1;
+      emit 0,10, 10,10,  8 if $V & 1;
+      emit 0,11, 10,11,  8 if $V > 1;
+   }
 
-  SKIP_NORMAL:
+   $offs[-1] = ($offs[-1] << 4) | ($offs - $offs[-1]);
 
-    $offs[-1] = ($offs[-1] << 4) | ($offs - $offs[-1]);
-
-    printf " // %04x\n", $ch;
-    $ch++;
+   printf " // %04x\n", $ch;
+   $ch++;
 }
 
 print <<EOF;

@@ -441,7 +441,8 @@ struct rxvt_font_default : rxvt_font {
     if ((unicode >= 0x2500 && unicode <= 0x259f) ||
         (unicode >= 0x25a0 && unicode <= 0x25af) ||
         (unicode >= 0x23f4 && unicode <= 0x23fa) ||
-        (unicode >= 0x2b00 && unicode <= 0x2b24))
+        (unicode >= 0x2b00 && unicode <= 0x2b24) ||
+        (unicode >= 0xe200 && unicode <= 0xe203))
       if (!term->option (Opt_skipBuiltinGlyphs))
         return true;
 #endif
@@ -469,6 +470,7 @@ struct rxvt_font_default : rxvt_font {
 # include "table/linedraw_2500.h"
 # include "table/linedraw_25a0.h"
 # include "table/linedraw_2b00.h"
+# include "table/linedraw_e200.h"
 #endif
 
 void
@@ -517,6 +519,11 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
         {
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
+        }
+      else if (0xe200 <= t && t <= 0xe207)
+        {
+          uint16_t offs = linedraw_e200_offs[t - 0xe200];
+          draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw_e200_command, offs);
         }
 #else
       if (0)
