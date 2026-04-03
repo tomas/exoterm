@@ -75,6 +75,37 @@ static void style_window(mu_Context *ctx) {
   }
 }
 
+static void context_menu(mu_Context *ctx) {
+  // if (!mu_begin_window_ex (ctx, "##ctxmenu", mu_rect (0, 0, w, h), opt)) {
+  if (!mu_begin_context_menu(ctx, "Right Click Menu", r_width(), r_height())) {
+    return;
+  }
+
+  int item_h = 25;
+  int col[] = {180};
+
+  mu_layout_row (ctx, 1, col, item_h);
+  if (mu_button_ex (ctx, "New Tab",    0, MU_OPT_BURIED)) {
+    printf("Clicked New Tab!\n");
+  }
+  if (mu_button_ex (ctx, "New Window", 0, MU_OPT_BURIED)) {
+    printf("Clicked New Window!\n");
+  }
+
+  mu_menu_separator (ctx);
+
+  mu_layout_row (ctx, 1, col, item_h);
+
+  if (mu_button_ex (ctx, "Split Horizontally", 0, MU_OPT_BURIED)) {
+    printf("Clicked Split Horizontally\n");
+  }
+  if (mu_button_ex (ctx, "Split Vertically",   0, MU_OPT_BURIED)) {
+    printf("Clicked Split Vertically\n");
+  }
+
+  mu_end_window (ctx);
+}
+
 static int text_width(mu_Font font, const char *text, int len) {
   if (len == -1) { len = strlen(text); }
   return r_get_text_width(text, len);
@@ -92,6 +123,7 @@ static int r_handle_input(mu_Context *ctx) {
   }
   if (r_mouse_down()) {
     mu_input_mousedown(ctx, mousex, mousey, MU_MOUSE_LEFT);
+
   } else if (r_mouse_up()) {
     mu_input_mouseup(ctx, mousex, mousey, MU_MOUSE_LEFT);
   }
@@ -177,12 +209,18 @@ int main(int argc, char **argv) {
     // if (r_needs_redraw()) {
         /* Force a full redraw if needed (expose event occurred) */
         mu_begin(ctx);
+        context_menu(ctx);
         style_window(ctx);
         mu_end(ctx);
     // }
 
     r_clear(mu_color(bg[0], bg[1], bg[2], 255));
     r_render(ctx);
+
+    // check if mouse is down but no element is focused (clicked on desktop/background)
+    if (ctx->mouse_down && !ctx->focus) {
+      mu_toggle_popup(ctx, "Right Click Menu");
+    }
 
     int64_t after = r_get_time();
     int64_t paint_time_ms = after - before;
