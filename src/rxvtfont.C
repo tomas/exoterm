@@ -267,20 +267,28 @@ void draw_arc_segment(Display *disp, Drawable d, GC gc,
                       int x, int y, int W, int H,
                       int is_half, int angle,
                       int x_mult, int y_mult, int dw_extra)  {
-    // 1. Calculate base dimensions
-    // For half-size corners, the vertical boundary is at ~3/8 of cell height
-    // to match the shifted half-block boundary (y-index 3 instead of 4).
-    int half_h = is_half ? (3 * H + 7) / 8 : H;
     int dw = (is_half ? W : 2 * W) + dw_extra;
-    int dh = 2 * half_h;
-
-    // 2. Calculate offsets
-    // x_mult and y_mult should be 0, 1, or -1 based on the corner
+    int dh, bby;
     int x_offset = is_half ? W : (W - 1);
 
-    // 3. Final coordinates with centering logic baked in
+    if (is_half) {
+        // Boundary matches y_[3]: ((H-1)*3 + 2) / 8
+        int boundary = ((H - 1) * 3 + 2) / 8;
+        if (y_mult == 0) {
+            // Fills lower portion: keep center at y+H, arc top at boundary
+            dh = 2 * (H - boundary);
+            bby = y + boundary;
+        } else {
+            // Fills upper portion: keep center at y, arc bottom at boundary
+            dh = 2 * boundary;
+            bby = y - boundary;
+        }
+    } else {
+        dh = 2 * H;
+        bby = y + (y_mult * H);
+    }
+
     int bbx = x - 1 + (is_half ? W / 2 : 0) + (x_mult * x_offset);
-    int bby = y     + (is_half ? half_h : 0) + (y_mult * (is_half ? dh : H));
 
     XFillArc(disp, d, gc, bbx, bby, dw, dh, angle * 64, 90 * 64);
 }
@@ -302,6 +310,7 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
 
   x_[10] = x + (W - 1) / 2; x_[9] = x_[10] - 1; x_[11] = x_[10] + 1;
   y_[10] = y + (H - 1) / 2; y_[9] = y_[10] - 1; y_[11] = y_[10] + 1;
+  y_[12] = y_[3] - 1; // one pixel above the 3/8 boundary (for U+2585)
 
   XGCValues gcv;
 
