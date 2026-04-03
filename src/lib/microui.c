@@ -2348,7 +2348,6 @@ int mu_begin_context_menu(mu_Context * ctx, const char *name, int window_w, int 
     // then we'll end up modifying the modified value in the next frame
     context_menu_x = cnt->rect.x;
     context_menu_y = cnt->rect.y;
-    printf("container %d/%d\n", cnt->rect.w, cnt->rect.h);
   }
 
   return res;
