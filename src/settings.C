@@ -2369,9 +2369,10 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
   mu_menu_separator (ctx);
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
-  if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
   if (mu_button_ex (ctx, "Open File Manager Here", 0, MU_OPT_BURIED)) action = CM_OPEN_FILEMANAGER;
   if (can_send_sigint() && mu_button_ex (ctx, "Send Ctrl+C (SIGINT)", 0, MU_OPT_BURIED)) action = CM_SEND_SIGINT;
+
+  if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
   if (mu_button_ex (ctx, "Close Tab", 0, MU_OPT_BURIED)) action = CM_CLOSE_TAB;
