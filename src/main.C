@@ -1360,7 +1360,7 @@ done:
 
   update_fade_color (idx);
   recolor_cursor ();
-#if BG_IMAGE_FROM_ROOT
+#if BG_IMAGE_FROM_ROOT && !XFT
   if (idx == Color_bg && option (Opt_transparent))
     {
       minimap.colors_initialized = false;

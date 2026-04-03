@@ -355,7 +355,7 @@ rxvt_term::bg_init_transparency () {
 void
 rxvt_term::bg_init ()
 {
-#if BG_IMAGE_FROM_ROOT
+#if BG_IMAGE_FROM_ROOT && !XFT
   if (option (Opt_transparent)) {
       if (bg_color_raw.a > 0) { // restore original bg color
         pix_colors[Color_bg].set (this, bg_color_raw);
