@@ -593,7 +593,17 @@ static void find_xft_active_fonts () {
 
       /* Style must match: both absent, or both present with equal value. */
       if (!spec_style && !content_style) return i;           /* both regular */
-      if (!spec_style || !content_style) continue;           /* one has style, other doesn't */
+      if (!spec_style || !content_style) {
+        /* One has style, other doesn't - check if content's style is "Regular"
+           (fontconfig stores regular fonts without :style=, so they should match) */
+        if (content_style) {
+          const char *cv = content_style + 7;
+          int cvlen = (int)(strchr (cv, ':') ? strchr (cv, ':') - cv : (int)strlen (cv));
+          if (cvlen == 7 && strncmp (cv, "Regular", 7) == 0)
+            return i;  /* user specified "Regular" which matches fontconfig's no-style */
+        }
+        continue;           /* one has style, other doesn't */
+      }
 
       /* Compare style values (up to next ':' or end). */
       const char *sv = spec_style    + 7;  /* skip ":style=" */
