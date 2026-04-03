@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
 
 extern "C" {
 #include "lib/microui.h"
@@ -66,18 +68,22 @@ enum {
   CM_COPY,
   CM_PASTE,
   CM_SHOW_SETTINGS,
+  CM_OPEN_FILEMANAGER,
+  CM_SEND_SIGINT,
   CM_TOGGLE_MINIMAP,
   CM_CLOSE_TAB,
 };
 
 /* Height of the context menu window based on state.
    Formula: 2*CM_PAD + n_items*CM_ITEM_H + n_seps*CM_SEP_H + (n_rows-1)*CM_SPC
-   Items (no-split): New Tab, New Window, Copy, Paste, Split H, Split V,
-                     Show Settings, Close Tab = 8
-   Items (split):    same but (Split H + Split V) → Close Split = 7
+   Items (no-split): New Tab, New Window, Copy (cond), Paste, Split H, Split V,
+                     Show Settings, Open File Manager Here, Send Ctrl+C (cond), Close Tab = 10
+   Items (split):    same but (Split H + Split V) → Close Split = 9
    Each +minimap adds 1 item and 1 separator. */
-static int cm_compute_h (bool has_split, bool has_minimap) {
-  int n_items = has_split ? 7 : 8;
+static int cm_compute_h (bool has_split, bool has_minimap, bool show_copy, bool show_sigint) {
+  int n_items = has_split ? 9 : 10;
+  if (!show_copy) n_items -= 1;
+  if (!show_sigint) n_items -= 1;
   if (has_minimap) n_items += 1;
   // int n_seps  = has_minimap ? 5 : 4;
   int n_seps  = 4;
@@ -2309,6 +2315,13 @@ rxvt_term::settings_ui_refresh_cb (ev::timer &w, int revents)
    Context menu — microui popup that appears on right-click
    ====================================================================== */
 
+static bool can_send_sigint(void) {
+  return s_cm_invoker
+      && s_cm_invoker->pty
+      && s_cm_invoker->shell_pgid > 0
+      && tcgetpgrp (s_cm_invoker->pty->pty) != s_cm_invoker->shell_pgid;
+}
+
 /* Build the context menu contents; returns the action id (CM_*) or CM_NONE. */
 static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
 {
@@ -2330,7 +2343,9 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
   mu_menu_separator (ctx);
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
-  if (mu_button_ex (ctx, "Copy",  0, MU_OPT_BURIED))          action = CM_COPY;
+  bool has_selection = t->selection.op != SELECTION_INIT && t->selection.op != SELECTION_CLEAR;
+  bool show_copy = has_selection && !s_auto_copy_sel;
+  if (show_copy && mu_button_ex (ctx, "Copy", 0, MU_OPT_BURIED)) action = CM_COPY;
   if (mu_button_ex (ctx, "Paste", 0, MU_OPT_BURIED))          action = CM_PASTE;
 
   mu_menu_separator (ctx);
@@ -2355,9 +2370,11 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
   if (mu_button_ex (ctx, "Show Settings", 0, MU_OPT_BURIED))  action = CM_SHOW_SETTINGS;
+  if (mu_button_ex (ctx, "Open File Manager Here", 0, MU_OPT_BURIED)) action = CM_OPEN_FILEMANAGER;
+  if (can_send_sigint() && mu_button_ex (ctx, "Send Ctrl+C (SIGINT)", 0, MU_OPT_BURIED)) action = CM_SEND_SIGINT;
 
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
-  if (mu_button_ex (ctx, "Close Tab", 0, MU_OPT_BURIED))      action = CM_CLOSE_TAB;
+  if (mu_button_ex (ctx, "Close Tab", 0, MU_OPT_BURIED)) action = CM_CLOSE_TAB;
 
   mu_end_window (ctx);
   return action;
@@ -2381,13 +2398,15 @@ rxvt_term::show_context_menu (int x_root, int y_root, rxvt_term *invoker)
   s_cm_invoker = invoker ? invoker : this;
 
   bool has_split  = (s_cm_invoker->split_partner != nullptr);
+  bool has_selection = s_cm_invoker->selection.op != SELECTION_INIT && s_cm_invoker->selection.op != SELECTION_CLEAR;
+  bool show_copy = has_selection && !s_auto_copy_sel;
 #ifdef ENABLE_MINIMAP
   bool has_minimap = s_cm_invoker->minimap.enabled;
 #else
   bool has_minimap = false;
 #endif
   context_menu.w = CM_W;
-  context_menu.h = cm_compute_h (has_split, has_minimap);
+  context_menu.h = cm_compute_h (has_split, has_minimap, show_copy, can_send_sigint());
 
   /* Adjust so the window fits on-screen. */
   int scr = DefaultScreen (dpy);
@@ -2582,6 +2601,26 @@ rxvt_term::draw_context_menu ()
 
     case CM_SHOW_SETTINGS:
       termlist.at (0)->show_settings_ui ();
+      break;
+
+    case CM_OPEN_FILEMANAGER: {
+      char cwd[1024];
+      if (t->get_current_path(cwd, sizeof(cwd)) > 0) {
+        char *cmd = nullptr;
+        if (asprintf(&cmd, "xdg-open '%s' &", cwd) != -1) {
+          system(cmd);
+          free(cmd);
+        }
+      }
+      break;
+    }
+
+    case CM_SEND_SIGINT:
+      if (t->pty && t->shell_pgid > 0) {
+        pid_t fg = tcgetpgrp (t->pty->pty);
+        if (fg > 0 && fg != t->shell_pgid)
+          kill (-fg, SIGINT);
+      }
       break;
 
 #ifdef ENABLE_MINIMAP
