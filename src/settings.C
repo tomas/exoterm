@@ -1698,7 +1698,6 @@ rxvt_term::show_settings_ui ()
     if (!s_renderer_ok) {
       int res = r_init (dpy, settings_ui.win, settings_ui.gc, visual, depth, panel_w, panel_h);
       if (res != 0) {
-        printf("could not init renderer\n");
         settings_ui_ev.stop (display);
         XDestroyWindow (dpy, settings_ui.win);
         settings_ui.win = None;
@@ -1893,7 +1892,9 @@ rxvt_term::recenter_settings_ui ()
   r_resize (panel_w, panel_h);
 
   /* Re-raise both windows in case split operations stacked something above them. */
-  XRaiseWindow (dpy, settings_ui.backdrop_win);
+  if (settings_ui.backdrop_win)
+    XRaiseWindow (dpy, settings_ui.backdrop_win);
+
   XRaiseWindow (dpy, settings_ui.win);
   XFlush (dpy);
 
