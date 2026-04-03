@@ -18,6 +18,8 @@ int r_get_text_height(void);
 void r_set_clip_rect(mu_Rect rect);
 void r_present(void);
 void r_process_events(void);
+int r_width(void);
+int r_height(void);
 
 /* Input */
 int r_mouse_down(void);

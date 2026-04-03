@@ -302,6 +302,14 @@ void r_present(void) {
   XFlush(dpy);
 }
 
+int r_width() {
+  return win_width;
+}
+
+int r_height() {
+  return win_height;
+}
+
 void r_process_events(void) {
   /* event processing stays exactly as before */
   XEvent ev;

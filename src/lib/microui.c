@@ -2305,6 +2305,14 @@ int mu_is_popup_open(mu_Context * ctx, const char *name) {
   // return active_popup_id != 0 && active_popup_id == id ? 1 : 0;
 }
 
+int mu_toggle_popup(mu_Context * ctx, const char * name) {
+  if (!mu_is_popup_open(ctx, name)) {
+    mu_open_popup(ctx, name);
+    return 1;
+  }
+  return 0;
+}
+
 int mu_begin_context_menu(mu_Context * ctx, const char *name, int window_w, int window_h) {
 
   if (context_menu_x != 0) {
@@ -2340,6 +2348,7 @@ int mu_begin_context_menu(mu_Context * ctx, const char *name, int window_w, int 
     // then we'll end up modifying the modified value in the next frame
     context_menu_x = cnt->rect.x;
     context_menu_y = cnt->rect.y;
+    printf("container %d/%d\n", cnt->rect.w, cnt->rect.h);
   }
 
   return res;
@@ -2351,12 +2360,12 @@ void mu_end_context_menu(mu_Context * ctx) {
 
 void mu_menu_separator(mu_Context *ctx) {
   // mu_Container * cnt = mu_get_current_container(ctx);
-  // mu_Rect rect = mu_layout_next(ctx)
-  // mu_draw_box(ctx, mu_rect(rect.x, rect.y-2, rect.w, 1), ctx->style->colors[MU_COLOR_BORDER])
-  // rect.y = rect.y + 2
-  // mu_layout_set_next(ctx, rect)
+  // mu_Rect rect = mu_layout_next(ctx);
+  // mu_draw_box(ctx, mu_rect(rect.x, rect.y-2, rect.w, 1), ctx->style->colors[MU_COLOR_BORDER]);
+  // rect.y = rect.y + 2;
+  // mu_layout_set_next(ctx, rect, 0);
 
-  int w[] = {-1};
+  int w[] = {-2};
   mu_layout_row(ctx, 1, w, 2);
   mu_Rect r = mu_layout_next(ctx);
   mu_draw_box(ctx, mu_rect(r.x, r.y, r.w, 1), ctx->style->colors[MU_COLOR_BORDER]);
