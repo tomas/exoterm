@@ -91,7 +91,6 @@ alldoc:
 clean:
 	rm -f exoterm exotermc exotermd perlxsi.c rxvtperl.C manlst mantmp
 	rm -f *.o
-	$(MAKE) -C ../fonts clean
 
 distclean: clean
 	rm -f Makefile
@@ -133,12 +132,7 @@ install-bin: allbin
 	$(INSTALL_PROGRAM) exotermc $(RXVTC_BINNAME)
 	$(INSTALL_PROGRAM) exotermd $(RXVTD_BINNAME)
 
-install: install-bin install-perl install-fonts
-
-install-fonts:
-	$(INSTALL) -d $(DESTDIR)$(EXOTERM_FONT_DIR)
-	$(INSTALL_DATA) fonts/*.pcf.gz $(DESTDIR)$(EXOTERM_FONT_DIR)/
-	cd $(DESTDIR)$(EXOTERM_FONT_DIR) && mkfontdir
+install: install-bin install-perl
 
 perlxsi.c: Makefile
 	$(PERL) -MExtUtils::Embed -e xsinit -- -std urxvt
