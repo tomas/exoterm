@@ -67,6 +67,9 @@ enum {
   CM_CLOSE_SPLIT,
   CM_COPY,
   CM_PASTE,
+  CM_OPEN_URL,
+  CM_OPEN_FILE,
+  CM_OPEN_DIRECTORY,
   CM_SHOW_SETTINGS,
   CM_OPEN_FILEMANAGER,
   CM_SEND_SIGINT,
@@ -80,17 +83,49 @@ enum {
                      Show Settings, Open File Manager Here, Send Ctrl+C (cond), Close Tab = 10
    Items (split):    same but (Split H + Split V) → Close Split = 9
    Each +minimap adds 1 item and 1 separator. */
-static int cm_compute_h (bool has_split, bool has_minimap, bool show_copy, bool show_sigint) {
+static int cm_compute_h (bool has_split, bool has_minimap, bool show_copy, bool show_sigint,
+                        bool show_url, bool show_file_or_dir) {
   int n_items = has_split ? 9 : 10;
   if (!show_copy) n_items -= 1;
   if (!show_sigint) n_items -= 1;
   if (has_minimap) n_items += 1;
+  if (show_url) n_items += 1;
+  if (show_file_or_dir) n_items += 1;
   // int n_seps  = has_minimap ? 5 : 4;
   int n_seps  = 4;
+  if (show_url || show_file_or_dir) n_seps += 1;
   return CM_PAD
        + n_items * CM_ITEM_H
        + n_seps  * CM_SEP_H
        + (n_items + n_seps - 1) * CM_SPC;
+}
+
+static bool is_url (const char *s) {
+  if (!s) return false;
+  return strncmp (s, "http://", 7) == 0 || strncmp (s, "https://", 8) == 0
+      || strncmp (s, "ftp://", 6) == 0 || strncmp (s, "file://", 7) == 0;
+}
+
+static int get_file_type (rxvt_term *t, const char *s) {
+  if (!s || !t) return 0;
+  struct stat st;
+
+  const char *path = s;
+  char cwd[1024];
+  char rel_path[1024];
+
+  if (s[0] == '/') {
+    if (stat (s, &st) == 0)
+      return S_ISDIR (st.st_mode) ? 2 : 1;
+  } else if (t->get_current_path (cwd, sizeof (cwd)) > 0) {
+    snprintf (rel_path, sizeof (rel_path), "%s/%s", cwd, s);
+    if (stat (rel_path, &st) == 0)
+      return S_ISDIR (st.st_mode) ? 2 : 1;
+    if (stat (s, &st) == 0)
+      return S_ISDIR (st.st_mode) ? 2 : 1;
+  }
+
+  return 0;
 }
 
 /* --- live settings state --- */
@@ -2356,8 +2391,29 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
   mu_layout_row (ctx, 1, col, CM_ITEM_H);
   bool has_selection = t->selection.op != SELECTION_INIT && t->selection.op != SELECTION_CLEAR;
   bool show_copy = has_selection && !s_auto_copy_sel;
+
+  char *sel_str = nullptr;
+  bool is_sel_url = false;
+  bool is_sel_file = false;
+
+  if (has_selection && t->selection.len > 0) {
+    sel_str = rxvt_wcstombs (t->selection.text, t->selection.len);
+    if (sel_str) {
+      is_sel_url = is_url (sel_str);
+      is_sel_file = get_file_type (t, sel_str);
+    }
+  }
+
   if (show_copy && mu_button_ex (ctx, "Copy", 0, MU_OPT_BURIED)) action = CM_COPY;
   if (mu_button_ex (ctx, "Paste", 0, MU_OPT_BURIED))          action = CM_PASTE;
+
+  if (is_sel_url || is_sel_file) {
+    mu_menu_separator (ctx);
+    mu_layout_row (ctx, 1, col, CM_ITEM_H);
+    if (is_sel_url && mu_button_ex (ctx, "Open URL", 0, MU_OPT_BURIED)) action = CM_OPEN_URL;
+    if (is_sel_file == 1 && mu_button_ex (ctx, "Open File", 0, MU_OPT_BURIED)) action = CM_OPEN_FILE;
+    if (is_sel_file == 2 && mu_button_ex (ctx, "Open Directory", 0, MU_OPT_BURIED)) action = CM_OPEN_DIRECTORY;
+  }
 
   mu_menu_separator (ctx);
 
@@ -2412,13 +2468,25 @@ rxvt_term::show_context_menu (int x_root, int y_root, rxvt_term *invoker)
   bool has_split  = (s_cm_invoker->split_partner != nullptr);
   bool has_selection = s_cm_invoker->selection.op != SELECTION_INIT && s_cm_invoker->selection.op != SELECTION_CLEAR;
   bool show_copy = has_selection && !s_auto_copy_sel;
+
+  char *sel_str = nullptr;
+  bool show_url = false;
+  int show_file_type = 0;
+  if (has_selection && s_cm_invoker->selection.len > 0) {
+    sel_str = rxvt_wcstombs (s_cm_invoker->selection.text, s_cm_invoker->selection.len);
+    if (sel_str) {
+      show_url = is_url (sel_str);
+      show_file_type = get_file_type (s_cm_invoker, sel_str);
+    }
+  }
+
 #ifdef ENABLE_MINIMAP
   bool has_minimap = s_cm_invoker->minimap.enabled;
 #else
   bool has_minimap = false;
 #endif
   context_menu.w = CM_W;
-  context_menu.h = cm_compute_h (has_split, has_minimap, show_copy, can_send_sigint());
+  context_menu.h = cm_compute_h (has_split, has_minimap, show_copy, can_send_sigint(), show_url, show_file_type);
 
   /* Adjust so the window fits on-screen. */
   int scr = DefaultScreen (dpy);
@@ -2595,6 +2663,55 @@ rxvt_term::draw_context_menu ()
     case CM_PASTE:
       t->selection_request (CurrentTime, Sel_Clipboard);
       break;
+
+    case CM_OPEN_URL: {
+      if (t->selection.len > 0 && t->selection.text) {
+        char *url = rxvt_wcstombs (t->selection.text, t->selection.len);
+        if (url) {
+          t->open_url (url, strlen (url));
+          free (url);
+        }
+      }
+      break;
+    }
+
+    case CM_OPEN_FILE: {
+      if (t->selection.len > 0 && t->selection.text) {
+        char *path = rxvt_wcstombs (t->selection.text, t->selection.len);
+        if (path) {
+          char *cmd = nullptr;
+          if (asprintf (&cmd, "xdg-open '%s' &", path) != -1) {
+            system (cmd);
+            free (cmd);
+          }
+          free (path);
+        }
+      }
+      break;
+    }
+
+    case CM_OPEN_DIRECTORY: {
+      if (t->selection.len > 0 && t->selection.text) {
+        char *path = rxvt_wcstombs (t->selection.text, t->selection.len);
+        if (path) {
+          char full_path[1024];
+          if (path[0] != '/') {
+            char cwd[1024];
+            if (t->get_current_path (cwd, sizeof (cwd)) > 0) {
+              snprintf (full_path, sizeof (full_path), "%s/%s", cwd, path);
+              path = full_path;
+            }
+          }
+          char *cmd = nullptr;
+          if (asprintf (&cmd, "xdg-open '%s' &", path) != -1) {
+            system (cmd);
+            free (cmd);
+          }
+          free (path);
+        }
+      }
+      break;
+    }
 
     case CM_SPLIT_H:
       t->new_split_pane (false);
