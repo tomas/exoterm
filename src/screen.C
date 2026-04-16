@@ -4823,14 +4823,27 @@ void rxvt_term::render_minimap() {
 void rxvt_term::toggle_minimap_by_cursor(int hide) {
   if (hide) {
     if (minimap.enabled && minimap.visible) {
-      minimap.visible = false;
-      minimap.hidden_by_cursor = 1;
-      XUnmapWindow(dpy, minimap.win);
+      if (minimap.hidden_by_cursor == 0) {
+        minimap.hidden_by_cursor = 3; // hide pending
+        want_refresh = 1;
+      } else if (minimap.hidden_by_cursor == 3) {
+        minimap.hidden_by_cursor = 0; // cancel pending hide
+        // want_refresh = 0;
+      } else {
+        // printf("trying to hide, but minimap.hidden_by_cursor is %d\n", minimap.hidden_by_cursor);
+      }
     }
   } else {
-    if (minimap.enabled && minimap.hidden_by_cursor) {
-      minimap.hidden_by_cursor = 2; // show pending: defer map/render to next flush
-      want_refresh = 1;
+    if (minimap.enabled) {
+      if (minimap.hidden_by_cursor == 1) {
+        minimap.hidden_by_cursor = 2; // show pending: defer map/render to next flush
+        want_refresh = 1;
+      } else if (minimap.hidden_by_cursor == 2 || minimap.hidden_by_cursor == 3) {
+        minimap.hidden_by_cursor = 0; // cancel pending show or hide
+        // want_refresh = 0;
+      } else {
+        // printf("trying to show, but minimap.hidden_by_cursor is %d\n", minimap.hidden_by_cursor);
+      }
     }
   }
 }

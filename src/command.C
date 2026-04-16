@@ -1659,15 +1659,22 @@ rxvt_term::flush () {
         }
 
       scr_refresh ();
+
 #ifdef ENABLE_MINIMAP
       if (minimap.hidden_by_cursor == 2)
         {
-          minimap.hidden_by_cursor = 0;
           minimap.visible = true;
           minimap.needs_full_redraw = true;
-          XClearWindow (dpy, minimap.win);
-          render_minimap ();
+          minimap.hidden_by_cursor = 0;
+          // XClearWindow (dpy, minimap.win);
+          // render_minimap ();
           XMapWindow (dpy, minimap.win);
+        }
+      else if (minimap.hidden_by_cursor == 3)
+        {
+          minimap.visible = false;
+          minimap.hidden_by_cursor = 1;
+          XUnmapWindow(dpy, minimap.win);
         }
 #endif
       scrollBar.show (1);
