@@ -2679,12 +2679,20 @@ rxvt_term::draw_context_menu ()
       if (t->selection.len > 0 && t->selection.text) {
         char *path = rxvt_wcstombs (t->selection.text, t->selection.len);
         if (path) {
+          char full_path[1024];
+          if (path[0] != '/') {
+            char cwd[1024];
+            if (t->get_current_path (cwd, sizeof (cwd)) > 0) {
+              snprintf (full_path, sizeof (full_path), "%s/%s", cwd, path);
+              path = full_path;
+            }
+          }
           char *cmd = nullptr;
           if (asprintf (&cmd, "xdg-open '%s' &", path) != -1) {
             system (cmd);
             free (cmd);
           }
-          free (path);
+          if (path != full_path) free (path);
         }
       }
       break;
