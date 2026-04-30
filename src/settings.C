@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <unistd.h>
 
+
 extern "C" {
 #include "lib/microui.h"
 #include "lib/microui_renderer.h"
@@ -18,8 +19,7 @@ extern "C" {
 
 #include <X11/extensions/Xrender.h>
 
-#include <glib.h>
-#include <glib/gstdio.h>
+
 
 #include <sys/stat.h>
 #include <algorithm>
@@ -482,14 +482,24 @@ static int find_bold_font_idx(const char *bold_xlfd) {
 }
 
 static void scan_fonts_dir(const char *dir) {
-  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
-  char *contents = NULL;
-  gsize len = 0;
+  char fdir_path[1024];
+  snprintf(fdir_path, sizeof(fdir_path), "%s/fonts.dir", dir);
 
-  if (!g_file_get_contents(fdir_path, &contents, &len, NULL)) {
-    g_free(fdir_path);
-    return;
+  char *contents = nullptr;
+  size_t len = 0;
+  FILE *f = fopen(fdir_path, "r");
+  if (!f) return;
+
+  fseek(f, 0, SEEK_END);
+  len = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  contents = (char *)malloc(len + 1);
+  if (contents) {
+    fread(contents, 1, len, f);
+    contents[len] = '\0';
   }
+  fclose(f);
+  if (!contents) return;
 
   char *line = contents;
   int line_num = 0;
@@ -517,36 +527,46 @@ static void scan_fonts_dir(const char *dir) {
     line_num++;
   }
 
-  g_free(contents);
-  g_free(fdir_path);
+  free(contents);
 }
 
 static void ensure_font_dir(Display *dpy, const char *dir) {
   (void)dpy;
   struct stat st;
   if (stat(dir, &st) != 0) {
-    g_mkdir_with_parents(dir, 0755);
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd), "mkdir -p '%s'", dir);
+    system(cmd);
   }
 
-  char *cmd = g_strdup_printf("mkfontdir '%s' 2>/dev/null", dir);
+  char cmd[1024];
+  snprintf(cmd, sizeof(cmd), "mkfontdir '%s' 2>/dev/null", dir);
   system(cmd);
-  g_free(cmd);
 
   /* Only add to X font path when the directory actually contains fonts. */
-  char *fdir_path = g_build_filename(dir, "fonts.dir", NULL);
-  char *fdir_contents = NULL;
-  gsize fdir_len = 0;
+  char fdir_path[1024];
+  snprintf(fdir_path, sizeof(fdir_path), "%s/fonts.dir", dir);
+  char *fdir_contents = nullptr;
+  size_t fdir_len = 0;
   bool has_fonts = false;
-  if (g_file_get_contents(fdir_path, &fdir_contents, &fdir_len, NULL)) {
-    has_fonts = atoi(fdir_contents) > 0;
-    g_free(fdir_contents);
+  FILE *f = fopen(fdir_path, "r");
+  if (f) {
+    fseek(f, 0, SEEK_END);
+    fdir_len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    fdir_contents = (char *)malloc(fdir_len + 1);
+    if (fdir_contents) {
+      fread(fdir_contents, 1, fdir_len, f);
+      fdir_contents[fdir_len] = '\0';
+      has_fonts = atoi(fdir_contents) > 0;
+      free(fdir_contents);
+    }
+    fclose(f);
   }
-  g_free(fdir_path);
 
   if (has_fonts) {
-    cmd = g_strdup_printf("xset +fp '%s'; xset fp rehash 2>/dev/null", dir);
+    snprintf(cmd, sizeof(cmd), "xset +fp '%s'; xset fp rehash 2>/dev/null", dir);
     system(cmd);
-    g_free(cmd);
   }
 }
 
@@ -559,10 +579,21 @@ static void init_font_list(Display *dpy) {
   s_font_entries = nullptr;
   s_num_fonts = 0;
 
-  char *user_dir = g_build_filename(g_get_user_data_dir(), "fonts", "exoterm", NULL);
-  ensure_font_dir(dpy, user_dir);
-  scan_fonts_dir(user_dir);
-  g_free(user_dir);
+  const char *home = getenv("HOME");
+  char user_dir[1024];
+  if (home) {
+    const char *xdg_data = getenv("XDG_DATA_HOME");
+    if (xdg_data)
+      snprintf(user_dir, sizeof(user_dir), "%s/fonts/exoterm", xdg_data);
+    else
+      snprintf(user_dir, sizeof(user_dir), "%s/.local/share/fonts/exoterm", home);
+  } else {
+    user_dir[0] = '\0';
+  }
+  if (user_dir[0])
+    ensure_font_dir(dpy, user_dir);
+  if (user_dir[0])
+    scan_fonts_dir(user_dir);
 
   if (s_num_fonts == 0) {
     s_font_entries = (font_entry_t *)calloc(1, sizeof(font_entry_t));
@@ -2065,130 +2096,162 @@ static void save_to_xdefaults (rxvt_term *first_term) {
   char path[1024];
   snprintf (path, sizeof (path), "%s/.Xdefaults", home);
 
-  // read existing file into lines array
-  GPtrArray *lines = g_ptr_array_new_with_free_func (g_free);
+  char **lines = nullptr;
+  size_t lines_cap = 0;
+  size_t lines_len = 0;
+
   FILE *fr = fopen (path, "r");
   if (fr) {
     char buf[4096];
     while (fgets (buf, sizeof (buf), fr)) {
       size_t len = strlen (buf);
       if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
-      g_ptr_array_add (lines, g_strdup (buf));
+      if (lines_len >= lines_cap) {
+        lines_cap = lines_cap ? lines_cap * 2 : 16;
+        lines = (char **) realloc (lines, lines_cap * sizeof (char *));
+      }
+      lines[lines_len++] = strdup (buf);
     }
     fclose (fr);
   }
 
-  // rebuild: strip existing block, comment conflicting keys
-  GPtrArray *out = g_ptr_array_new_with_free_func (g_free);
+  char **out = nullptr;
+  size_t out_cap = 0;
+  size_t out_len = 0;
+
   bool in_block = false;
-  for (guint i = 0; i < lines->len; i++) {
-    const char *line = (const char *) lines->pdata[i];
+  for (size_t i = 0; i < lines_len; i++) {
+    const char *line = lines[i];
     if (strcmp (line, XDEF_BLOCK_BEGIN) == 0) { in_block = true;  continue; }
     if (strcmp (line, XDEF_BLOCK_END)   == 0) { in_block = false; continue; }
     if (in_block) continue;
-
-    // if (line_matches_managed_key (line))
-    //   g_ptr_array_add (out, g_strdup_printf ("! %s", line));
-    // else
-      g_ptr_array_add (out, g_strdup (line));
+    if (out_len >= out_cap) {
+      out_cap = out_cap ? out_cap * 2 : 16;
+      out = (char **) realloc (out, out_cap * sizeof (char *));
+    }
+    out[out_len++] = strdup (line);
   }
 
-  g_ptr_array_unref (lines);
+  for (size_t i = 0; i < lines_len; i++) free (lines[i]);
+  free (lines);
+  lines_len = 0;
 
-  /* --- build the new managed block --- */
-  GString *block = g_string_new (XDEF_BLOCK_BEGIN "\n");
+  /* Build the managed block using a dynamic buffer */
+  size_t block_cap = 4096;
+  char *block = (char *) malloc (block_cap);
+  if (!block) return;
+  block[0] = '\0';
 
-  g_string_append_printf (block, "Exoterm.loginShell:         %s\n", s_login_shell     ? "true" : "false");
+  char line_buf[256];
 
-  if (s_geometry[0])
-    g_string_append_printf (block, "Exoterm.geometry:           %s\n", s_geometry);
+  strcpy (block, XDEF_BLOCK_BEGIN "\n");
 
-  g_string_append_printf (block, "Exoterm.internalBorder:   %d\n",  (int)s_border_width);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.loginShell:         %s\n", s_login_shell ? "true" : "false");
+  strcat (block, line_buf);
 
-  g_string_append_printf (block, "Exoterm.blackOpacity:           %d\n",  (int)s_black_opacity);
-  g_string_append_printf (block, "Exoterm.bgOpacity:           %d\n",  (int)s_bg_opacity);
+  if (s_geometry[0]) {
+    snprintf (line_buf, sizeof (line_buf), "Exoterm.geometry:           %s\n", s_geometry);
+    strcat (block, line_buf);
+  }
 
-  g_string_append_printf (block, "Exoterm.lineSpace:         %d\n",  (int)s_line_space);
-  g_string_append_printf (block, "Exoterm.letterSpace:       %d\n",  (int)s_letter_space);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.internalBorder:   %d\n", (int)s_border_width);
+  strcat (block, line_buf);
+
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.blackOpacity:           %d\n", (int)s_black_opacity);
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.bgOpacity:           %d\n", (int)s_bg_opacity);
+  strcat (block, line_buf);
+
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.lineSpace:         %d\n", (int)s_line_space);
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.letterSpace:       %d\n", (int)s_letter_space);
+  strcat (block, line_buf);
 
 #ifdef BUILTIN_GLYPHS
-  g_string_append_printf (block, "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.skipBuiltinGlyphs:  %s\n", s_skip_builtin_glyphs ? "true" : "false");
+  strcat (block, line_buf);
 #endif
 
-  if (s_active_font_xlfd && *s_active_font_xlfd)
-    g_string_append_printf (block, "Exoterm.font:              %s\n", s_active_font_xlfd);
-  if (s_active_bold_xlfd && *s_active_bold_xlfd)
-    g_string_append_printf (block, "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
+  if (s_active_font_xlfd && *s_active_font_xlfd) {
+    snprintf (line_buf, sizeof (line_buf), "Exoterm.font:              %s\n", s_active_font_xlfd);
+    strcat (block, line_buf);
+  }
+  if (s_active_bold_xlfd && *s_active_bold_xlfd) {
+    snprintf (line_buf, sizeof (line_buf), "Exoterm.boldFont:          %s\n", s_active_bold_xlfd);
+    strcat (block, line_buf);
+  }
 
-  // cursor and selection
-  g_string_append_printf (block, "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel   ? "true" : "false");
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.autoCopySelection:  %s\n", s_auto_copy_sel ? "true" : "false");
+  strcat (block, line_buf);
 
-  // if (s_cursor_color[0])
-  //   g_string_append_printf (block, "Exoterm.cursorColor:        %s\n", s_cursor_color);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.cursorBlink:        %s\n", s_cursor_blink ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.cursorUnderline:    %s\n", s_cursor_underline ? "true" : "false");
+  strcat (block, line_buf);
 
-  g_string_append_printf (block, "Exoterm.cursorBlink:        %s\n", s_cursor_blink        ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.cursorUnderline:    %s\n", s_cursor_underline    ? "true" : "false");
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.saveLines:         %d\n", (int)s_save_lines);
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.wheelScrollLines:  %d\n", (int)s_scroll_speed);
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.scrollBar:          %s\n", s_scrollbar ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.scrollTtyOutput:    %s\n", s_scroll_on_output ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.scrollTtyKeypress:  %s\n", s_scroll_on_keypress ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.jumpScroll:         %s\n", s_jump_scroll ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.mouseWheelScrollPage: %s\n", s_mouse_wheel_page ? "true" : "false");
+  strcat (block, line_buf);
 
-  // scroll
-  g_string_append_printf (block, "Exoterm.saveLines:         %d\n",  (int)s_save_lines);
-  g_string_append_printf (block, "Exoterm.wheelScrollLines:  %d\n",  (int)s_scroll_speed);
-  g_string_append_printf (block, "Exoterm.scrollBar:          %s\n", s_scrollbar           ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.scrollTtyOutput:    %s\n", s_scroll_on_output    ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.scrollTtyKeypress:  %s\n", s_scroll_on_keypress  ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.jumpScroll:         %s\n", s_jump_scroll         ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.mouseWheelScrollPage: %s\n", s_mouse_wheel_page  ? "true" : "false");
-
-  // alerts
-  g_string_append_printf (block, "Exoterm.visualBell:         %s\n", s_visual_bell         ? "true" : "false");
-  g_string_append_printf (block, "Exoterm.urgentOnBell:       %s\n", s_urgent_on_bell      ? "true" : "false");
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.visualBell:         %s\n", s_visual_bell ? "true" : "false");
+  strcat (block, line_buf);
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.urgentOnBell:       %s\n", s_urgent_on_bell ? "true" : "false");
+  strcat (block, line_buf);
 
 #ifdef POINTER_BLANK
-  g_string_append_printf (block, "Exoterm.pointerBlank:       %s\n", s_pointer_blank       ? "true" : "false");
+  snprintf (line_buf, sizeof (line_buf), "Exoterm.pointerBlank:       %s\n", s_pointer_blank ? "true" : "false");
+  strcat (block, line_buf);
 #endif
-
-
-// #ifdef HAVE_BG_PIXMAP
-//   g_string_append_printf (block, "Exoterm.inheritPixmap:      %s\n", s_transparent     ? "true" : "false");
-//   g_string_append_printf (block, "Exoterm.transparent:        %s\n", s_transparent     ? "true" : "false");
-// #endif
-
 
   if (first_term) {
     char col[16];
     color_to_hex (first_term, Color_fg, col);
-    g_string_append_printf (block, "Exoterm.foreground:        %s\n", col);
+    snprintf (line_buf, sizeof (line_buf), "Exoterm.foreground:        %s\n", col);
+    strcat (block, line_buf);
     color_to_hex (first_term, Color_bg, col);
-    g_string_append_printf (block, "Exoterm.background:        %s\n", col);
+    snprintf (line_buf, sizeof (line_buf), "Exoterm.background:        %s\n", col);
+    strcat (block, line_buf);
     for (int i = 0; i < 16; i++) {
       color_to_hex (first_term, minCOLOR + i, col);
-      g_string_append_printf (block, "Exoterm.color%-2d:           %s\n", i, col);
+      snprintf (line_buf, sizeof (line_buf), "Exoterm.color%-2d:           %s\n", i, col);
+      strcat (block, line_buf);
     }
   }
 
-  g_string_append (block, XDEF_BLOCK_END "\n");
+  strcat (block, XDEF_BLOCK_END "\n");
 
-  /* --- trim trailing blank lines before appending block --- */
-  while (out->len > 0) {
-    const char *last = (const char *) out->pdata[out->len - 1];
+  while (out_len > 0) {
+    const char *last = out[out_len - 1];
     if (last[0] == '\0')
-      g_ptr_array_remove_index (out, out->len - 1);
+      out_len--;
     else
       break;
   }
 
-  /* --- write file --- */
   FILE *fw = fopen (path, "w");
   if (fw) {
-    for (guint i = 0; i < out->len; i++)
-      fprintf (fw, "%s\n", (const char *) out->pdata[i]);
-    if (out->len > 0)
+    for (size_t i = 0; i < out_len; i++)
+      fprintf (fw, "%s\n", out[i]);
+    if (out_len > 0)
       fputc ('\n', fw);
-    fputs (block->str, fw);
+    fputs (block, fw);
     fclose (fw);
   }
 
-  g_string_free (block, TRUE);
-  g_ptr_array_unref (out);
+  free (block);
+  for (size_t i = 0; i < out_len; i++) free (out[i]);
+  free (out);
 }
 
 #undef XDEF_BLOCK_BEGIN
