@@ -105,24 +105,35 @@ static uint32_t linedraw4_command[] = {
   0x00002161, // [81] 25af white vertical rectangle: top edge 2,1→6,1
   0x00002767, // [82]       bottom edge 2,7→6,7
   0x00002127, // [83]       left edge   2,1→2,7
-  0x00006167, // [84]       right edge  6,1→6,7
+   0x00006167, // [84]       right edge  6,1→6,7
+
+  0x01006283, // [85] 25b0 black parallelogram: top bar y=2-3, x=6→8
+  0x01004485, // [86]       middle bar y=4-5, x=4→8
+  0x01002687, // [87]       bottom bar y=6-7, x=2→8
+
+  0x00006282, // [88] 25b1 white parallelogram: top edge 6,2→8,2
+  0x00008287, // [89]       right edge  8,2→8,7
+  0x00002787, // [90]       bottom edge 2,7→8,7
+  0x00006207, // [91]       left diagonal 6,2→2,7
 };
 
 static uint16_t linedraw4_offs[] = {
-  0x0001, // 25a0 black square
-  0x0014, // 25a1 white square
-  0x0054, // 25a2 white square with rounded corners
-  0x0095, // 25a3 white square containing black small square
-  0x00e7, // 25a4 square with horizontal fill
-  0x0157, // 25a5 square with vertical fill
-  0x01ca, // 25a6 square with orthogonal crosshatch fill
-  0x0269, // 25a7 square with upper left to lower right fill
-  0x02f9, // 25a8 square with upper right to lower left fill
-  0x038e, // 25a9 square with diagonal crosshatch fill
-  0x0461, // 25aa black small square
-  0x0474, // 25ab white small square
-  0x04b1, // 25ac black rectangle
-  0x04c4, // 25ad white rectangle
-  0x0501, // 25ae black vertical rectangle
-  0x0514, // 25af white vertical rectangle
+   0x0001, // 25a0 black square
+   0x0014, // 25a1 white square
+   0x0054, // 25a2 white square with rounded corners
+   0x0095, // 25a3 white square containing black small square
+   0x00e7, // 25a4 square with horizontal fill
+   0x0157, // 25a5 square with vertical fill
+   0x01ca, // 25a6 square with orthogonal crosshatch fill
+   0x0269, // 25a7 square with upper left to lower right fill
+   0x02f9, // 25a8 square with upper right to lower left fill
+   0x038e, // 25a9 square with diagonal crosshatch fill
+   0x0461, // 25aa black small square
+   0x0474, // 25ab white small square
+   0x04b1, // 25ac black rectangle
+   0x04c4, // 25ad white rectangle
+   0x0501, // 25ae black vertical rectangle
+   0x0514, // 25af white vertical rectangle
+   0x0553, // 25b0 black parallelogram
+   0x0584, // 25b1 white parallelogram
 };
