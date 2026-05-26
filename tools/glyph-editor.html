@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>X11 canvas · u32 pack + legacy X11 (XDraw names)</title>
+    <title>X11 canvas · urxvt u32 glyph (single cell, order‑sensitive)</title>
     <style>
         * {
             box-sizing: border-box;
@@ -20,42 +20,34 @@
         }
         .demo-container {
             background: #252538;
-            border-radius: 28px;
+            border-radius: 0;
             padding: 24px;
-/*
             box-shadow: 0 20px 35px rgba(0,0,0,0.6);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 24px;
-            max-width: 1300px;
-            width: fit-content;
-  */
+
         }
         .canvas-panel {
-            /*background: #0f0f17;*/
-            /*border-radius: 20px;*/
-            padding: 12px;
+/*            background: #0f0f17;*/
+            padding: 0;
         }
         canvas {
             display: block;
-            /*border-radius: 12px;*/
             background: #faf6ef;
-            /*box-shadow: 0 8px 18px rgba(0,0,0,0.5);*/
-            /*width: 100%;*/
-            /*height: auto;*/
-            /*max-width: 600px;*/
+            margin: 0 auto;
+/*            image-rendering: crisp-edges;*/
+            image-rendering: pixelated;
+            width: auto;
+            height: auto;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.5);
         }
         .control-panel {
             background: #2a2a3c;
-            border-radius: 20px;
             padding: 18px;
+            margin-top: 18px;
             display: flex;
             flex-direction: column;
             gap: 16px;
             min-width: 400px;
             color: #e0e0f0;
-            max-height: 750px;
-            overflow-y: auto;
         }
         h2 {
             font-size: 1.4rem;
@@ -64,35 +56,6 @@
             margin-bottom: 4px;
             border-bottom: 2px solid #4a4a6a;
             padding-bottom: 6px;
-        }
-        .tab-buttons {
-            display: flex;
-            gap: 8px;
-        }
-        .tab-btn {
-            background: #3b3b5c;
-            border: none;
-            color: #ccc;
-            padding: 8px 16px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 0.8rem;
-            transition: 0.2s;
-            border-bottom: 2px solid transparent;
-        }
-        .tab-btn.active {
-            background: #5b5b8c;
-            color: white;
-            border-bottom-color: #ffae8c;
-        }
-        .tab-content {
-            display: none;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .tab-content.active {
-            display: flex;
         }
         .input-row {
             display: flex;
@@ -118,7 +81,7 @@
             height: 100px;
             background: #1a1a28;
             border: 2px solid #4e4e7a;
-            border-radius: 12px;
+            border-radius: 0;
             color: #f2e9c2;
             padding: 10px;
             font-size: 0.8rem;
@@ -145,7 +108,7 @@
             color: white;
             font-weight: bold;
             padding: 10px 16px;
-            border-radius: 30px;
+            border-radius: 0;
             font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.2s;
@@ -158,7 +121,7 @@
         }
         .example-box {
             background: #1e1e2e;
-            border-radius: 14px;
+            border-radius: 0;
             padding: 10px;
             font-size: 0.73rem;
             color: #cfcfe0;
@@ -169,7 +132,7 @@
         .example-cmd {
             background: #0c0c18;
             padding: 4px 8px;
-            border-radius: 8px;
+            border-radius: 0;
             cursor: pointer;
             user-select: all;
         }
@@ -198,64 +161,51 @@
 <body>
 <div class="demo-container">
     <div class="canvas-panel">
-        <canvas id="x11canvas" width="180" height="200"></canvas>
+        <canvas id="x11canvas" width="100" height="100"></canvas>
     </div>
     <div class="control-panel">
-        <h2>🖼️ X11 + urxvt u32</h2>
         <div class="input-row">
             <label>Canvas W</label>
-            <input type="number" id="canvasW" value="100" min="100" max="1200" step="10">
+            <input type="number" id="canvasW" value="120" min="50" max="800" step="10">
             <label>H</label>
-            <input type="number" id="canvasH" value="100" min="100" max="800" step="10">
+            <input type="number" id="canvasH" value="200" min="50" max="800" step="10">
             <label>Cell W</label>
-            <input type="number" id="cellW" value="32" min="4" max="32" step="1">
+            <input type="number" id="cellW" value="8" min="4" max="128" step="1">
             <label>Cell H</label>
-            <input type="number" id="cellH" value="48" min="8" max="48" step="1">
+            <input type="number" id="cellH" value="12" min="8" max="128" step="1">
         </div>
 
-        <!-- Tab: u32 packed commands -->
-        <div id="tab-u32" class="tab-content active">
-            <div style="display:flex; gap:12px;">
-                <div style="flex:1;">
-                    <label>🔢 u32 hex (one per line)</label>
-                    <textarea id="hexInput" class="valid">0x01000187
+        <div style="display:flex; gap:12px;">
+            <div style="flex:1;">
+                <label>u32 hex commands</label>
+                <textarea id="hexInput" class="valid">0x01000187
 0x04223355
 0x00008187</textarea>
-                </div>
-                <div style="flex:1;">
-                    <label>📝 text (X11 names)</label>
-                    <textarea id="textInput" class="valid">XFillRectangle 0 0 1 8 7
+            </div>
+            <div style="flex:1;">
+                <label>x11 funcs</label>
+                <textarea id="textInput" class="valid">XFillRectangle 0 0 1 8 7
 XFillRectangle 2 1 3 5 5
 XDrawLine 0 0 0 0 8 8</textarea>
-                </div>
             </div>
-            <div class="status" id="u32Status">✅ valid</div>
-            <div class="example-box">
-                <span>⚡ quick u32 examples</span>
-                <div class="example-cmd" data-target="hex">0x01000187</div>
-                <div class="example-cmd" data-target="hex">0x04223355</div>
-                <div class="example-cmd" data-target="text">XFillRectangle 0 0 1 8 7</div>
-                <div class="example-cmd" data-target="text">XDrawLine 0 0 0 0 8 8</div>
-            </div>
+        </div>
+        <div class="status" id="u32Status">✅ valid — commands drawn in order (last on top)</div>
+
+        <div class="example-box">
+            <span>quick examples</span>
+            <div class="example-cmd" data-target="hex">0x01000187</div>
+            <div class="example-cmd" data-target="hex">0x04223355</div>
+            <div class="example-cmd" data-target="text">XFillRectangle 0 0 0 1 8 7</div>
+            <div class="example-cmd" data-target="text">XDrawLine 0 0 0 0 8 8</div>
         </div>
 
-        <!-- Tab: Documentation -->
-        <div id="tab-docs" class="tab-content active">
-            <div class="doc-line"><b>u32 packed format</b> (from rxvtfont.C)</div>
-            <div class="doc-line">bits 24-31: op (0=XDrawLine,1=XFillRectangle,2=XDrawArc,3=XFillPolygon,4=XFillArc,5=XFillArc)</div>
-            <div class="doc-line">bits 20-23: a, bits 16-19: b</div>
-            <div class="doc-line">bits 12-15: x1, 8-11: y1, 4-7: x2, 0-3: y2</div>
-            <div class="doc-line">coordinate indices: 0=left/top, 8=right/bottom, 10=center</div>
-            <div class="doc-line">stipple levels (RECT a): 0 solid, 1=75%, 2=50%, 3=25%</div>
-            <hr>
-            <div class="doc-line"><b>Text command syntax:</b> OP a b x1 y1 x2 y2</div>
-            <div class="doc-line">OP ∈ {XDrawLine, XFillRectangle, XDrawArc, XFillPolygon, XFillArc}</div>
-            <div class="doc-line">all numbers 0–15</div>
-            <hr>
-            <div class="doc-line"><b>Legacy X11 functions:</b></div>
-            <div class="doc-line">XDrawPoint(x,y), XDrawLine, XDrawArc, XFillArc,</div>
-            <div class="doc-line">XDrawRectangle, XFillRectangle, XFillPolygon, XSetFillStyle, XSetStipple</div>
-        </div>
+        <details>
+            <summary>docs</summary>
+            <div class="doc-line"><b>All commands paint into the SAME cell</b>, one after another.</div>
+            <div class="doc-line">Later commands overdraw earlier ones – just like the original rxvtfont.C.</div>
+            <div class="doc-line">Format: bits 24‑31 op, 20‑23 a, 16‑19 b, 12‑15 x1, 8‑11 y1, 4‑7 x2, 0‑3 y2.</div>
+            <div class="doc-line">OP names: XDrawLine(0), XFillRectangle(1), XDrawArc(2), XFillPolygon(3), XFillArc(4/5).</div>
+        </details>
     </div>
 </div>
 
@@ -283,51 +233,66 @@ XDrawLine 0 0 0 0 8 8</textarea>
                    (y2 & 0xF);
         }
 
-        // X11 function names mapped to opcodes
         const OP_NAMES = [
             'XDrawLine',      // 0
             'XFillRectangle', // 1
             'XDrawArc',       // 2
             'XFillPolygon',   // 3
             'XFillArc',       // 4
-            'XFillArc'        // 5 (rounded corner approximated as fill arc)
+            'XFillArc'        // 5 (rounded corner)
         ];
         const OP_MAP = Object.fromEntries(OP_NAMES.map((name, i) => [name, i]));
 
-        function objToHex(obj) {
-            return '0x' + encodeU32Command(obj).toString(16).padStart(8, '0');
-        }
-        function objToText(obj) {
-            const opName = OP_NAMES[obj.op] || 'UNKNOWN';
-            return `${opName} ${obj.a} ${obj.b} ${obj.x1} ${obj.y1} ${obj.x2} ${obj.y2}`;
-        }
+        function objToHex(obj) { return '0x' + encodeU32Command(obj).toString(16).padStart(8, '0'); }
+        function objToText(obj) { return `${OP_NAMES[obj.op]} ${obj.a} ${obj.b} ${obj.x1} ${obj.y1} ${obj.x2} ${obj.y2}`; }
 
-        // ========== X11 CANVAS LIBRARY ==========
+        // ========== X11 CANVAS LIBRARY (CRISP, NO AA) ==========
         class X11Canvas {
-            constructor(canvas) {
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
+            constructor(displayCanvas) {
+                this.displayCanvas = displayCanvas;
+                this.displayCtx = displayCanvas.getContext('2d');
+                // disable antialiasing on display canvas
+                this.displayCtx.imageSmoothingEnabled = false;
                 this.foreground = '#1e2b3c';
                 this.background = '#faf6ef';
                 this.fillColor = '#c97b5d';
-                this.lineWidth = 1.8;
+                this.lineWidth = 1;
                 this.fillStyle = 'Solid';
                 this.stipplePattern = null;
                 this.stippleFg = '#1e2b3c';
                 this.stippleBg = '#faf6ef';
+                // offscreen cell canvas
+                this.cellCanvas = document.createElement('canvas');
+                this.cellCtx = this.cellCanvas.getContext('2d');
+                this.cellCtx.imageSmoothingEnabled = false;
             }
 
-            // --- setters for colours and style ---
             setForeground(c) { this.foreground = c; }
             setFillColor(c) { this.fillColor = c; }
             setLineWidth(w) { this.lineWidth = w; }
-            setStippleFg(c) { this.stippleFg = c; }
-            setStippleBg(c) { this.stippleBg = c; }
 
-            clear() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.ctx.fillStyle = this.background;
-                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            /** Prepare cell canvas with given size and background */
+            beginCell(w, h) {
+                this.cellCanvas.width = w;
+                this.cellCanvas.height = h;
+                this.cellCtx.clearRect(0, 0, w, h);
+                this.cellCtx.fillStyle = this.background;
+                this.cellCtx.fillRect(0, 0, w, h);
+                // Reset default styles for the cell context
+                this.cellCtx.strokeStyle = this.foreground;
+                this.cellCtx.fillStyle = this.fillColor;
+                this.cellCtx.lineWidth = this.lineWidth;
+                this.cellCtx.imageSmoothingEnabled = false;
+                this.cellW = w;
+                this.cellH = h;
+            }
+
+            /** Copy the cell canvas to the display canvas, scaled to fit with nearest‑neighbour */
+            presentCell() {
+                const dw = this.displayCanvas.width;
+                const dh = this.displayCanvas.height;
+                this.displayCtx.clearRect(0, 0, dw, dh);
+                this.displayCtx.drawImage(this.cellCanvas, 0, 0, dw, dh);
             }
 
             _getFillStyle() {
@@ -351,41 +316,87 @@ XDrawLine 0 0 0 0 8 8</textarea>
                 return { x_, y_ };
             }
 
-            executeU32Command(decoded, x, y, W, H) {
+            drawAliasedLine(ctx, x1, y1, x2, y2) {
+                x1 = Math.round(x1);
+                y1 = Math.round(y1);
+                x2 = Math.round(x2);
+                y2 = Math.round(y2);
+
+                let dx = Math.abs(x2 - x1);
+                let dy = Math.abs(y2 - y1);
+                let sx = (x1 < x2) ? 1 : -1;
+                let sy = (y1 < y2) ? 1 : -1;
+                let err = dx - dy;
+
+                while (true) {
+                    ctx.fillRect(x1, y1, 1, 1); // Draw a single pixel
+                    if (x1 === x2 && y1 === y2) break;
+                    let e2 = 2 * err;
+                    if (e2 > -dy) { err -= dy; x1 += sx; }
+                    if (e2 < dx) { err += dx; y1 += sy; }
+                }
+            }
+
+            executeU32Command(decoded) {
                 const { op, a, b, x1: xi1, y1: yi1, x2: xi2, y2: yi2 } = decoded;
-                const { x_, y_ } = this._computeCoords(x, y, W, H);
+                const { x_, y_ } = this._computeCoords(0, 0, this.cellW, this.cellH);
                 const X1 = x_[xi1], Y1 = y_[yi1];
                 const X2 = x_[xi2], Y2 = y_[yi2];
+                const ctx = this.cellCtx;  // draw on the cell canvas
 
                 switch (op) {
                     case 0: // XDrawLine
-                        this.XDrawLine(X1, Y1, X2, Y2);
+                        // ctx.beginPath();
+                        // ctx.strokeStyle = this.foreground;
+                        // ctx.lineWidth = this.lineWidth;
+                        // ctx.moveTo(X1, Y1);
+                        // ctx.lineTo(X2, Y2);
+                        // ctx.stroke();
+                        this.drawAliasedLine(ctx, X1, Y1, X2, Y2)
                         break;
                     case 1: // XFillRectangle
                         if (a === 0) {
-                            this.XFillRectangle(X1, Y1, X2 - X1 + 1, Y2 - Y1 + 1);
+                            ctx.fillStyle = this.fillColor;
+                            ctx.fillRect(X1, Y1, X2 - X1 + 1, Y2 - Y1 + 1);
                         } else {
                             this._drawStippledRect(X1, Y1, X2 - X1 + 1, Y2 - Y1 + 1, a);
                         }
                         break;
                     case 2: // XDrawArc
-                        this.XDrawArc(X1 - W/2, Y1 - H/2, W-1, H-1, (a-1)*90, (b-1)*90);
+                        ctx.beginPath();
+                        ctx.strokeStyle = this.foreground;
+                        ctx.lineWidth = this.lineWidth;
+                        const s = (a-1)*90 * Math.PI/180;
+                        const e = ((a-1)+(b-1))*90 * Math.PI/180;
+                        ctx.ellipse(X1 - this.cellW/2, Y1 - this.cellH/2,
+                                     Math.abs(this.cellW-1)/2, Math.abs(this.cellH-1)/2,
+                                     0, s, e, false);
+                        ctx.stroke();
                         break;
                     case 3: // XFillPolygon (triangle)
                         this._drawFilledTriangle(X1, Y1, X2, Y2, a);
                         break;
                     case 4: // XFillArc
-                        this.XFillArc(X1, Y1, X2 - X1, Y2 - Y1, (a-1)*90, (b-1)*90);
+                        ctx.beginPath();
+                        ctx.fillStyle = this._getFillStyle();
+                        const start = (a-1)*90 * Math.PI/180;
+                        const end = ((a-1)+(b-1))*90 * Math.PI/180;
+                        ctx.moveTo(X1, Y1);
+                        ctx.ellipse(X1, Y1,
+                                     Math.abs(X2-X1), Math.abs(Y2-Y1),
+                                     0, start, end, false);
+                        ctx.closePath();
+                        ctx.fill();
                         break;
                     case 5: // XFillArc (rounded corner)
-                        this._drawRoundedCorner(x, y, W, H, a, b);
+                        this._drawRoundedCorner(a, b);
                         break;
                 }
             }
 
             _drawStippledRect(x, y, w, h, a) {
                 const bm = [[0,0],[3,1],[1,2],[1,0]];
-                const [fg, bg] = bm[a] || [0,0];
+                const [fg] = bm[a] || [0];
                 const pc = document.createElement('canvas');
                 pc.width = 2; pc.height = 2;
                 const pctx = pc.getContext('2d');
@@ -396,11 +407,11 @@ XDrawLine 0 0 0 0 8 8</textarea>
                 if (fg & 2) pctx.fillRect(1,0,1,1);
                 if (fg & 4) pctx.fillRect(0,1,1,1);
                 if (fg & 8) pctx.fillRect(1,1,1,1);
-                const pat = this.ctx.createPattern(pc, 'repeat');
-                this.ctx.save();
-                this.ctx.fillStyle = pat;
-                this.ctx.fillRect(x, y, w, h);
-                this.ctx.restore();
+                const pat = this.cellCtx.createPattern(pc, 'repeat');
+                this.cellCtx.save();
+                this.cellCtx.fillStyle = pat;
+                this.cellCtx.fillRect(x, y, w, h);
+                this.cellCtx.restore();
             }
 
             _drawFilledTriangle(x1, y1, x2, y2, a) {
@@ -410,15 +421,17 @@ XDrawLine 0 0 0 0 8 8</textarea>
                 else if (a===2) pts = [[x1,y1],[x2,y1],[xm,y2]];
                 else if (a===3) pts = [[x2,y1],[x2,y2],[x1,ym]];
                 else pts = [[x1,y1],[x1,y2],[x2,ym]];
-                this.ctx.beginPath();
-                this.ctx.fillStyle = this._getFillStyle();
-                this.ctx.moveTo(pts[0][0],pts[0][1]);
-                for(let i=1;i<3;i++) this.ctx.lineTo(pts[i][0],pts[i][1]);
-                this.ctx.closePath();
-                this.ctx.fill();
+                const ctx = this.cellCtx;
+                ctx.beginPath();
+                ctx.fillStyle = this._getFillStyle();
+                ctx.moveTo(pts[0][0], pts[0][1]);
+                for(let i=1;i<3;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+                ctx.closePath();
+                ctx.fill();
             }
 
-            _drawRoundedCorner(x, y, W, H, a, b) {
+            _drawRoundedCorner(a, b) {
+                const W = this.cellW, H = this.cellH;
                 const isHalf = (b===1);
                 const dw = isHalf ? W : 2*W, dh = isHalf ? H : 2*H;
                 let angle, xm, ym;
@@ -426,75 +439,61 @@ XDrawLine 0 0 0 0 8 8</textarea>
                 else if (a===2) { angle=0; xm=-1; ym=0; }
                 else if (a===3) { angle=180; xm=0; ym=-1; }
                 else { angle=270; xm=-1; ym=-1; }
-                const bx = x + (isHalf?W/2:0) + xm*(isHalf?W:W-1);
-                const by = y + (isHalf?H/2:0) + ym*H;
-                this.XFillArc(bx, by, dw, dh, angle, 90);
+                const bx = (isHalf ? W/2 : 0) + xm * (isHalf ? W : W-1);
+                const by = (isHalf ? H/2 : 0) + ym * H;
+                const ctx = this.cellCtx;
+                ctx.beginPath();
+                ctx.fillStyle = this._getFillStyle();
+                const start = angle * Math.PI/180;
+                const end = (angle+90) * Math.PI/180;
+                ctx.moveTo(bx + (isHalf?W:2*W)/2, by + (isHalf?H:2*H)/2);
+                ctx.ellipse(bx + dw/2, by + dh/2, Math.abs(dw/2), Math.abs(dh/2), 0, start, end, false);
+                ctx.closePath();
+                ctx.fill();
             }
-
-            // Legacy X11 primitives
-            XDrawPoint(x,y) { if(isNaN(x)||isNaN(y))return; this.ctx.fillStyle=this.foreground; this.ctx.fillRect(Math.floor(x),Math.floor(y),1,1); }
-            XDrawLine(x1,y1,x2,y2) { this.ctx.beginPath(); this.ctx.strokeStyle=this.foreground; this.ctx.lineWidth=this.lineWidth; this.ctx.moveTo(x1,y1); this.ctx.lineTo(x2,y2); this.ctx.stroke(); }
-            XDrawArc(x,y,w,h,a1,a2) { const s=a1*Math.PI/180,e=(a1+a2)*Math.PI/180; this.ctx.beginPath(); this.ctx.strokeStyle=this.foreground; this.ctx.lineWidth=this.lineWidth; this.ctx.ellipse(x+w/2,y+h/2,Math.abs(w/2),Math.abs(h/2),0,s,e,a2<0); this.ctx.stroke(); }
-            XFillArc(x,y,w,h,a1,a2) { const s=a1*Math.PI/180,e=(a1+a2)*Math.PI/180; this.ctx.beginPath(); this.ctx.fillStyle=this._getFillStyle(); this.ctx.moveTo(x+w/2,y+h/2); this.ctx.ellipse(x+w/2,y+h/2,Math.abs(w/2),Math.abs(h/2),0,s,e,a2<0); this.ctx.closePath(); this.ctx.fill(); }
-            XDrawRectangle(x,y,w,h) { this.ctx.strokeStyle=this.foreground; this.ctx.lineWidth=this.lineWidth; this.ctx.strokeRect(x,y,w,h); }
-            XFillRectangle(x,y,w,h) { this.ctx.fillStyle=this._getFillStyle(); this.ctx.fillRect(x,y,w,h); }
-            XFillPolygon(...c) { if(c.length<6)return; this.ctx.beginPath(); this.ctx.fillStyle=this._getFillStyle(); this.ctx.moveTo(c[0],c[1]); for(let i=2;i<c.length;i+=2) this.ctx.lineTo(c[i],c[i+1]); this.ctx.closePath(); this.ctx.fill(); }
-            XSetFillStyle(s) { if(s==='Solid'||s==='Stippled') this.fillStyle=s; }
-            XSetStipple(w,h,...bits) { if(w<=0||h<=0||bits.length<w*h)return; const pc=document.createElement('canvas'); pc.width=w; pc.height=h; const pctx=pc.getContext('2d'); pctx.fillStyle=this.stippleBg; pctx.fillRect(0,0,w,h); pctx.fillStyle=this.stippleFg; for(let r=0;r<h;r++) for(let c=0;c<w;c++) if(bits[r*w+c]===1) pctx.fillRect(c,r,1,1); this.stipplePattern=this.ctx.createPattern(pc,'repeat'); }
         }
 
         // ========== DEMO STATE ==========
-        const canvas = document.getElementById('x11canvas');
-        const x11 = new X11Canvas(canvas);
+        const displayCanvas = document.getElementById('x11canvas');
+        const x11 = new X11Canvas(displayCanvas);
         x11.setForeground('#1e2b3c');
         x11.setFillColor('#c97b5d');
-        x11.setLineWidth(1.8);
+        x11.setLineWidth(1);
+        x11.stippleFg = '#1e2b3c';
+        x11.stippleBg = '#faf6ef';
 
-        // Input elements
         const canvasWInput = document.getElementById('canvasW');
         const canvasHInput = document.getElementById('canvasH');
         const cellWInput = document.getElementById('cellW');
         const cellHInput = document.getElementById('cellH');
         const hexInput = document.getElementById('hexInput');
         const textInput = document.getElementById('textInput');
-        const legacyInput = document.getElementById('legacyInput');
         const u32Status = document.getElementById('u32Status');
-        const legacyStatus = document.getElementById('legacyStatus');
 
         let lastValidHexLines = [];
         let lastValidTextLines = [];
-        let activeSource = 'hex'; // 'hex' or 'text'
+        let activeSource = 'hex';
 
-        function resizeCanvas() {
-            const w = parseInt(canvasWInput.value) || 600;
-            const h = parseInt(canvasHInput.value) || 400;
-            canvas.width = w;
-            canvas.height = h;
-            x11.clear();
-            redrawFromU32Commands();
+        function resizeDisplayCanvas() {
+            const w = parseInt(canvasWInput.value) || 100;
+            const h = parseInt(canvasHInput.value) || 100;
+            displayCanvas.width = w;
+            displayCanvas.height = h;
+            // keep crisp
+            displayCanvas.getContext('2d').imageSmoothingEnabled = false;
+            redrawGlyph();
         }
 
-        function getCellSize() {
-            return {
-                w: parseInt(cellWInput.value) || 12,
-                h: parseInt(cellHInput.value) || 24
-            };
-        }
-
-        function redrawFromU32Commands() {
-            x11.clear();
+        function redrawGlyph() {
             const commands = activeSource === 'hex' ? lastValidHexLines : lastValidTextLines;
-            const { w: cw, h: ch } = getCellSize();
-            const cols = Math.floor(canvas.width / cw);
-            let curX = 0, curY = 0;
-            for (const cmdObj of commands) {
-                if (curX + cw > canvas.width) {
-                    curX = 0;
-                    curY += ch;
-                }
-                x11.executeU32Command(cmdObj, curX, curY, cw, ch);
-                curX += cw;
+            const cw = parseInt(cellWInput.value) || 32;
+            const ch = parseInt(cellHInput.value) || 48;
+            x11.beginCell(cw, ch);
+            // Draw all commands sequentially into the cell
+            for (const cmd of commands) {
+                x11.executeU32Command(cmd);
             }
+            x11.presentCell();  // scale to display canvas
         }
 
         function parseHexLines(text) {
@@ -544,7 +543,7 @@ XDrawLine 0 0 0 0 8 8</textarea>
                     const textLines = hexCmds.map(objToText);
                     textInput.value = textLines.join('\n');
                     textInput.classList.remove('invalid');
-                    u32Status.textContent = `✅ ${hexCmds.length} commands`;
+                    u32Status.textContent = `✅ ${hexCmds.length} commands — order matters (last on top)`;
                 } else {
                     hexInput.classList.add('invalid');
                     u32Status.textContent = '❌ Invalid hex';
@@ -558,55 +557,26 @@ XDrawLine 0 0 0 0 8 8</textarea>
                     const hexLines = textCmds.map(objToHex);
                     hexInput.value = hexLines.join('\n');
                     hexInput.classList.remove('invalid');
-                    u32Status.textContent = `✅ ${textCmds.length} commands`;
+                    u32Status.textContent = `✅ ${textCmds.length} commands — order matters (last on top)`;
                 } else {
                     textInput.classList.add('invalid');
                     u32Status.textContent = '❌ Invalid text';
                 }
             }
 
-            if (hexInput.classList.contains('invalid') || textInput.classList.contains('invalid')) {
-                return; // do not redraw if invalid
-            }
-            redrawFromU32Commands();
+            if (hexInput.classList.contains('invalid') || textInput.classList.contains('invalid')) return;
+            redrawGlyph();
         }
 
         hexInput.addEventListener('input', () => updateU32UI(hexInput));
         textInput.addEventListener('input', () => updateU32UI(textInput));
 
         [canvasWInput, canvasHInput, cellWInput, cellHInput].forEach(el =>
-            el.addEventListener('input', resizeCanvas)
+            el.addEventListener('input', () => {
+                resizeDisplayCanvas();
+                redrawGlyph();
+            })
         );
-
-        // Legacy X11
-        function executeLegacy(text) {
-            x11.clear();
-            const lines = text.split(/\r?\n/);
-            for (let line of lines) {
-                line = line.trim();
-                if (line === '' || line.startsWith('#')) continue;
-                const parts = line.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-                if (parts.length === 0) continue;
-                const cmd = parts[0];
-                const args = parts.slice(1).map(Number);
-                try {
-                    switch (cmd) {
-                        case 'XDrawPoint': if(args.length>=2) x11.XDrawPoint(args[0],args[1]); break;
-                        case 'XDrawLine': if(args.length>=4) x11.XDrawLine(args[0],args[1],args[2],args[3]); break;
-                        case 'XDrawArc': if(args.length>=6) x11.XDrawArc(args[0],args[1],args[2],args[3],args[4],args[5]); break;
-                        case 'XFillArc': if(args.length>=6) x11.XFillArc(args[0],args[1],args[2],args[3],args[4],args[5]); break;
-                        case 'XDrawRectangle': if(args.length>=4) x11.XDrawRectangle(args[0],args[1],args[2],args[3]); break;
-                        case 'XFillRectangle': if(args.length>=4) x11.XFillRectangle(args[0],args[1],args[2],args[3]); break;
-                        case 'XFillPolygon': if(args.length>=6 && args.length%2===0) x11.XFillPolygon(...args); break;
-                        case 'XSetFillStyle': if(parts.length>=2) x11.XSetFillStyle(parts[1]); break;
-                        case 'XSetStipple': if(parts.length>=3) { const w=+parts[1],h=+parts[2]; const bits=parts.slice(3).map(Number); x11.XSetStipple(w,h,...bits); } break;
-                        default: break;
-                    }
-                } catch(e) {}
-            }
-            legacyStatus.textContent = '✅ Legacy drawn';
-        }
-
 
         // Quick example clicks
         document.querySelectorAll('.example-cmd').forEach(el => {
@@ -619,15 +589,12 @@ XDrawLine 0 0 0 0 8 8</textarea>
                 } else if (target === 'text') {
                     textInput.value = cmd;
                     updateU32UI(textInput);
-                } else if (target === 'legacy') {
-                    legacyInput.value = cmd;
-                    executeLegacy(cmd);
                 }
             });
         });
 
         // Initial draw
-        resizeCanvas();
+        resizeDisplayCanvas();
         updateU32UI(hexInput);
     })();
 </script>
