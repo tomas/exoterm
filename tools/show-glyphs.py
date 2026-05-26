@@ -8,10 +8,10 @@ import sys
 # (start, end, label)
 RANGES = [
     (0x2500, 0x259f, "Box Drawing & Block Elements"),
-    (0x25a0, 0x25b1, "Geometric Shapes (square/rectangle/parallelogram)"),
+    (0x25a0, 0x25b1, "Geometric Shapes (square/rectangle)"),
     (0x25c0, 0x25d8, "Geometric Shapes (triangle/circle)"),
     (0x2b00, 0x2b24, "Miscellaneous Symbols"),
-    (0x23a0, 0x23af, "Dentistry / Bracket"),
+    (0x23a0, 0x23ce, "Dentistry / Bracket"),
     (0x23f4, 0x23fa, "Media Control"),
 ]
 
@@ -34,16 +34,16 @@ DESC = {
     0x25ad: "WHITE RECTANGLE",
     0x25ae: "BLACK VERTICAL RECTANGLE",
     0x25af: "WHITE VERTICAL RECTANGLE",
-    0x25b0: "BLACK PARALLELOGRAM",
-    0x25b1: "WHITE PARALLELOGRAM",
+    0x25b0: "BLACK HORIZONTAL RECTANGLE",
+    0x25b1: "WHITE HORIZONTAL RECTANGLE",
     # 25c0 table
     0x25c9: "FISHEYE",
     0x25cb: "WHITE CIRCLE",
     0x25cf: "BLACK CIRCLE",
-    0x25d8: "INVERSE BULLET",
+    0x25d8: "INVERSE BULLET (half-size filled)",
     # 2b00 table
-    0x2b12: "SQUARE WITH TOP HALF BLACK",
-    0x2b13: "SQUARE WITH BOTTOM HALF BLACK",
+    0x2b12: "SQUARE WITH TOP HALF BLACK (bordered)",
+    0x2b13: "SQUARE WITH BOTTOM HALF BLACK (bordered)",
     0x2b1a: "DOTTED SQUARE",
     0x2b1b: "BLACK LARGE SQUARE",
     0x2b1c: "WHITE LARGE SQUARE",
@@ -51,10 +51,14 @@ DESC = {
     0x2b1e: "WHITE VERY SMALL SQUARE",
     0x2b24: "BLACK LARGE CIRCLE",
     # 23a0 table
+    0x23a1: "LEFT SQUARE BRACKET UPPER CORNER",
+    0x23a2: "LEFT SQUARE BRACKET EXTENSION",
+    0x23a3: "LEFT SQUARE BRACKET LOWER CORNER",
     0x23a4: "RIGHT BRACKET UPPER CORNER",
     0x23a5: "RIGHT BRACKET EXTENSION",
     0x23a6: "RIGHT BRACKET LOWER CORNER",
     0x23af: "HORIZONTAL LINE EXTENSION",
+    0x23bf: "DENTISTRY SYMBOL LIGHT VERTICAL AND BOTTOM RIGHT",
     # 23f4 table
     0x23f4: "BLACK MEDIUM LEFT-POINTING TRIANGLE",
     0x23f5: "BLACK MEDIUM RIGHT-POINTING TRIANGLE",

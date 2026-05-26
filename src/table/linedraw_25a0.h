@@ -107,14 +107,12 @@ static uint32_t linedraw4_command[] = {
   0x00002127, // [83]       left edge   2,1→2,7
    0x00006167, // [84]       right edge  6,1→6,7
 
-  0x01006283, // [85] 25b0 black parallelogram: top bar y=2-3, x=6→8
-  0x01004485, // [86]       middle bar y=4-5, x=4→8
-  0x01002687, // [87]       bottom bar y=6-7, x=2→8
+  0x01000385, // [85] 25b0 black horizontal rectangle: filled rect 0,3→8,5
 
-  0x00006282, // [88] 25b1 white parallelogram: top edge 6,2→8,2
-  0x00008287, // [89]       right edge  8,2→8,7
-  0x00002787, // [90]       bottom edge 2,7→8,7
-  0x00006207, // [91]       left diagonal 6,2→2,7
+  0x00000383, // [86] 25b1 white horizontal rectangle: top edge 0,3→8,3
+  0x00000585, // [87]       bottom edge 0,5→8,5
+  0x00000305, // [88]       left edge   0,3→0,5
+  0x00008385, // [89]       right edge  8,3→8,5
 };
 
 static uint16_t linedraw4_offs[] = {
@@ -134,6 +132,6 @@ static uint16_t linedraw4_offs[] = {
    0x04c4, // 25ad white rectangle
    0x0501, // 25ae black vertical rectangle
    0x0514, // 25af white vertical rectangle
-   0x0553, // 25b0 black parallelogram
-   0x0584, // 25b1 white parallelogram
+   0x0551, // 25b0 black horizontal rectangle
+   0x0564, // 25b1 white horizontal rectangle
 };

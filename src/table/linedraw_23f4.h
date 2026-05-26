@@ -8,7 +8,7 @@ static uint32_t linedraw3_command[] = {
   0x01002137, // [4] 23f8 double vertical bar (pause) - left bar
   0x01005167, // [5]       right bar
   0x01001177, // [6] 23f9 black medium square (stop)
-  0x04151177, // [7] 23fa black medium circle (record)
+  0x0640AA00, // [7] 23fa black medium circle (filled at center 10,10, a=4)
 };
 
 // offset = (start_index << 4) | count

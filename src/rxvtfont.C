@@ -351,11 +351,10 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
             break;
           case 2: // arc (outline, center at x1/y1, full cell size)
             {
-              // ugly hack for rounded corners in box decorations
-              int arc_h = H-1;
+              int size = min(W-1, H-1);
 
               XDrawArc (disp, d, gc,
-                        x1 - W/2, y1 - H/2, W-1, arc_h,
+                        x1 - size/2, y1 - size/2, size, size,
                         (a - 1) * 90*64, (b - 1) * 90*64);
               break;
             }
@@ -373,19 +372,31 @@ static void draw_glyph (Display *disp, Drawable d, GC gc, int x, int y,
             }
           case 4: // filled arc, bounding box x1/y1 to x2/y2
             {
+              int w = x2 - x1;
+              int h = y2 - y1;
+              int size = min(w, h);
               XFillArc (disp, d, gc,
-                        x1, y1, x2 - x1, y2 - y1,
+                        x1 + (w - size) / 2, y1 + (h - size) / 2, size, size,
                         (a - 1) * 90*64, (b - 1) * 90*64);
               break;
             }
           case 5: // filled rounded corner (full or half size)
-
             {
               int is_half = (b == 1);
               if (a == 1) draw_arc_segment(disp, d, gc, x, y, W, H, is_half,       90,  0,  0, 1);
               else if (a == 2) draw_arc_segment(disp, d, gc, x, y, W, H, is_half,   0, -1,  0, 0);
               else if (a == 3) draw_arc_segment(disp, d, gc, x, y, W, H, is_half, 180,  0, -1, 1);
               else draw_arc_segment(disp, d, gc, x, y, W, H, is_half,             270, -1, -1, 0);
+              break;
+            }
+          case 6: // filled circle centered at x1,y1, a = size quarters (4=full, 3=3/4, 2=1/2)
+            {
+              int max_size = min(W-1, H-1);
+              int size = max_size * a / 4;
+              XFillArc (disp, d, gc,
+                        x1 - size/2, y1 - size/2, size, size,
+                        0, 360*64);
+              break;
             }
         }
     }
@@ -441,6 +452,8 @@ struct rxvt_font_default : rxvt_font {
     if ((unicode >= 0x2500 && unicode <= 0x259f) ||
         (unicode >= 0x25a0 && unicode <= 0x25b1) ||
         (unicode >= 0x23a0 && unicode <= 0x23af) ||
+        (unicode == 0x23bf) ||
+        (unicode == 0x23ce) ||
         (unicode >= 0x23f4 && unicode <= 0x23fa) ||
         (unicode >= 0x25c0 && unicode <= 0x25d8) ||
         (unicode >= 0x2b00 && unicode <= 0x2b24) ||
@@ -591,7 +604,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
           uint16_t offs = linedraw2_offs[t - 0x2b00];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw2_command, offs);
         }
-      else if (0x23a0 <= t && t <= 0x23af)
+      else if (0x23a0 <= t && t <= 0x23ce)
         {
           uint16_t offs = linedraw5_offs[t - 0x23a0];
           draw_glyph (disp, d, gc, x, y, fwidth, term->fheight, linedraw5_command, offs);
