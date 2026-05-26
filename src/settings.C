@@ -74,6 +74,7 @@ enum {
   CM_OPEN_FILEMANAGER,
   CM_SEND_SIGINT,
   CM_TOGGLE_MINIMAP,
+  CM_COPY_LAST_OUTPUT,
   CM_CLOSE_TAB,
 };
 
@@ -84,10 +85,11 @@ enum {
    Items (split):    same but (Split H + Split V) → Close Split = 9
    Each +minimap adds 1 item and 1 separator. */
 static int cm_compute_h (bool has_split, bool has_minimap, bool show_copy, bool show_sigint,
-                        bool show_url, bool show_file_or_dir) {
+                        bool show_url, bool show_file_or_dir, bool show_copy_output) {
   int n_items = has_split ? 9 : 10;
   if (!show_copy) n_items -= 1;
   if (!show_sigint) n_items -= 1;
+  if (show_copy_output) n_items += 1;
   if (has_minimap) n_items += 1;
   if (show_url) n_items += 1;
   if (show_file_or_dir) n_items += 1;
@@ -2431,8 +2433,36 @@ static bool can_send_sigint(void) {
       && tcgetpgrp (s_cm_invoker->pty->pty) != s_cm_invoker->shell_pgid;
 }
 
+static bool can_copy_last_output (rxvt_term *t) {
+  if (!t) return false;
+
+  /* Find the last RS_PromptMark row backwards from cursor. */
+  int prompt_row = -1;
+  for (int r = t->screen.cur.row - 1; r >= t->top_row; r--) {
+    line_t &l = ROW_of (t, r);
+    if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+      prompt_row = r;
+      break;
+    }
+  }
+  if (prompt_row < 0) return false;
+
+  /* Check for any non-whitespace content between the mark and the cursor. */
+  for (int r = prompt_row + 1; r < t->screen.cur.row; r++) {
+    line_t &l = ROW_of (t, r);
+    if (!l.valid () || !l.t) continue;
+    for (int c = 0; c < l.l; c++) {
+      text_t ch = l.t[c];
+      if (ch != ' ' && ch != 0 && ch != NOCHAR)
+        return true;
+    }
+  }
+  return false;
+}
+
 /* Build the context menu contents; returns the action id (CM_*) or CM_NONE. */
-static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
+static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h,
+                              bool show_copy_output)
 {
   int action = CM_NONE;
   bool has_split = (t->split_partner != nullptr);
@@ -2469,6 +2499,7 @@ static int build_context_menu (mu_Context *ctx, rxvt_term *t, int w, int h)
 
   if (show_copy && mu_button_ex (ctx, "Copy", 0, MU_OPT_BURIED)) action = CM_COPY;
   if (mu_button_ex (ctx, "Paste", 0, MU_OPT_BURIED))          action = CM_PASTE;
+  if (show_copy_output && mu_button_ex (ctx, "Open Last Output in Editor", 0, MU_OPT_BURIED)) action = CM_COPY_LAST_OUTPUT;
 
   if (is_sel_url || is_sel_file) {
     mu_menu_separator (ctx);
@@ -2531,6 +2562,7 @@ rxvt_term::show_context_menu (int x_root, int y_root, rxvt_term *invoker)
   bool has_split  = (s_cm_invoker->split_partner != nullptr);
   bool has_selection = s_cm_invoker->selection.op != SELECTION_INIT && s_cm_invoker->selection.op != SELECTION_CLEAR;
   bool show_copy = has_selection && !s_auto_copy_sel;
+  bool show_copy_output = can_copy_last_output (s_cm_invoker);
 
   char *sel_str = nullptr;
   bool show_url = false;
@@ -2549,7 +2581,7 @@ rxvt_term::show_context_menu (int x_root, int y_root, rxvt_term *invoker)
   bool has_minimap = false;
 #endif
   context_menu.w = CM_W;
-  context_menu.h = cm_compute_h (has_split, has_minimap, show_copy, can_send_sigint(), show_url, show_file_type);
+  context_menu.h = cm_compute_h (has_split, has_minimap, show_copy, can_send_sigint(), show_url, show_file_type, show_copy_output);
 
   /* Adjust so the window fits on-screen. */
   int scr = DefaultScreen (dpy);
@@ -2685,9 +2717,11 @@ rxvt_term::draw_context_menu ()
 
   s_switch_renderer (context_menu.win, context_menu.w, context_menu.h);
 
+  bool show_copy_output = can_copy_last_output (s_cm_invoker);
   mu_begin (mu_ctx_menu);
   int action = build_context_menu (mu_ctx_menu, s_cm_invoker,
-                                   context_menu.w, context_menu.h);
+                                   context_menu.w, context_menu.h,
+                                   show_copy_output);
   mu_end (mu_ctx_menu);
 
   r_clear (mu_color (0x2c, 0x2d, 0x30, 255));
@@ -2835,6 +2869,74 @@ rxvt_term::draw_context_menu ()
         XUnmapWindow (t->dpy, t->minimap.win);
       break;
 #endif
+
+    case CM_COPY_LAST_OUTPUT: {
+      /* Find the last prompt-marked row. */
+      int prompt_row = -1;
+      for (int r = t->screen.cur.row - 1; r >= t->top_row; r--) {
+        line_t &l = ROW_of (t, r);
+        if (l.valid () && l.r && (l.r[0] & RS_PromptMark)) {
+          prompt_row = r;
+          break;
+        }
+      }
+      if (prompt_row < 0) break;
+
+      /* Measure total wchar_t count. */
+      int total = 0;
+      for (int r = prompt_row + 1; r < t->screen.cur.row; r++) {
+        line_t &l = ROW_of (t, r);
+        if (!l.valid () || !l.t) continue;
+        for (int c = 0; c < l.l; c++)
+          if (l.t[c] != NOCHAR) total++;
+        if (!l.is_longer ()) total++; /* trailing newline */
+      }
+      if (total == 0) break;
+
+      /* Extract line content into a wchar_t buffer. */
+      wchar_t *buf = (wchar_t *)rxvt_malloc ((total + 1) * sizeof (wchar_t));
+      if (!buf) break;
+      int ofs = 0;
+      for (int r = prompt_row + 1; r < t->screen.cur.row; r++) {
+        line_t &l = ROW_of (t, r);
+        if (!l.valid () || !l.t) continue;
+        for (int c = 0; c < l.l; c++)
+          if (l.t[c] != NOCHAR)
+            buf[ofs++] = l.t[c];
+        if (!l.is_longer ())
+          buf[ofs++] = C0_LF;
+      }
+      buf[ofs] = 0;
+
+      char *str = rxvt_wcstombs (buf, ofs);
+      free (buf);
+      if (!str) break;
+
+      /* Write to a temp file and open with $EDITOR / xdg-open. */
+      char tmpname[] = "/tmp/exoterm-output-XXXXXX";
+      int fd = mkstemp (tmpname);
+      if (fd >= 0) {
+        write (fd, str, strlen (str));
+        close (fd);
+
+        const char *editor = getenv ("EDITOR");
+        if (editor && editor[0]) {
+          char *cmd = nullptr;
+          if (asprintf (&cmd, "%s '%s' &", editor, tmpname) != -1) {
+            system (cmd);
+            free (cmd);
+          }
+        } else {
+          char *cmd = nullptr;
+          if (asprintf (&cmd, "xdg-open '%s' &", tmpname) != -1) {
+            system (cmd);
+            free (cmd);
+          }
+        }
+      }
+      free (str);
+      break;
+    }
 
     case CM_CLOSE_TAB:
       t->close_tab ();
