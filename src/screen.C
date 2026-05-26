@@ -2325,13 +2325,15 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   XMatchVisualInfo(dpy, DefaultScreen(dpy), 32, TrueColor, &vinfo);
   Colormap cm = XCreateColormap(dpy, DefaultRootWindow(dpy), vinfo.visual, AllocNone);
 
-  XColor focused, unfocused, done_clr, success_clr;
+  XColor focused, unfocused, done_clr, success_clr, running_clr;
   XParseColor(dpy, cm, "#5cb7e0", &focused);
   XAllocColor(dpy, cm, &focused);
   XParseColor(dpy, cm, "#465163", &unfocused);
   XAllocColor(dpy, cm, &unfocused);
   XParseColor(dpy, cm, "#ffffff", &done_clr); // white: program exit
   XAllocColor(dpy, cm, &done_clr);
+  XParseColor(dpy, cm, "#d4873a", &running_clr); // amber: fg command running
+  XAllocColor(dpy, cm, &running_clr);
 
   // Get the full terminal width from root's WM window.
   // apply_split_geometry may have called window_calc(half_w,...) on root,
@@ -2368,23 +2370,37 @@ void rxvt_term::scr_draw_bar() NOTHROW {
     bool is_split  = (t->split_partner != nullptr);
     // blink_state gates visibility during the blink phase; after settling it stays true
     bool is_done    = !is_active && t->process_done && t->blink_state;
-
-    XSetForeground(dpy, gc, is_active  ? focused.pixel
-                          : is_done    ? done_clr.pixel
-                          :              unfocused.pixel);
+    bool is_running = !is_active && !is_done && t->has_running_fg;
 
     int x = visual_i * tab_width - pane_x;
 
-    if (is_active && is_split) {
-      // Draw two equal halves with a dark 1px separator to indicate split mode.
-      int half = tab_width / 2;
-      XFillRectangle (dpy, parent, gc, x, bar_pos, half - 1, bar_height);
-      XSetForeground (dpy, gc, unfocused.pixel);
-      XFillRectangle (dpy, parent, gc, x + half - 1, bar_pos, 1, bar_height);
-      XSetForeground (dpy, gc, focused.pixel);
-      XFillRectangle (dpy, parent, gc, x + half, bar_pos, tab_width - half, bar_height);
+    if (is_running) {
+      // Scrolling dot pattern: 2px amber, 2px gap, repeating (4px cycle)
+      int off = t->run_anim_tick % 4;
+      for (int p = 0; p < tab_width; ) {
+        bool dot = ((p + off) % 4) < 2;
+        int seg = tab_width - p;
+        if (seg > 2) seg = 2;
+        XSetForeground(dpy, gc, dot ? running_clr.pixel : unfocused.pixel);
+        XFillRectangle(dpy, parent, gc, x + p, bar_pos, seg, bar_height);
+        p += seg;
+      }
     } else {
-      XFillRectangle (dpy, parent, gc, x, bar_pos, tab_width, bar_height);
+      XSetForeground(dpy, gc, is_active  ? focused.pixel
+                            : is_done    ? done_clr.pixel
+                            :              unfocused.pixel);
+
+      if (is_active && is_split) {
+        // Draw two equal halves with a dark 1px separator to indicate split mode.
+        int half = tab_width / 2;
+        XFillRectangle (dpy, parent, gc, x, bar_pos, half - 1, bar_height);
+        XSetForeground (dpy, gc, unfocused.pixel);
+        XFillRectangle (dpy, parent, gc, x + half - 1, bar_pos, 1, bar_height);
+        XSetForeground (dpy, gc, focused.pixel);
+        XFillRectangle (dpy, parent, gc, x + half, bar_pos, tab_width - half, bar_height);
+      } else {
+        XFillRectangle (dpy, parent, gc, x, bar_pos, tab_width, bar_height);
+      }
     }
 
     visual_i++;

@@ -1971,8 +1971,23 @@ rxvt_term::proc_poll_cb (ev::timer &w, int revents)
     pid_t pgid = tcgetpgrp (t->pty->pty);
     if (pgid > 0 && pgid != t->shell_pgid) {
       t->had_fg_process = true;
+      if (!t->has_running_fg) {
+        t->has_running_fg = true;
+        changed = true;
+      }
     } else if (pgid == t->shell_pgid && t->had_fg_process) {
+      t->has_running_fg = false;
       notify_process_done (t, -1);  // exit code unknown (no shell integration)
+      changed = true;
+    }
+  }
+
+  // Advance animation tick for tabs with running foreground processes
+  for (int i = 0; i < (int)termlist.size (); i++) {
+    rxvt_term *t = termlist[i];
+    if (t->split_is_child) continue;
+    if (t->has_running_fg) {
+      t->run_anim_tick++;
       changed = true;
     }
   }
@@ -2155,9 +2170,10 @@ void rxvt_term::switch_to_tab(unsigned int index, unsigned int closing) {
   // (If destination is somehow a split child, geometry was already set by apply_split_geometry.)
 
   focus_out();
-  tab->process_done   = false;
-  tab->had_fg_process = false;
-  tab->blink_ticks    = 0;
+  tab->process_done    = false;
+  tab->had_fg_process  = false;
+  tab->has_running_fg  = false;
+  tab->blink_ticks     = 0;
   tab->blink_state    = false;
   tab->make_current();
   tab->focus_in();

@@ -1206,6 +1206,8 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   bool         had_fg_process;  // internal: observed a non-shell fg process since last switch
   int          blink_ticks;     // half-cycles remaining (each ~0.5 s); 0 = settled
   bool         blink_state;     // current blink phase: true = show color, false = dim
+  bool         has_running_fg;  // true while a fg command is running in this inactive tab
+  int          run_anim_tick;   // animation tick for scrolling dot pattern
 
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
