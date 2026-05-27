@@ -7,10 +7,10 @@
     <style>
         * { box-sizing: border-box; margin: 0; font-family: 'Fira Code', 'Courier New', monospace; }
         body { background: #1a1a2e; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 20px; }
-        .demo-container { background: #252538; padding: 24px; box-shadow: 0 20px 35px rgba(0,0,0,0.6); display: flex; flex-wrap: wrap; gap: 24px; max-width: 1260px; width: 100%; }
-        .canvas-panel { background: #0f0f17; padding: 0; display: flex; align-items: flex-start; }
+        .demo-container { background: #252538; padding: 24px; box-shadow: 0 20px 35px rgba(0,0,0,0.6); max-width: 700px; width: 100%; }
+        .canvas-panel { background: #0f0f17; padding: 0; display: flex; justify-content: center; margin-bottom: 20px; }
         canvas { display: block; background: #faf6ef; image-rendering: crisp-edges; image-rendering: pixelated; box-shadow: 0 8px 18px rgba(0,0,0,0.5); }
-        .control-panel { background: #2a2a3c; padding: 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 440px; color: #e0e0f0; }
+        .control-panel { background: #2a2a3c; padding: 18px; display: flex; flex-direction: column; gap: 14px; color: #e0e0f0; }
         h2 { font-size: 1.4rem; font-weight: 600; color: #ffb48a; margin-bottom: 4px; border-bottom: 2px solid #4a4a6a; padding-bottom: 6px; }
         .input-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
         .input-row label { font-size: 0.8rem; color: #b9b9dc; }
@@ -19,7 +19,7 @@
         textarea.invalid { border-color: #ff5555; box-shadow: 0 0 8px #ff555588; }
         textarea:focus { border-color: #ff9f7c; }
         .filter-row { display: flex; gap: 8px; align-items: center; }
-        .filter-input { flex: 1; background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 6px 10px; font-family: inherit; font-size: 0.8rem; }
+        .filter-input { flex: 1; background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 4px 8px; font-family: inherit; font-size: 0.72rem; }
         .filter-input:focus { outline: none; border-color: #ff9f7c; }
         .filter-label { font-size: 0.75rem; color: #b9b9dc; white-space: nowrap; }
         select { background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 5px 8px; font-family: inherit; font-size: 0.75rem; }
@@ -59,9 +59,9 @@
             <label>H</label>
             <input type="number" id="canvasH" value="100" min="50" max="800" step="10">
             <label>Cell W</label>
-            <input type="number" id="cellW" value="32" min="4" max="128" step="1">
+            <input type="number" id="cellW" value="8" min="4" max="128" step="1">
             <label>Cell H</label>
-            <input type="number" id="cellH" value="48" min="8" max="128" step="1">
+            <input type="number" id="cellH" value="12" min="8" max="128" step="1">
         </div>
         <div class="inputs-grid">
             <div>
@@ -81,7 +81,6 @@ XDrawLine 0 0 0 0 8 8</textarea>
 
         <div>
             <div class="filter-row">
-                <span class="filter-label">Linedraw tables</span>
                 <input type="text" id="filterInput" class="filter-input" placeholder="Filter by name or hex…">
                 <select id="groupFilter">
                     <option value="">All groups</option>
@@ -97,12 +96,11 @@ XDrawLine 0 0 0 0 8 8</textarea>
             </div>
             <div class="table-container" id="tableContainer">
                 <div class="table-header">
-                    <span class="table-char">chr</span>
-                    <span class="table-mini" style="width:28px"></span>
-                    <span class="table-mini" style="width:28px">lib</span>
-                    <span class="table-hex">hex</span>
+                    <span class="table-char" style="font-size:0.6rem">font</span>
+                    <span class="table-mini" style="width:28px;font-size:0.6rem;color:#ffb48a">lib</span>
+                    <span class="table-hex">codepoint</span>
                     <span class="table-name">name</span>
-                    <span class="table-cmds">#</span>
+                    <span class="table-cmds">#cmd</span>
                 </div>
             </div>
         </div>
@@ -157,24 +155,37 @@ function computeCoords(x, y, W, H) {
     return {x_, y_};
 }
 
+// Parse a CSS hex color string to [r, g, b]
+function parseColorToRGBA(color) {
+    const c = color.replace('#', '');
+    if (c.length === 3) {
+        return [parseInt(c[0]+c[0],16), parseInt(c[1]+c[1],16), parseInt(c[2]+c[2],16)];
+    }
+    return [parseInt(c.slice(0,2),16), parseInt(c.slice(2,4),16), parseInt(c.slice(4,6),16)];
+}
+
 // ========== DRAW GLYPH (matches draw_glyph + draw_arc_segment in rxvtfont.C) ==========
 function drawGlyph(ctx, x, y, W, H, commands, fgColor, fillColor, stippleFg, stippleBg) {
     const {x_, y_} = computeCoords(x, y, W, H);
 
     function getFill(a) {
         if (a === 0) return fillColor;
-        // stipple: bm = { 0,0, 3,1, 1,2, 1,0 } - two bytes per level: [a*2], [a*2+1]
-        // Interpreted as a 2x2 bitmap for the stipple pattern
-        const bm = [[0,0],[3,1],[1,2],[1,0]];
-        const [byte0] = bm[a] || [0];
+        // bm array from rxvtfont.C: static char bm[] = { 0,0, 3,1, 1,2, 1,0 }
+        // Two bytes per stipple level: bm[a*2]=row0, bm[a*2+1]=row1
+        // a=1: 75% fill  (byte0=3=0b11, byte1=1=0b01 → 3/4 pixels)
+        // a=2: 50% fill  (byte0=1=0b01, byte1=2=0b10 → 2/4 pixels, checkerboard)
+        // a=3: 25% fill  (byte0=1=0b01, byte1=0=0b00 → 1/4 pixels)
+        const bm = [0,0, 3,1, 1,2, 1,0];
+        const byte0 = bm[a * 2] || 0;
+        const byte1 = bm[a * 2 + 1] || 0;
         const pc = document.createElement('canvas'); pc.width=2; pc.height=2;
         const pctx = pc.getContext('2d');
         pctx.fillStyle = stippleBg; pctx.fillRect(0,0,2,2);
         pctx.fillStyle = stippleFg;
         if (byte0 & 1) pctx.fillRect(0,0,1,1);
         if (byte0 & 2) pctx.fillRect(1,0,1,1);
-        if (byte0 & 4) pctx.fillRect(0,1,1,1);
-        if (byte0 & 8) pctx.fillRect(1,1,1,1);
+        if (byte1 & 1) pctx.fillRect(0,1,1,1);
+        if (byte1 & 2) pctx.fillRect(1,1,1,1);
         return ctx.createPattern(pc, 'repeat');
     }
 
@@ -189,10 +200,27 @@ function drawGlyph(ctx, x, y, W, H, commands, fgColor, fillColor, stippleFg, sti
 
         ctx.save();
         switch (op) {
-            case 0: { // XDrawLine
-                ctx.strokeStyle = fgColor;
-                ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(x1+0.5, y1+0.5); ctx.lineTo(x2+0.5, y2+0.5); ctx.stroke();
+            case 0: { // XDrawLine — Bresenham, no antialiasing
+                let lx0 = x1, ly0 = y1, lx1 = x2, ly1 = y2;
+                const ldx = Math.abs(lx1 - lx0), ldy = Math.abs(ly1 - ly0);
+                const lsx = lx0 < lx1 ? 1 : -1, lsy = ly0 < ly1 ? 1 : -1;
+                let lerr = ldx - ldy;
+                // parse fgColor to r,g,b once
+                const imgd = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+                const W2 = imgd.width;
+                const col = parseColorToRGBA(fgColor);
+                while (true) {
+                    const idx = (ly0 * W2 + lx0) * 4;
+                    imgd.data[idx]   = col[0];
+                    imgd.data[idx+1] = col[1];
+                    imgd.data[idx+2] = col[2];
+                    imgd.data[idx+3] = 255;
+                    if (lx0 === lx1 && ly0 === ly1) break;
+                    const le2 = 2 * lerr;
+                    if (le2 > -ldy) { lerr -= ldy; lx0 += lsx; }
+                    if (le2 <  ldx) { lerr += ldx; ly0 += lsy; }
+                }
+                ctx.putImageData(imgd, 0, 0);
                 break;
             }
             case 1: { // XFillRectangle (possibly stippled)
@@ -201,14 +229,15 @@ function drawGlyph(ctx, x, y, W, H, commands, fgColor, fillColor, stippleFg, sti
                 ctx.fillRect(x1, y1, rw, rh);
                 break;
             }
-            case 2: { // XDrawArc - outline, centered at x1,y1, size = min(W-1,H-1)
+            case 2: { // XDrawArc - outline centered at x1,y1, size = min(W-1,H-1)
+                // XDrawArc rect: (x1-size/2, y1-size/2, size, size) → center at (x1, y1)
                 const size = Math.min(W-1, H-1);
                 const startAngle = (a - 1) * Math.PI/2;
                 const spanAngle  = (b - 1) * Math.PI/2;
                 ctx.strokeStyle = fgColor;
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.ellipse(x1 - size/2 + size/2, y1 - size/2 + size/2, size/2, size/2, 0, startAngle, startAngle + spanAngle, false);
+                ctx.ellipse(x1, y1, size/2, size/2, 0, startAngle, startAngle + spanAngle, false);
                 ctx.stroke();
                 break;
             }
@@ -973,9 +1002,9 @@ function renderMiniCanvas(cmds) {
     mc.style.height = MINI_H + 'px';
     const ctx = mc.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#faf6ef';
+    ctx.fillStyle = '#1e1e2e';
     ctx.fillRect(0, 0, MINI_W, MINI_H);
-    drawGlyph(ctx, 0, 0, MINI_W, MINI_H, cmds, '#1e2b3c', '#1e2b3c', '#1e2b3c', '#faf6ef');
+    drawGlyph(ctx, 0, 0, MINI_W, MINI_H, cmds, '#e0e0f0', '#e0e0f0', '#e0e0f0', '#1e1e2e');
     return mc;
 }
 
@@ -992,10 +1021,10 @@ function renderTable(filterText, groupKey) {
 
     countBadge.textContent = filtered.length;
 
-    // Rebuild table (keep header)
+    // Rebuild table (keep sticky header)
     const header = tableContainer.querySelector('.table-header');
     tableContainer.innerHTML = '';
-    tableContainer.appendChild(header);
+    if (header) tableContainer.appendChild(header);
 
     for (const entry of filtered) {
         const row = document.createElement('div');
@@ -1007,26 +1036,7 @@ function renderTable(filterText, groupKey) {
         charSpan.className = 'table-char';
         charSpan.textContent = entry.char;
 
-        // Mini canvas — browser font version (just the char, system font)
-        const fontMini = document.createElement('div');
-        fontMini.className = 'table-mini';
-        const fontCanvas = document.createElement('canvas');
-        fontCanvas.width = MINI_W; fontCanvas.height = MINI_H;
-        fontCanvas.className = 'mini-canvas';
-        fontCanvas.style.width = MINI_W+'px'; fontCanvas.style.height = MINI_H+'px';
-        {
-            const ctx = fontCanvas.getContext('2d');
-            ctx.fillStyle = '#faf6ef';
-            ctx.fillRect(0,0,MINI_W,MINI_H);
-            ctx.fillStyle = '#1e2b3c';
-            ctx.font = `${MINI_H * 0.85}px monospace`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(entry.char, MINI_W/2, MINI_H/2);
-        }
-        fontMini.appendChild(fontCanvas);
-
-        // Mini canvas — library-rendered version
+        // Mini canvas — library-rendered version only
         const libMini = document.createElement('div');
         libMini.className = 'table-mini';
         libMini.appendChild(renderMiniCanvas(entry.cmds));
@@ -1043,7 +1053,7 @@ function renderTable(filterText, groupKey) {
         cmdsSpan.className = 'table-cmds';
         cmdsSpan.textContent = entry.cmds.length;
 
-        row.append(charSpan, fontMini, libMini, hexSpan, nameSpan, cmdsSpan);
+        row.append(charSpan, libMini, hexSpan, nameSpan, cmdsSpan);
 
         row.addEventListener('click', () => {
             if (activeRow) activeRow.classList.remove('active');
