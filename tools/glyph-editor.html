@@ -3,159 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>X11 canvas · urxvt u32 glyph (single cell, order‑sensitive)</title>
+    <title>Glyph Editor · u32 packed drawing</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            font-family: 'Fira Code', 'Courier New', monospace;
-        }
-        body {
-            background: #1a1a2e;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .demo-container {
-            background: #252538;
-            border-radius: 0;
-            padding: 24px;
-            box-shadow: 0 20px 35px rgba(0,0,0,0.6);
-
-        }
-        .canvas-panel {
-/*            background: #0f0f17;*/
-            padding: 0;
-        }
-        canvas {
-            display: block;
-            background: #faf6ef;
-            margin: 0 auto;
-/*            image-rendering: crisp-edges;*/
-            image-rendering: pixelated;
-            width: auto;
-            height: auto;
-            box-shadow: 0 8px 18px rgba(0,0,0,0.5);
-        }
-        .control-panel {
-            background: #2a2a3c;
-            padding: 18px;
-            margin-top: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            min-width: 400px;
-            color: #e0e0f0;
-        }
-        h2 {
-            font-size: 1.4rem;
-            font-weight: 600;
-            color: #ffb48a;
-            margin-bottom: 4px;
-            border-bottom: 2px solid #4a4a6a;
-            padding-bottom: 6px;
-        }
-        .input-row {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .input-row label {
-            font-size: 0.8rem;
-            color: #b9b9dc;
-        }
-        input[type="number"] {
-            width: 70px;
-            background: #1a1a28;
-            border: 1px solid #4e4e7a;
-            color: #f2e9c2;
-            padding: 6px;
-            border-radius: 8px;
-            font-family: inherit;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            background: #1a1a28;
-            border: 2px solid #4e4e7a;
-            border-radius: 0;
-            color: #f2e9c2;
-            padding: 10px;
-            font-size: 0.8rem;
-            resize: vertical;
-            line-height: 1.5;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        textarea.invalid {
-            border-color: #ff5555;
-            box-shadow: 0 0 8px #ff555588;
-        }
-        textarea:focus {
-            border-color: #ff9f7c;
-        }
-        .button-row {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        button {
-            background: #4f4f7a;
-            border: none;
-            color: white;
-            font-weight: bold;
-            padding: 10px 16px;
-            border-radius: 0;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-            border-bottom: 2px solid #7f7faa;
-        }
-        button:hover {
-            background: #6b6b9f;
-            border-bottom-color: #ffae8c;
-        }
-        .example-box {
-            background: #1e1e2e;
-            border-radius: 0;
-            padding: 10px;
-            font-size: 0.73rem;
-            color: #cfcfe0;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .example-cmd {
-            background: #0c0c18;
-            padding: 4px 8px;
-            border-radius: 0;
-            cursor: pointer;
-            user-select: all;
-        }
-        .example-cmd:hover {
-            background: #3e3e5c;
-        }
-        .status {
-            font-size: 0.8rem;
-            color: #bdbdf0;
-        }
-        .doc-line {
-            font-size: 0.72rem;
-            color: #b7b7d9;
-            margin: 2px 0;
-        }
-        details {
-            margin: 8px 0;
-        }
-        summary {
-            color: #ffb48a;
-            font-weight: bold;
-            cursor: pointer;
-        }
+        * { box-sizing: border-box; margin: 0; font-family: 'Fira Code', 'Courier New', monospace; }
+        body { background: #1a1a2e; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 20px; }
+        .demo-container { background: #252538; padding: 24px; box-shadow: 0 20px 35px rgba(0,0,0,0.6); display: flex; flex-wrap: wrap; gap: 24px; max-width: 1260px; width: 100%; }
+        .canvas-panel { background: #0f0f17; padding: 0; display: flex; align-items: flex-start; }
+        canvas { display: block; background: #faf6ef; image-rendering: crisp-edges; image-rendering: pixelated; box-shadow: 0 8px 18px rgba(0,0,0,0.5); }
+        .control-panel { background: #2a2a3c; padding: 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 440px; color: #e0e0f0; }
+        h2 { font-size: 1.4rem; font-weight: 600; color: #ffb48a; margin-bottom: 4px; border-bottom: 2px solid #4a4a6a; padding-bottom: 6px; }
+        .input-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+        .input-row label { font-size: 0.8rem; color: #b9b9dc; }
+        input[type="number"] { width: 70px; background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 6px; font-family: inherit; }
+        textarea { width: 100%; height: 100px; background: #1a1a28; border: 2px solid #4e4e7a; color: #f2e9c2; padding: 10px; font-size: 0.8rem; resize: vertical; line-height: 1.5; outline: none; transition: border-color 0.2s; }
+        textarea.invalid { border-color: #ff5555; box-shadow: 0 0 8px #ff555588; }
+        textarea:focus { border-color: #ff9f7c; }
+        .filter-row { display: flex; gap: 8px; align-items: center; }
+        .filter-input { flex: 1; background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 6px 10px; font-family: inherit; font-size: 0.8rem; }
+        .filter-input:focus { outline: none; border-color: #ff9f7c; }
+        .filter-label { font-size: 0.75rem; color: #b9b9dc; white-space: nowrap; }
+        select { background: #1a1a28; border: 1px solid #4e4e7a; color: #f2e9c2; padding: 5px 8px; font-family: inherit; font-size: 0.75rem; }
+        .table-container { max-height: 300px; overflow-y: auto; background: #1e1e2e; border: 1px solid #4e4e7a; }
+        .table-header { display: flex; align-items: center; padding: 4px 8px; font-size: 0.65rem; color: #8080a8; background: #16162a; border-bottom: 1px solid #3a3a52; position: sticky; top: 0; z-index: 1; }
+        .table-row { display: flex; align-items: center; padding: 3px 8px; cursor: pointer; font-size: 0.75rem; border-bottom: 1px solid #2e2e44; transition: background 0.12s; }
+        .table-row:hover { background: #3a3a5a; }
+        .table-row.active { background: #3e2a1a; border-left: 3px solid #ffb48a; }
+        .table-char { width: 28px; font-size: 1.15rem; text-align: center; flex-shrink: 0; }
+        .table-hex { width: 56px; color: #c97b5d; font-size: 0.7rem; flex-shrink: 0; }
+        .table-name { flex: 1; padding-left: 6px; font-size: 0.68rem; color: #c8c8e0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .table-cmds { color: #7070a0; font-size: 0.62rem; flex-shrink: 0; padding-left: 6px; }
+        /* Mini canvas column */
+        .table-mini { width: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .mini-canvas { display: block; image-rendering: crisp-edges; image-rendering: pixelated; }
+        .status { font-size: 0.78rem; color: #bdbdf0; min-height: 1.1em; }
+        details { margin: 4px 0; }
+        summary { color: #ffb48a; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
+        details > div { font-size: 0.72rem; color: #b7b7d9; line-height: 1.5; margin-top: 6px; }
+        .section-label { font-size: 0.75rem; color: #b9b9dc; margin-bottom: 4px; }
+        .inputs-grid { display: flex; gap: 12px; }
+        .inputs-grid > div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .inputs-grid label { font-size: 0.75rem; color: #9090b8; }
+        .count-badge { background: #3a3a5a; color: #a0a0d0; font-size: 0.65rem; padding: 2px 6px; border-radius: 2px; }
     </style>
 </head>
 <body>
@@ -164,439 +52,1020 @@
         <canvas id="x11canvas" width="100" height="100"></canvas>
     </div>
     <div class="control-panel">
+        <h2>Glyph Editor <span style="font-size:0.7rem;color:#8080b0;font-weight:normal">· u32 packed · X11 draw_glyph</span></h2>
         <div class="input-row">
             <label>Canvas W</label>
-            <input type="number" id="canvasW" value="120" min="50" max="800" step="10">
+            <input type="number" id="canvasW" value="100" min="50" max="800" step="10">
             <label>H</label>
-            <input type="number" id="canvasH" value="200" min="50" max="800" step="10">
+            <input type="number" id="canvasH" value="100" min="50" max="800" step="10">
             <label>Cell W</label>
-            <input type="number" id="cellW" value="8" min="4" max="128" step="1">
+            <input type="number" id="cellW" value="32" min="4" max="128" step="1">
             <label>Cell H</label>
-            <input type="number" id="cellH" value="12" min="8" max="128" step="1">
+            <input type="number" id="cellH" value="48" min="8" max="128" step="1">
         </div>
-
-        <div style="display:flex; gap:12px;">
-            <div style="flex:1;">
-                <label>u32 hex commands</label>
-                <textarea id="hexInput" class="valid">0x01000187
+        <div class="inputs-grid">
+            <div>
+                <label>Packed u32 (hex, one per line)</label>
+                <textarea id="hexInput">0x01000187
 0x04223355
 0x00008187</textarea>
             </div>
-            <div style="flex:1;">
-                <label>x11 funcs</label>
-                <textarea id="textInput" class="valid">XFillRectangle 0 0 1 8 7
-XFillRectangle 2 1 3 5 5
+            <div>
+                <label>X11 names (↑↓ adjust numbers)</label>
+                <textarea id="textInput">XFillRectangle 0 0 1 8 7
+XFillArc 2 2 3 3 5 5
 XDrawLine 0 0 0 0 8 8</textarea>
             </div>
         </div>
-        <div class="status" id="u32Status">✅ valid — commands drawn in order (last on top)</div>
+        <div class="status" id="u32Status">Valid: 3 commands.</div>
 
-        <div class="example-box">
-            <span>quick examples</span>
-            <div class="example-cmd" data-target="hex">0x01000187</div>
-            <div class="example-cmd" data-target="hex">0x04223355</div>
-            <div class="example-cmd" data-target="text">XFillRectangle 0 0 0 1 8 7</div>
-            <div class="example-cmd" data-target="text">XDrawLine 0 0 0 0 8 8</div>
+        <div>
+            <div class="filter-row">
+                <span class="filter-label">Linedraw tables</span>
+                <input type="text" id="filterInput" class="filter-input" placeholder="Filter by name or hex…">
+                <select id="groupFilter">
+                    <option value="">All groups</option>
+                    <option value="2500">Box drawing (2500)</option>
+                    <option value="2580">Block elements (2580)</option>
+                    <option value="25a0">Geometric (25a0)</option>
+                    <option value="25c0">Circles (25c0)</option>
+                    <option value="23a0">Brackets (23a0)</option>
+                    <option value="23f4">Media / arrows (23f4)</option>
+                    <option value="2b00">Large shapes (2b00)</option>
+                </select>
+                <span class="count-badge" id="countBadge">0</span>
+            </div>
+            <div class="table-container" id="tableContainer">
+                <div class="table-header">
+                    <span class="table-char">chr</span>
+                    <span class="table-mini" style="width:28px"></span>
+                    <span class="table-mini" style="width:28px">lib</span>
+                    <span class="table-hex">hex</span>
+                    <span class="table-name">name</span>
+                    <span class="table-cmds">#</span>
+                </div>
+            </div>
         </div>
 
         <details>
-            <summary>docs</summary>
-            <div class="doc-line"><b>All commands paint into the SAME cell</b>, one after another.</div>
-            <div class="doc-line">Later commands overdraw earlier ones – just like the original rxvtfont.C.</div>
-            <div class="doc-line">Format: bits 24‑31 op, 20‑23 a, 16‑19 b, 12‑15 x1, 8‑11 y1, 4‑7 x2, 0‑3 y2.</div>
-            <div class="doc-line">OP names: XDrawLine(0), XFillRectangle(1), XDrawArc(2), XFillPolygon(3), XFillArc(4/5).</div>
+            <summary>Format & ops reference</summary>
+            <div>
+                <b>Bit layout:</b> bits 31-24 op · 23-20 a · 19-16 b · 15-12 x1 · 11-8 y1 · 7-4 x2 · 3-0 y2<br>
+                <b>Coords:</b> 0=left/top 8=right/bottom 9=center−1 10=center 11=center+1<br>
+                <b>Ops:</b> 0=XDrawLine · 1=XFillRect (a=0 solid, 1=75% 2=50% 3=25% stipple) · 2=XDrawArc (outline, center x1y1, full cell) · 3=XFillPolygon (triangle, a=1↑ 2↓ 3← 4→) · 4=XFillArc (filled, bbox x1y1→x2y2, a=start×90° b=span×90°) · 5=rounded corner (a=1..4 corner, b=0 full b=1 half) · 6=filled circle (center x1y1, a=size ÷ 4 of min cell)<br>
+                Arrow keys on the X11 textarea adjust the number under the cursor.
+            </div>
         </details>
     </div>
 </div>
 
 <script>
-    (function() {
-        // ========== U32 PACKED COMMAND ENCODER/DECODER ==========
-        function decodeU32Command(cmd) {
-            return {
-                op: (cmd >>> 24) & 0xFF,
-                a:  (cmd >>> 20) & 0xF,
-                b:  (cmd >>> 16) & 0xF,
-                x1: (cmd >>> 12) & 0xF,
-                y1: (cmd >>> 8)  & 0xF,
-                x2: (cmd >>> 4)  & 0xF,
-                y2: (cmd >>> 0)  & 0xF,
-            };
-        }
-        function encodeU32Command({op, a=0, b=0, x1=0, y1=0, x2=0, y2=0}) {
-            return ((op & 0xFF) << 24) |
-                   ((a & 0xF) << 20)  |
-                   ((b & 0xF) << 16)  |
-                   ((x1 & 0xF) << 12) |
-                   ((y1 & 0xF) << 8)  |
-                   ((x2 & 0xF) << 4)  |
-                   (y2 & 0xF);
-        }
+(function() {
+'use strict';
 
-        const OP_NAMES = [
-            'XDrawLine',      // 0
-            'XFillRectangle', // 1
-            'XDrawArc',       // 2
-            'XFillPolygon',   // 3
-            'XFillArc',       // 4
-            'XFillArc'        // 5 (rounded corner)
-        ];
-        const OP_MAP = Object.fromEntries(OP_NAMES.map((name, i) => [name, i]));
+// ========== U32 PACKED COMMAND ENCODER/DECODER ==========
+function decodeU32(cmd) {
+    return {
+        op: (cmd >>> 24) & 0xFF,
+        a:  (cmd >>> 20) & 0xF,
+        b:  (cmd >>> 16) & 0xF,
+        x1: (cmd >>> 12) & 0xF,
+        y1: (cmd >>> 8)  & 0xF,
+        x2: (cmd >>> 4)  & 0xF,
+        y2: (cmd >>> 0)  & 0xF,
+    };
+}
+function encodeU32({op, a=0, b=0, x1=0, y1=0, x2=0, y2=0}) {
+    return ((op & 0xFF) << 24) | ((a & 0xF) << 20) | ((b & 0xF) << 16) |
+           ((x1 & 0xF) << 12) | ((y1 & 0xF) << 8) | ((x2 & 0xF) << 4) | (y2 & 0xF);
+}
+const OP_NAMES = ['XDrawLine','XFillRectangle','XDrawArc','XFillPolygon','XFillArc','XFillArcCorner','XFillCircle'];
+const OP_MAP = Object.fromEntries(OP_NAMES.map((n,i) => [n,i]));
+function objToHex(o) { return '0x' + (encodeU32(o) >>> 0).toString(16).padStart(8,'0'); }
+function objToText(o) { return `${OP_NAMES[o.op]||`OP${o.op}`} ${o.a} ${o.b} ${o.x1} ${o.y1} ${o.x2} ${o.y2}`; }
 
-        function objToHex(obj) { return '0x' + encodeU32Command(obj).toString(16).padStart(8, '0'); }
-        function objToText(obj) { return `${OP_NAMES[obj.op]} ${obj.a} ${obj.b} ${obj.x1} ${obj.y1} ${obj.x2} ${obj.y2}`; }
+// ========== COORD COMPUTATION (matches rxvtfont.C draw_glyph exactly) ==========
+function computeCoords(x, y, W, H) {
+    const x_ = new Array(16).fill(0);
+    const y_ = new Array(16).fill(0);
+    for (let i = 0; i <= 8; i++) {
+        x_[i] = x + Math.floor(((W-1)*i + Math.floor(i*7/8)) / 8);
+        y_[i] = y + Math.floor(((H-1)*i + Math.floor(i*7/8)) / 8);
+    }
+    x_[10] = x + Math.floor((W-1)/2);  x_[9] = x_[10]-1;  x_[11] = x_[10]+1;
+    y_[10] = y + Math.floor((H-1)/2);  y_[9] = y_[10]-1;  y_[11] = y_[10]+1;
+    return {x_, y_};
+}
 
-        // ========== X11 CANVAS LIBRARY (CRISP, NO AA) ==========
-        class X11Canvas {
-            constructor(displayCanvas) {
-                this.displayCanvas = displayCanvas;
-                this.displayCtx = displayCanvas.getContext('2d');
-                // disable antialiasing on display canvas
-                this.displayCtx.imageSmoothingEnabled = false;
-                this.foreground = '#1e2b3c';
-                this.background = '#faf6ef';
-                this.fillColor = '#c97b5d';
-                this.lineWidth = 1;
-                this.fillStyle = 'Solid';
-                this.stipplePattern = null;
-                this.stippleFg = '#1e2b3c';
-                this.stippleBg = '#faf6ef';
-                // offscreen cell canvas
-                this.cellCanvas = document.createElement('canvas');
-                this.cellCtx = this.cellCanvas.getContext('2d');
-                this.cellCtx.imageSmoothingEnabled = false;
+// ========== DRAW GLYPH (matches draw_glyph + draw_arc_segment in rxvtfont.C) ==========
+function drawGlyph(ctx, x, y, W, H, commands, fgColor, fillColor, stippleFg, stippleBg) {
+    const {x_, y_} = computeCoords(x, y, W, H);
+
+    function getFill(a) {
+        if (a === 0) return fillColor;
+        // stipple: bm = { 0,0, 3,1, 1,2, 1,0 } - two bytes per level: [a*2], [a*2+1]
+        // Interpreted as a 2x2 bitmap for the stipple pattern
+        const bm = [[0,0],[3,1],[1,2],[1,0]];
+        const [byte0] = bm[a] || [0];
+        const pc = document.createElement('canvas'); pc.width=2; pc.height=2;
+        const pctx = pc.getContext('2d');
+        pctx.fillStyle = stippleBg; pctx.fillRect(0,0,2,2);
+        pctx.fillStyle = stippleFg;
+        if (byte0 & 1) pctx.fillRect(0,0,1,1);
+        if (byte0 & 2) pctx.fillRect(1,0,1,1);
+        if (byte0 & 4) pctx.fillRect(0,1,1,1);
+        if (byte0 & 8) pctx.fillRect(1,1,1,1);
+        return ctx.createPattern(pc, 'repeat');
+    }
+
+    for (const raw of commands) {
+        const op = (raw >>> 24) & 0xFF;
+        const a  = (raw >>> 20) & 0xF;
+        const b  = (raw >>> 16) & 0xF;
+        const x1 = x_[(raw >>> 12) & 0xF];
+        const y1 = y_[(raw >>>  8) & 0xF];
+        const x2 = x_[(raw >>>  4) & 0xF];
+        const y2 = y_[(raw >>>  0) & 0xF];
+
+        ctx.save();
+        switch (op) {
+            case 0: { // XDrawLine
+                ctx.strokeStyle = fgColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(x1+0.5, y1+0.5); ctx.lineTo(x2+0.5, y2+0.5); ctx.stroke();
+                break;
             }
-
-            setForeground(c) { this.foreground = c; }
-            setFillColor(c) { this.fillColor = c; }
-            setLineWidth(w) { this.lineWidth = w; }
-
-            /** Prepare cell canvas with given size and background */
-            beginCell(w, h) {
-                this.cellCanvas.width = w;
-                this.cellCanvas.height = h;
-                this.cellCtx.clearRect(0, 0, w, h);
-                this.cellCtx.fillStyle = this.background;
-                this.cellCtx.fillRect(0, 0, w, h);
-                // Reset default styles for the cell context
-                this.cellCtx.strokeStyle = this.foreground;
-                this.cellCtx.fillStyle = this.fillColor;
-                this.cellCtx.lineWidth = this.lineWidth;
-                this.cellCtx.imageSmoothingEnabled = false;
-                this.cellW = w;
-                this.cellH = h;
+            case 1: { // XFillRectangle (possibly stippled)
+                const rw = x2 - x1 + 1, rh = y2 - y1 + 1;
+                ctx.fillStyle = getFill(a);
+                ctx.fillRect(x1, y1, rw, rh);
+                break;
             }
-
-            /** Copy the cell canvas to the display canvas, scaled to fit with nearest‑neighbour */
-            presentCell() {
-                const dw = this.displayCanvas.width;
-                const dh = this.displayCanvas.height;
-                this.displayCtx.clearRect(0, 0, dw, dh);
-                this.displayCtx.drawImage(this.cellCanvas, 0, 0, dw, dh);
+            case 2: { // XDrawArc - outline, centered at x1,y1, size = min(W-1,H-1)
+                const size = Math.min(W-1, H-1);
+                const startAngle = (a - 1) * Math.PI/2;
+                const spanAngle  = (b - 1) * Math.PI/2;
+                ctx.strokeStyle = fgColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(x1 - size/2 + size/2, y1 - size/2 + size/2, size/2, size/2, 0, startAngle, startAngle + spanAngle, false);
+                ctx.stroke();
+                break;
             }
-
-            _getFillStyle() {
-                return (this.fillStyle === 'Stippled' && this.stipplePattern)
-                       ? this.stipplePattern : this.fillColor;
-            }
-
-            _computeCoords(x, y, W, H) {
-                const x_ = new Array(16);
-                const y_ = new Array(16);
-                for (let i = 0; i <= 8; i++) {
-                    x_[i] = x + Math.floor(((W-1) * i + Math.floor(i*7/8)) / 8);
-                    y_[i] = y + Math.floor(((H-1) * i + Math.floor(i*7/8)) / 8);
-                }
-                x_[10] = x + Math.floor((W - 1) / 2);
-                x_[9]  = x_[10] - 1;
-                x_[11] = x_[10] + 1;
-                y_[10] = y + Math.floor((H - 1) / 2);
-                y_[9]  = y_[10] - 1;
-                y_[11] = y_[10] + 1;
-                return { x_, y_ };
-            }
-
-            drawAliasedLine(ctx, x1, y1, x2, y2) {
-                x1 = Math.round(x1);
-                y1 = Math.round(y1);
-                x2 = Math.round(x2);
-                y2 = Math.round(y2);
-
-                let dx = Math.abs(x2 - x1);
-                let dy = Math.abs(y2 - y1);
-                let sx = (x1 < x2) ? 1 : -1;
-                let sy = (y1 < y2) ? 1 : -1;
-                let err = dx - dy;
-
-                while (true) {
-                    ctx.fillRect(x1, y1, 1, 1); // Draw a single pixel
-                    if (x1 === x2 && y1 === y2) break;
-                    let e2 = 2 * err;
-                    if (e2 > -dy) { err -= dy; x1 += sx; }
-                    if (e2 < dx) { err += dx; y1 += sy; }
-                }
-            }
-
-            executeU32Command(decoded) {
-                const { op, a, b, x1: xi1, y1: yi1, x2: xi2, y2: yi2 } = decoded;
-                const { x_, y_ } = this._computeCoords(0, 0, this.cellW, this.cellH);
-                const X1 = x_[xi1], Y1 = y_[yi1];
-                const X2 = x_[xi2], Y2 = y_[yi2];
-                const ctx = this.cellCtx;  // draw on the cell canvas
-
-                switch (op) {
-                    case 0: // XDrawLine
-                        // ctx.beginPath();
-                        // ctx.strokeStyle = this.foreground;
-                        // ctx.lineWidth = this.lineWidth;
-                        // ctx.moveTo(X1, Y1);
-                        // ctx.lineTo(X2, Y2);
-                        // ctx.stroke();
-                        this.drawAliasedLine(ctx, X1, Y1, X2, Y2)
-                        break;
-                    case 1: // XFillRectangle
-                        if (a === 0) {
-                            ctx.fillStyle = this.fillColor;
-                            ctx.fillRect(X1, Y1, X2 - X1 + 1, Y2 - Y1 + 1);
-                        } else {
-                            this._drawStippledRect(X1, Y1, X2 - X1 + 1, Y2 - Y1 + 1, a);
-                        }
-                        break;
-                    case 2: // XDrawArc
-                        ctx.beginPath();
-                        ctx.strokeStyle = this.foreground;
-                        ctx.lineWidth = this.lineWidth;
-                        const s = (a-1)*90 * Math.PI/180;
-                        const e = ((a-1)+(b-1))*90 * Math.PI/180;
-                        ctx.ellipse(X1 - this.cellW/2, Y1 - this.cellH/2,
-                                     Math.abs(this.cellW-1)/2, Math.abs(this.cellH-1)/2,
-                                     0, s, e, false);
-                        ctx.stroke();
-                        break;
-                    case 3: // XFillPolygon (triangle)
-                        this._drawFilledTriangle(X1, Y1, X2, Y2, a);
-                        break;
-                    case 4: // XFillArc
-                        ctx.beginPath();
-                        ctx.fillStyle = this._getFillStyle();
-                        const start = (a-1)*90 * Math.PI/180;
-                        const end = ((a-1)+(b-1))*90 * Math.PI/180;
-                        ctx.moveTo(X1, Y1);
-                        ctx.ellipse(X1, Y1,
-                                     Math.abs(X2-X1), Math.abs(Y2-Y1),
-                                     0, start, end, false);
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
-                    case 5: // XFillArc (rounded corner)
-                        this._drawRoundedCorner(a, b);
-                        break;
-                }
-            }
-
-            _drawStippledRect(x, y, w, h, a) {
-                const bm = [[0,0],[3,1],[1,2],[1,0]];
-                const [fg] = bm[a] || [0];
-                const pc = document.createElement('canvas');
-                pc.width = 2; pc.height = 2;
-                const pctx = pc.getContext('2d');
-                pctx.fillStyle = this.stippleBg;
-                pctx.fillRect(0,0,2,2);
-                pctx.fillStyle = this.stippleFg;
-                if (fg & 1) pctx.fillRect(0,0,1,1);
-                if (fg & 2) pctx.fillRect(1,0,1,1);
-                if (fg & 4) pctx.fillRect(0,1,1,1);
-                if (fg & 8) pctx.fillRect(1,1,1,1);
-                const pat = this.cellCtx.createPattern(pc, 'repeat');
-                this.cellCtx.save();
-                this.cellCtx.fillStyle = pat;
-                this.cellCtx.fillRect(x, y, w, h);
-                this.cellCtx.restore();
-            }
-
-            _drawFilledTriangle(x1, y1, x2, y2, a) {
-                const xm = (x1+x2)/2, ym = (y1+y2)/2;
+            case 3: { // XFillPolygon (triangle)
+                const xm = Math.floor((x1+x2)/2), ym = Math.floor((y1+y2)/2);
                 let pts;
-                if (a===1) pts = [[xm,y1],[x1,y2],[x2,y2]];
+                if      (a===1) pts = [[xm,y1],[x1,y2],[x2,y2]];
                 else if (a===2) pts = [[x1,y1],[x2,y1],[xm,y2]];
                 else if (a===3) pts = [[x2,y1],[x2,y2],[x1,ym]];
-                else pts = [[x1,y1],[x1,y2],[x2,ym]];
-                const ctx = this.cellCtx;
+                else            pts = [[x1,y1],[x1,y2],[x2,ym]];
+                ctx.fillStyle = fillColor;
                 ctx.beginPath();
-                ctx.fillStyle = this._getFillStyle();
                 ctx.moveTo(pts[0][0], pts[0][1]);
-                for(let i=1;i<3;i++) ctx.lineTo(pts[i][0], pts[i][1]);
-                ctx.closePath();
-                ctx.fill();
+                ctx.lineTo(pts[1][0], pts[1][1]);
+                ctx.lineTo(pts[2][0], pts[2][1]);
+                ctx.closePath(); ctx.fill();
+                break;
             }
-
-            _drawRoundedCorner(a, b) {
-                const W = this.cellW, H = this.cellH;
-                const isHalf = (b===1);
-                const dw = isHalf ? W : 2*W, dh = isHalf ? H : 2*H;
-                let angle, xm, ym;
-                if (a===1) { angle=90; xm=0; ym=1; }
-                else if (a===2) { angle=0; xm=-1; ym=0; }
-                else if (a===3) { angle=180; xm=0; ym=-1; }
-                else { angle=270; xm=-1; ym=-1; }
-                const bx = (isHalf ? W/2 : 0) + xm * (isHalf ? W : W-1);
-                const by = (isHalf ? H/2 : 0) + ym * H;
-                const ctx = this.cellCtx;
+            case 4: { // XFillArc - bounding box x1,y1→x2,y2
+                const fw = x2 - x1, fh = y2 - y1;
+                const size = Math.min(fw, fh);
+                const bx = x1 + Math.floor((fw - size) / 2);
+                const by = y1 + Math.floor((fh - size) / 2);
+                const startAngle = (a - 1) * Math.PI/2;
+                const spanAngle  = (b - 1) * Math.PI/2;
+                ctx.fillStyle = fillColor;
                 ctx.beginPath();
-                ctx.fillStyle = this._getFillStyle();
-                const start = angle * Math.PI/180;
-                const end = (angle+90) * Math.PI/180;
-                ctx.moveTo(bx + (isHalf?W:2*W)/2, by + (isHalf?H:2*H)/2);
-                ctx.ellipse(bx + dw/2, by + dh/2, Math.abs(dw/2), Math.abs(dh/2), 0, start, end, false);
-                ctx.closePath();
+                ctx.moveTo(bx + size/2, by + size/2);
+                ctx.arc(bx + size/2, by + size/2, size/2, startAngle, startAngle + spanAngle, false);
+                ctx.closePath(); ctx.fill();
+                break;
+            }
+            case 5: { // Rounded corner: draw_arc_segment
+                // draw_arc_segment(disp, d, gc, x, y, W, H, is_half, angle, x_mult, y_mult, dw_extra)
+                // a=1: angle=90,  x_mult=0,  y_mult=0,  dw_extra=1
+                // a=2: angle=0,   x_mult=-1, y_mult=0,  dw_extra=0
+                // a=3: angle=180, x_mult=0,  y_mult=-1, dw_extra=1
+                // a=4: angle=270, x_mult=-1, y_mult=-1, dw_extra=0
+                const is_half = (b === 1);
+                let angle, x_mult, y_mult, dw_extra;
+                if      (a===1) { angle=90;  x_mult=0;  y_mult=0;  dw_extra=1; }
+                else if (a===2) { angle=0;   x_mult=-1; y_mult=0;  dw_extra=0; }
+                else if (a===3) { angle=180; x_mult=0;  y_mult=-1; dw_extra=1; }
+                else            { angle=270; x_mult=-1; y_mult=-1; dw_extra=0; }
+                const dw = (is_half ? W : 2*W) + dw_extra;
+                const dh = (is_half ? H : 2*H);
+                const x_offset = is_half ? W : (W-1);
+                const bbx = x - 1 + (is_half ? Math.floor(W/2) : 0) + (x_mult * x_offset);
+                const bby = y     + (is_half ? Math.floor(H/2) : 0) + (y_mult * H);
+                const startAngle = angle * Math.PI/180;
+                ctx.fillStyle = fillColor;
+                ctx.beginPath();
+                ctx.moveTo(bbx + dw/2, bby + dh/2);
+                ctx.ellipse(bbx + dw/2, bby + dh/2, dw/2, dh/2, 0, startAngle, startAngle + Math.PI/2, false);
+                ctx.closePath(); ctx.fill();
+                break;
+            }
+            case 6: { // XFillCircle - filled circle centered at x1,y1
+                const maxSize = Math.min(W-1, H-1);
+                const size = Math.floor(maxSize * a / 4);
+                ctx.fillStyle = fillColor;
+                ctx.beginPath();
+                ctx.arc(x1, y1, size/2, 0, Math.PI*2);
                 ctx.fill();
+                break;
             }
         }
+        ctx.restore();
+    }
+}
 
-        // ========== DEMO STATE ==========
-        const displayCanvas = document.getElementById('x11canvas');
-        const x11 = new X11Canvas(displayCanvas);
-        x11.setForeground('#1e2b3c');
-        x11.setFillColor('#c97b5d');
-        x11.setLineWidth(1);
-        x11.stippleFg = '#1e2b3c';
-        x11.stippleBg = '#faf6ef';
+// ========== X11Canvas wrapper ==========
+class X11Canvas {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.ctx.imageSmoothingEnabled = false;
+        this.bg = '#faf6ef';
+        this.fg = '#1e2b3c';
+        this.fill = '#c97b5d';
+        this.stippleFg = '#1e2b3c';
+        this.stippleBg = '#faf6ef';
+        this.W = 32; this.H = 48;
+        this._cell = document.createElement('canvas');
+        this._cctx = this._cell.getContext('2d');
+    }
+    beginCell(W, H) {
+        this.W = W; this.H = H;
+        this._cell.width = W; this._cell.height = H;
+        this._cctx.imageSmoothingEnabled = false;
+        this._cctx.fillStyle = this.bg;
+        this._cctx.fillRect(0,0,W,H);
+    }
+    drawCommands(rawU32s) {
+        drawGlyph(this._cctx, 0, 0, this.W, this.H, rawU32s, this.fg, this.fill, this.stippleFg, this.stippleBg);
+    }
+    present() {
+        const dw = this.canvas.width, dh = this.canvas.height;
+        this.ctx.clearRect(0,0,dw,dh);
+        this.ctx.drawImage(this._cell, 0, 0, dw, dh);
+    }
+}
 
-        const canvasWInput = document.getElementById('canvasW');
-        const canvasHInput = document.getElementById('canvasH');
-        const cellWInput = document.getElementById('cellW');
-        const cellHInput = document.getElementById('cellH');
-        const hexInput = document.getElementById('hexInput');
-        const textInput = document.getElementById('textInput');
-        const u32Status = document.getElementById('u32Status');
+// ========== LINEDRAW TABLE DATA ==========
+// Data derived directly from the linedraw_*.h files in tomas/exoterm expand-builtin-glyphs branch.
+// Offset format: (start_index << 4) | count  — matches draw_glyph in rxvtfont.C
+// Each entry: { codepoint, char, name, cmds: Uint32Array }
 
-        let lastValidHexLines = [];
-        let lastValidTextLines = [];
-        let activeSource = 'hex';
+// Helper to expand commands from offset table
+function expand(commandArr, offsetArr, baseCP) {
+    const result = [];
+    for (let i = 0; i < offsetArr.length; i++) {
+        const offs = offsetArr[i];
+        if (offs === 0) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        result.push({ cp: baseCP + i, cmds: commandArr.slice(start, start + count) });
+    }
+    return result;
+}
 
-        function resizeDisplayCanvas() {
-            const w = parseInt(canvasWInput.value) || 100;
-            const h = parseInt(canvasHInput.value) || 100;
-            displayCanvas.width = w;
-            displayCanvas.height = h;
-            // keep crisp
-            displayCanvas.getContext('2d').imageSmoothingEnabled = false;
-            redrawGlyph();
+// ---- linedraw_2500.h (U+2500..U+259F) ----
+const cmd2500 = [
+ 0x00000aaa, 0x0000aa8a,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b,
+ 0x0000a0aa, 0x0000aaa8,
+ 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x01000a1a, 0x01003a5a, 0x01007a8a,
+ 0x0100091b, 0x0100395b, 0x0100798b,
+ 0x0100a0a1, 0x0100a3a5, 0x0100a7a8,
+ 0x010090b1, 0x010093b5, 0x010097b8,
+ 0x01000a1a, 0x01002a3a, 0x01004a5a, 0x01006a7a,
+ 0x0100091b, 0x0100293b, 0x0100495b, 0x0100697b,
+ 0x0100a0a1, 0x0100a2a3, 0x0100a4a5, 0x0100a6a7,
+ 0x010090b1, 0x010092b3, 0x010094b5, 0x010096b7,
+ 0x0000aa8a, 0x0000aaa8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000aaa8,
+ 0x0000aa8a, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aaa8,
+ 0x00000aaa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x0000aa8a, 0x0000a0aa,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa,
+ 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x00000aaa, 0x0000a0aa,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a0aa,
+ 0x00000aaa, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x0000aa8a, 0x0000a0aa, 0x0000aaa8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x0000aaa8,
+ 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x0000aa8a, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000a0aa, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a0aa, 0x0000aaa8,
+ 0x00000aaa, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x00000aaa, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000aa8a, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000aaa8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000aaa8,
+ 0x00000aaa, 0x0000aa8a, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000aa8a, 0x0000a0aa,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000a0aa,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa,
+ 0x00000aaa, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x00000aaa, 0x0000aa8a, 0x0000a0aa, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000a0aa, 0x0000aaa8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x0000aaa8,
+ 0x00000aaa, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x00000aaa, 0x0000aa8a, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000a989, 0x0000aa8a, 0x0000ab8b, 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x01000a3a, 0x01005a8a,
+ 0x0100093b, 0x0100598b,
+ 0x0100a0a3, 0x0100a5a8,
+ 0x010090b3, 0x010095b8,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b,
+ 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x0000a989, 0x0000ab8b, 0x0000aaa8,
+ 0x0000aa8a, 0x00009a98, 0x0000bab8,
+ 0x0000a989, 0x0000ab8b, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000aaa8,
+ 0x00000aaa, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x00009a98, 0x0000bab8,
+ 0x0000a989, 0x0000ab8b, 0x0000a0aa,
+ 0x0000aa8a, 0x0000909a, 0x0000b0ba,
+ 0x0000a989, 0x0000ab8b, 0x0000909a, 0x0000b0ba,
+ 0x000009a9, 0x00000bab, 0x0000a0aa,
+ 0x00000aaa, 0x0000909a, 0x0000b0ba,
+ 0x000009a9, 0x00000bab, 0x0000909a, 0x0000b0ba,
+ 0x0000a989, 0x0000ab8b, 0x0000a0aa, 0x0000aaa8,
+ 0x0000aa8a, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x0000a989, 0x0000ab8b, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000a0aa, 0x0000aaa8,
+ 0x00000aaa, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x0000aaa8,
+ 0x00000aaa, 0x0000aa8a, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x0000a0aa,
+ 0x00000aaa, 0x0000aa8a, 0x0000909a, 0x0000b0ba,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x0000909a, 0x0000b0ba,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x0000a0aa, 0x0000aaa8,
+ 0x00000aaa, 0x0000aa8a, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x000009a9, 0x00000bab, 0x0000a989, 0x0000ab8b, 0x0000909a, 0x0000b0ba, 0x00009a98, 0x0000bab8,
+ 0x00004648, 0x00007a8a, 0x02228802,
+ 0x00004648, 0x00001a0a, 0x02120802,
+ 0x00004240, 0x00001a0a, 0x02100002,
+ 0x00004240, 0x00007a8a, 0x02008002,
+ 0x00000880,
+ 0x00000088,
+ 0x00000880, 0x00000088,
+ 0x00000aaa,
+ 0x0000a0aa,
+ 0x0000aa8a,
+ 0x0000aaa8,
+ 0x000009a9, 0x00000aaa, 0x00000bab,
+ 0x0000909a, 0x0000a0aa, 0x0000b0ba,
+ 0x0000a989, 0x0000aa8a, 0x0000ab8b,
+ 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x00000aaa, 0x0000a989, 0x0000aa8a, 0x0000ab8b,
+ 0x0000a0aa, 0x00009a98, 0x0000aaa8, 0x0000bab8,
+ 0x000009a9, 0x00000aaa, 0x00000bab, 0x0000aa8a,
+ 0x0000909a, 0x0000a0aa, 0x0000b0ba, 0x0000aaa8,
+ // 0x2580-0x259F block elements
+ 0x01000084,
+ 0x01000788,
+ 0x01000688,
+ 0x01000588,
+ 0x01000488,
+ 0x01000388,
+ 0x01000288,
+ 0x01000188,
+ 0x01000088,
+ 0x01000078,
+ 0x01000068,
+ 0x01000058,
+ 0x01000048,
+ 0x01000038,
+ 0x01000028,
+ 0x01000018,
+ 0x01004088,
+ 0x01300088,
+ 0x01200088,
+ 0x01100088,
+ 0x01000081,
+ 0x01007088,
+ 0x01000448,
+ 0x01004488,
+ 0x01000044,
+ 0x01000044, 0x01000448, 0x01004488,
+ 0x01000044, 0x01004488,
+ 0x01000044, 0x01004084, 0x01000448,
+ 0x01000044, 0x01004084, 0x01004488,
+ 0x01004084,
+ 0x01004084, 0x01000448,
+ 0x01004084, 0x01000448, 0x01004488,
+];
+
+const offs2500 = [
+ 0x0002, 0x0026, 0x0082, 0x00a6, 0x0103,
+ 0x0133, 0x0163, 0x0193, 0x01c4, 0x0204,
+ 0x0244, 0x0284, 0x02c2, 0x02e4, 0x0324,
+ 0x0366, 0x03c2, 0x03e4, 0x0424, 0x0466,
+ 0x04c2, 0x04e4, 0x0524, 0x0566, 0x05c2,
+ 0x05e4, 0x0624, 0x0666, 0x06c3, 0x06f5,
+ 0x0745, 0x0795, 0x07e7, 0x0857, 0x08c7,
+ 0x0939, 0x09c3, 0x09f5, 0x0a45, 0x0a95,
+ 0x0ae7, 0x0b57, 0x0bc7, 0x0c39, 0x0cc3,
+ 0x0cf5, 0x0d45, 0x0d97, 0x0e05, 0x0e57,
+ 0x0ec7, 0x0f39, 0x0fc3, 0x0ff5, 0x1045,
+ 0x1097, 0x1105, 0x1157, 0x11c7, 0x1239,
+ 0x12c4, 0x1306, 0x1366, 0x13c8, 0x1446,
+ 0x14a6, 0x1508, 0x1588, 0x1608, 0x1688,
+ 0x1708, 0x178a, 0x182a, 0x18ca, 0x196a,
+ 0x1a0c, 0x1ac2, 0x1ae2, 0x1b02, 0x1b22,
+ 0x1b44, 0x1b84, 0x1bc3, 0x1bf3, 0x1c24,
+ 0x1c63, 0x1c93, 0x1cc4, 0x1d03, 0x1d33,
+ 0x1d64, 0x1da3, 0x1dd3, 0x1e04, 0x1e44,
+ 0x1e85, 0x1ed6, 0x1f34, 0x1f75, 0x1fc6,
+ 0x2025, 0x2074, 0x20b6, 0x2115, 0x2164,
+ 0x21a6, 0x2206, 0x2266, 0x22c8, 0x2343,
+ 0x2373, 0x23a3, 0x23d3, 0x2401, 0x2411,
+ 0x2422, 0x2441, 0x2451, 0x2461, 0x2471,
+ 0x2483, 0x24b3, 0x24e3, 0x2513, 0x2544,
+ 0x2584, 0x25c4, 0x2604, 0x2641, 0x2651,
+ 0x2661, 0x2671, 0x2681, 0x2691, 0x26a1,
+ 0x26b1, 0x26c1, 0x26d1, 0x26e1, 0x26f1,
+ 0x2701, 0x2711, 0x2721, 0x2731, 0x2741,
+ 0x2751, 0x2761, 0x2771, 0x2781, 0x2791,
+ 0x27a1, 0x27b1, 0x27c1, 0x27d3, 0x2802,
+ 0x2823, 0x2853, 0x2881, 0x2892, 0x28b3,
+];
+
+// ---- linedraw_25a0.h (U+25a0..U+25b1) ----
+const cmd25a0 = [
+ 0x01000187,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187,
+ 0x00001171, 0x00001777, 0x00000107, 0x00008187,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x01003355,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00000282, 0x00000484, 0x00000686,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00002127, 0x00004147, 0x00006167,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00000282, 0x00000484, 0x00000686, 0x00002127, 0x00004147, 0x00006167,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00000187, 0x00002186, 0x00000267, 0x00004184, 0x00000447,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00000781, 0x00002782, 0x00000661, 0x00004784, 0x00000441,
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x00000187, 0x00002186, 0x00000267, 0x00004184, 0x00000447, 0x00000781, 0x00002782, 0x00000661, 0x00004784, 0x00000441,
+ 0x01002266,
+ 0x00002262, 0x00002666, 0x00002226, 0x00006266,
+ 0x01000286,
+ 0x00000282, 0x00000686, 0x00000206, 0x00008286,
+ 0x01002167,
+ 0x00002161, 0x00002767, 0x00002127, 0x00006167,
+ 0x01000385,
+ 0x00000383, 0x00000585, 0x00000305, 0x00008385,
+];
+const offs25a0 = [
+ 0x0001, 0x0014, 0x0054, 0x0095, 0x00e7,
+ 0x0157, 0x01ca, 0x0269, 0x02f9, 0x038e,
+ 0x0461, 0x0474, 0x04b1, 0x04c4, 0x0501,
+ 0x0514, 0x0551, 0x0564,
+];
+
+// ---- linedraw_25c0.h (U+25c0..U+25d8) ----
+const cmd25c0 = [
+ 0x0215AA00,
+ 0x04154466,
+ 0x0640AA00,
+ 0x0620AA00,
+ 0x0215AA00,
+ 0x04430088,
+ 0x0215AA00,
+ 0x04230088,
+];
+const offs25c0 = [
+ 0,0,0,0,0,0,0,0,0, // 25c0-25c8
+ 0x0002, // 25c9 fisheye
+ 0,      // 25ca
+ 0x0001, // 25cb white circle
+ 0,0,    // 25cc-25cd
+ 0,      // 25ce bullseye (unsupported)
+ 0x0021, // 25cf black circle
+ 0x0042, // 25d0 circle with left half black
+ 0x0062, // 25d1 circle with right half black
+ 0,0,0,0,0,0, // 25d2-25d7
+ 0x0031, // 25d8 inverse bullet
+];
+
+// ---- linedraw_23f4.h (U+23f4..U+23fa) ----
+const cmd23f4 = [
+ 0x03301177, // 23f4 left triangle
+ 0x03401177, // 23f5 right triangle
+ 0x03101177, // 23f6 up triangle
+ 0x03201177, // 23f7 down triangle
+ 0x01002137, 0x01005167, // 23f8 double bar
+ 0x01001177, // 23f9 medium square
+ 0x0640AA00, // 23fa medium circle
+];
+const offs23f4 = [
+ 0x0001, 0x0011, 0x0021, 0x0031,
+ 0x0042,
+ 0x0061, 0x0071,
+];
+
+// ---- linedraw_23a0.h (U+23a0..U+23ce) ----
+const cmd23a0 = [
+ 0x00008188, 0x00004181, // 23a4 right bracket upper
+ 0x00008088,             // 23a5 right bracket ext
+ 0x00008087, 0x00004787, // 23a6 right bracket lower
+ 0x00000484,             // 23af horizontal ext
+ 0x00000108, 0x00000141, // 23a1 left bracket upper
+ 0x00000080,             // 23a2 left bracket ext
+ 0x00000007, 0x00000747, // 23a3 left bracket lower
+ 0x00000080, 0x00000787, // 23bf dental
+ 0x00007277, 0x03300577, // 23ce return symbol
+];
+const offs23a0 = [
+ 0,       // 23a0
+ 0x0062,  // 23a1
+ 0x0081,  // 23a2
+ 0x0092,  // 23a3
+ 0x0002,  // 23a4
+ 0x0021,  // 23a5
+ 0x0032,  // 23a6
+ 0,0,0,0,0,0,0,0, // 23a7-23ae
+ 0x0051,  // 23af
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x00b2, // 23b0-23bf
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x00d2,   // 23c0-23ce
+];
+
+// ---- linedraw_2b00.h (U+2b00..U+2b24) ----
+const cmd2b00 = [
+ 0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x01000184, // 2b12 (5)
+ 0x01000487, 0x00000181, 0x00000787, 0x00000107, 0x00008187, // 2b13 (5)
+ 0x01300088, // 2b1a
+ 0x01000088, // 2b1b
+ 0x00000080, 0x00000888, 0x00000008, 0x00008088, // 2b1c (4)
+ 0x01003455, // 2b1d
+ 0x00003454, 0x00003555, 0x00003435, 0x00005455, // 2b1e (4)
+ 0x0640AA00, // 2b24
+];
+const offs2b00 = [
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 2b00-2b11
+ 0x0005, // 2b12
+ 0x0055, // 2b13
+ 0,0,0,0,0,0,0,0, // 2b14-2b1b (wrong — fill individually below)
+];
+// The 2b offset table from the .h is sparser, let me use a map instead:
+const map2b00 = {
+ 0x2b12: [0x00000181, 0x00000787, 0x00000107, 0x00008187, 0x01000184],
+ 0x2b13: [0x01000487, 0x00000181, 0x00000787, 0x00000107, 0x00008187],
+ 0x2b1a: [0x01300088],
+ 0x2b1b: [0x01000088],
+ 0x2b1c: [0x00000080, 0x00000888, 0x00000008, 0x00008088],
+ 0x2b1d: [0x01003455],
+ 0x2b1e: [0x00003454, 0x00003555, 0x00003435, 0x00005455],
+ 0x2b24: [0x0640AA00],
+};
+
+// Unicode name lookup
+const UNICODE_NAMES = {
+ 0x2500:'BOX DRAWINGS LIGHT HORIZONTAL', 0x2501:'BOX DRAWINGS HEAVY HORIZONTAL',
+ 0x2502:'BOX DRAWINGS LIGHT VERTICAL', 0x2503:'BOX DRAWINGS HEAVY VERTICAL',
+ 0x2504:'BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL', 0x2505:'BOX DRAWINGS HEAVY TRIPLE DASH HORIZONTAL',
+ 0x2506:'BOX DRAWINGS LIGHT TRIPLE DASH VERTICAL', 0x2507:'BOX DRAWINGS HEAVY TRIPLE DASH VERTICAL',
+ 0x2508:'BOX DRAWINGS LIGHT QUADRUPLE DASH HORIZONTAL', 0x2509:'BOX DRAWINGS HEAVY QUADRUPLE DASH HORIZONTAL',
+ 0x250a:'BOX DRAWINGS LIGHT QUADRUPLE DASH VERTICAL', 0x250b:'BOX DRAWINGS HEAVY QUADRUPLE DASH VERTICAL',
+ 0x250c:'BOX DRAWINGS LIGHT DOWN AND RIGHT', 0x250d:'BOX DRAWINGS DOWN LIGHT AND RIGHT HEAVY',
+ 0x250e:'BOX DRAWINGS DOWN HEAVY AND RIGHT LIGHT', 0x250f:'BOX DRAWINGS HEAVY DOWN AND RIGHT',
+ 0x2510:'BOX DRAWINGS LIGHT DOWN AND LEFT', 0x2511:'BOX DRAWINGS DOWN LIGHT AND LEFT HEAVY',
+ 0x2512:'BOX DRAWINGS DOWN HEAVY AND LEFT LIGHT', 0x2513:'BOX DRAWINGS HEAVY DOWN AND LEFT',
+ 0x2514:'BOX DRAWINGS LIGHT UP AND RIGHT', 0x2515:'BOX DRAWINGS UP LIGHT AND RIGHT HEAVY',
+ 0x2516:'BOX DRAWINGS UP HEAVY AND RIGHT LIGHT', 0x2517:'BOX DRAWINGS HEAVY UP AND RIGHT',
+ 0x2518:'BOX DRAWINGS LIGHT UP AND LEFT', 0x2519:'BOX DRAWINGS UP LIGHT AND LEFT HEAVY',
+ 0x251a:'BOX DRAWINGS UP HEAVY AND LEFT LIGHT', 0x251b:'BOX DRAWINGS HEAVY UP AND LEFT',
+ 0x251c:'BOX DRAWINGS LIGHT VERTICAL AND RIGHT', 0x251d:'BOX DRAWINGS VERTICAL LIGHT AND RIGHT HEAVY',
+ 0x251e:'BOX DRAWINGS UP HEAVY AND RIGHT DOWN LIGHT', 0x251f:'BOX DRAWINGS DOWN HEAVY AND RIGHT UP LIGHT',
+ 0x2520:'BOX DRAWINGS VERTICAL HEAVY AND RIGHT LIGHT', 0x2521:'BOX DRAWINGS DOWN LIGHT AND RIGHT UP HEAVY',
+ 0x2522:'BOX DRAWINGS UP LIGHT AND RIGHT DOWN HEAVY', 0x2523:'BOX DRAWINGS HEAVY VERTICAL AND RIGHT',
+ 0x2524:'BOX DRAWINGS LIGHT VERTICAL AND LEFT', 0x2525:'BOX DRAWINGS VERTICAL LIGHT AND LEFT HEAVY',
+ 0x2526:'BOX DRAWINGS UP HEAVY AND LEFT DOWN LIGHT', 0x2527:'BOX DRAWINGS DOWN HEAVY AND LEFT UP LIGHT',
+ 0x2528:'BOX DRAWINGS VERTICAL HEAVY AND LEFT LIGHT', 0x2529:'BOX DRAWINGS DOWN LIGHT AND LEFT UP HEAVY',
+ 0x252a:'BOX DRAWINGS UP LIGHT AND LEFT DOWN HEAVY', 0x252b:'BOX DRAWINGS HEAVY VERTICAL AND LEFT',
+ 0x252c:'BOX DRAWINGS LIGHT DOWN AND HORIZONTAL', 0x252d:'BOX DRAWINGS LEFT HEAVY AND RIGHT DOWN LIGHT',
+ 0x252e:'BOX DRAWINGS RIGHT HEAVY AND LEFT DOWN LIGHT', 0x252f:'BOX DRAWINGS DOWN LIGHT AND HORIZONTAL HEAVY',
+ 0x2530:'BOX DRAWINGS DOWN HEAVY AND HORIZONTAL LIGHT', 0x2531:'BOX DRAWINGS RIGHT LIGHT AND LEFT DOWN HEAVY',
+ 0x2532:'BOX DRAWINGS LEFT LIGHT AND RIGHT DOWN HEAVY', 0x2533:'BOX DRAWINGS HEAVY DOWN AND HORIZONTAL',
+ 0x2534:'BOX DRAWINGS LIGHT UP AND HORIZONTAL', 0x2535:'BOX DRAWINGS LEFT HEAVY AND RIGHT UP LIGHT',
+ 0x2536:'BOX DRAWINGS RIGHT HEAVY AND LEFT UP LIGHT', 0x2537:'BOX DRAWINGS UP LIGHT AND HORIZONTAL HEAVY',
+ 0x2538:'BOX DRAWINGS UP HEAVY AND HORIZONTAL LIGHT', 0x2539:'BOX DRAWINGS RIGHT LIGHT AND LEFT UP HEAVY',
+ 0x253a:'BOX DRAWINGS LEFT LIGHT AND RIGHT UP HEAVY', 0x253b:'BOX DRAWINGS HEAVY UP AND HORIZONTAL',
+ 0x253c:'BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL', 0x253d:'BOX DRAWINGS LEFT HEAVY AND RIGHT VERTICAL LIGHT',
+ 0x253e:'BOX DRAWINGS RIGHT HEAVY AND LEFT VERTICAL LIGHT', 0x253f:'BOX DRAWINGS VERTICAL LIGHT AND HORIZONTAL HEAVY',
+ 0x2540:'BOX DRAWINGS UP HEAVY AND DOWN HORIZONTAL LIGHT', 0x2541:'BOX DRAWINGS DOWN HEAVY AND UP HORIZONTAL LIGHT',
+ 0x2542:'BOX DRAWINGS VERTICAL HEAVY AND HORIZONTAL LIGHT', 0x2543:'BOX DRAWINGS LEFT UP HEAVY AND RIGHT DOWN LIGHT',
+ 0x2544:'BOX DRAWINGS RIGHT UP HEAVY AND LEFT DOWN LIGHT', 0x2545:'BOX DRAWINGS LEFT DOWN HEAVY AND RIGHT UP LIGHT',
+ 0x2546:'BOX DRAWINGS RIGHT DOWN HEAVY AND LEFT UP LIGHT', 0x2547:'BOX DRAWINGS DOWN LIGHT AND UP HORIZONTAL HEAVY',
+ 0x2548:'BOX DRAWINGS UP LIGHT AND DOWN HORIZONTAL HEAVY', 0x2549:'BOX DRAWINGS RIGHT LIGHT AND LEFT VERTICAL HEAVY',
+ 0x254a:'BOX DRAWINGS LEFT LIGHT AND RIGHT VERTICAL HEAVY', 0x254b:'BOX DRAWINGS HEAVY VERTICAL AND HORIZONTAL',
+ 0x254c:'BOX DRAWINGS LIGHT DOUBLE DASH HORIZONTAL', 0x254d:'BOX DRAWINGS HEAVY DOUBLE DASH HORIZONTAL',
+ 0x254e:'BOX DRAWINGS LIGHT DOUBLE DASH VERTICAL', 0x254f:'BOX DRAWINGS HEAVY DOUBLE DASH VERTICAL',
+ 0x2550:'BOX DRAWINGS DOUBLE HORIZONTAL', 0x2551:'BOX DRAWINGS DOUBLE VERTICAL',
+ 0x2552:'BOX DRAWINGS DOWN SINGLE AND RIGHT DOUBLE', 0x2553:'BOX DRAWINGS DOWN DOUBLE AND RIGHT SINGLE',
+ 0x2554:'BOX DRAWINGS DOUBLE DOWN AND RIGHT', 0x2555:'BOX DRAWINGS DOWN SINGLE AND LEFT DOUBLE',
+ 0x2556:'BOX DRAWINGS DOWN DOUBLE AND LEFT SINGLE', 0x2557:'BOX DRAWINGS DOUBLE DOWN AND LEFT',
+ 0x2558:'BOX DRAWINGS UP SINGLE AND RIGHT DOUBLE', 0x2559:'BOX DRAWINGS UP DOUBLE AND RIGHT SINGLE',
+ 0x255a:'BOX DRAWINGS DOUBLE UP AND RIGHT', 0x255b:'BOX DRAWINGS UP SINGLE AND LEFT DOUBLE',
+ 0x255c:'BOX DRAWINGS UP DOUBLE AND LEFT SINGLE', 0x255d:'BOX DRAWINGS DOUBLE UP AND LEFT',
+ 0x255e:'BOX DRAWINGS VERTICAL SINGLE AND RIGHT DOUBLE', 0x255f:'BOX DRAWINGS VERTICAL DOUBLE AND RIGHT SINGLE',
+ 0x2560:'BOX DRAWINGS DOUBLE VERTICAL AND RIGHT', 0x2561:'BOX DRAWINGS VERTICAL SINGLE AND LEFT DOUBLE',
+ 0x2562:'BOX DRAWINGS VERTICAL DOUBLE AND LEFT SINGLE', 0x2563:'BOX DRAWINGS DOUBLE VERTICAL AND LEFT',
+ 0x2564:'BOX DRAWINGS DOWN SINGLE AND HORIZONTAL DOUBLE', 0x2565:'BOX DRAWINGS DOWN DOUBLE AND HORIZONTAL SINGLE',
+ 0x2566:'BOX DRAWINGS DOUBLE DOWN AND HORIZONTAL', 0x2567:'BOX DRAWINGS UP SINGLE AND HORIZONTAL DOUBLE',
+ 0x2568:'BOX DRAWINGS UP DOUBLE AND HORIZONTAL SINGLE', 0x2569:'BOX DRAWINGS DOUBLE UP AND HORIZONTAL',
+ 0x256a:'BOX DRAWINGS VERTICAL SINGLE AND HORIZONTAL DOUBLE', 0x256b:'BOX DRAWINGS VERTICAL DOUBLE AND HORIZONTAL SINGLE',
+ 0x256c:'BOX DRAWINGS DOUBLE VERTICAL AND HORIZONTAL',
+ 0x256d:'BOX DRAWINGS LIGHT ARC DOWN AND RIGHT', 0x256e:'BOX DRAWINGS LIGHT ARC DOWN AND LEFT',
+ 0x256f:'BOX DRAWINGS LIGHT ARC UP AND LEFT', 0x2570:'BOX DRAWINGS LIGHT ARC UP AND RIGHT',
+ 0x2571:'BOX DRAWINGS LIGHT DIAGONAL UPPER RIGHT TO LOWER LEFT',
+ 0x2572:'BOX DRAWINGS LIGHT DIAGONAL UPPER LEFT TO LOWER RIGHT',
+ 0x2573:'BOX DRAWINGS LIGHT DIAGONAL CROSS',
+ 0x2574:'BOX DRAWINGS LIGHT LEFT', 0x2575:'BOX DRAWINGS LIGHT UP',
+ 0x2576:'BOX DRAWINGS LIGHT RIGHT', 0x2577:'BOX DRAWINGS LIGHT DOWN',
+ 0x2578:'BOX DRAWINGS HEAVY LEFT', 0x2579:'BOX DRAWINGS HEAVY UP',
+ 0x257a:'BOX DRAWINGS HEAVY RIGHT', 0x257b:'BOX DRAWINGS HEAVY DOWN',
+ 0x257c:'BOX DRAWINGS LIGHT LEFT AND HEAVY RIGHT', 0x257d:'BOX DRAWINGS LIGHT UP AND HEAVY DOWN',
+ 0x257e:'BOX DRAWINGS HEAVY LEFT AND LIGHT RIGHT', 0x257f:'BOX DRAWINGS HEAVY UP AND LIGHT DOWN',
+ 0x2580:'UPPER HALF BLOCK', 0x2581:'LOWER ONE EIGHTH BLOCK', 0x2582:'LOWER ONE QUARTER BLOCK',
+ 0x2583:'LOWER THREE EIGHTHS BLOCK', 0x2584:'LOWER HALF BLOCK', 0x2585:'LOWER FIVE EIGHTHS BLOCK',
+ 0x2586:'LOWER THREE QUARTERS BLOCK', 0x2587:'LOWER SEVEN EIGHTHS BLOCK', 0x2588:'FULL BLOCK',
+ 0x2589:'LEFT SEVEN EIGHTHS BLOCK', 0x258a:'LEFT THREE QUARTERS BLOCK', 0x258b:'LEFT FIVE EIGHTHS BLOCK',
+ 0x258c:'LEFT HALF BLOCK', 0x258d:'LEFT THREE EIGHTHS BLOCK', 0x258e:'LEFT ONE QUARTER BLOCK',
+ 0x258f:'LEFT ONE EIGHTH BLOCK', 0x2590:'RIGHT HALF BLOCK',
+ 0x2591:'LIGHT SHADE', 0x2592:'MEDIUM SHADE', 0x2593:'DARK SHADE',
+ 0x2594:'UPPER ONE EIGHTH BLOCK', 0x2595:'RIGHT ONE EIGHTH BLOCK',
+ 0x2596:'QUADRANT LOWER LEFT', 0x2597:'QUADRANT LOWER RIGHT',
+ 0x2598:'QUADRANT UPPER LEFT', 0x2599:'QUADRANT UPPER LEFT AND LOWER LEFT AND LOWER RIGHT',
+ 0x259a:'QUADRANT UPPER LEFT AND LOWER RIGHT', 0x259b:'QUADRANT UPPER LEFT AND UPPER RIGHT AND LOWER LEFT',
+ 0x259c:'QUADRANT UPPER LEFT AND UPPER RIGHT AND LOWER RIGHT', 0x259d:'QUADRANT UPPER RIGHT',
+ 0x259e:'QUADRANT UPPER RIGHT AND LOWER LEFT', 0x259f:'QUADRANT UPPER RIGHT AND LOWER LEFT AND LOWER RIGHT',
+ 0x25a0:'BLACK SQUARE', 0x25a1:'WHITE SQUARE', 0x25a2:'WHITE SQUARE WITH ROUNDED CORNERS',
+ 0x25a3:'WHITE SQUARE CONTAINING BLACK SMALL SQUARE', 0x25a4:'SQUARE WITH HORIZONTAL FILL',
+ 0x25a5:'SQUARE WITH VERTICAL FILL', 0x25a6:'SQUARE WITH ORTHOGONAL CROSSHATCH FILL',
+ 0x25a7:'SQUARE WITH UPPER LEFT TO LOWER RIGHT FILL', 0x25a8:'SQUARE WITH UPPER RIGHT TO LOWER LEFT FILL',
+ 0x25a9:'SQUARE WITH DIAGONAL CROSSHATCH FILL', 0x25aa:'BLACK SMALL SQUARE', 0x25ab:'WHITE SMALL SQUARE',
+ 0x25ac:'BLACK RECTANGLE', 0x25ad:'WHITE RECTANGLE', 0x25ae:'BLACK VERTICAL RECTANGLE',
+ 0x25af:'WHITE VERTICAL RECTANGLE', 0x25b0:'BLACK HORIZONTAL RECTANGLE', 0x25b1:'WHITE HORIZONTAL RECTANGLE',
+ 0x25c9:'FISHEYE', 0x25cb:'WHITE CIRCLE', 0x25cf:'BLACK CIRCLE',
+ 0x25d0:'CIRCLE WITH LEFT HALF BLACK', 0x25d1:'CIRCLE WITH RIGHT HALF BLACK', 0x25d8:'INVERSE BULLET',
+ 0x23a1:'LEFT SQUARE BRACKET UPPER CORNER', 0x23a2:'LEFT SQUARE BRACKET EXTENSION',
+ 0x23a3:'LEFT SQUARE BRACKET LOWER CORNER', 0x23a4:'RIGHT SQUARE BRACKET UPPER CORNER',
+ 0x23a5:'RIGHT SQUARE BRACKET EXTENSION', 0x23a6:'RIGHT SQUARE BRACKET LOWER CORNER',
+ 0x23af:'HORIZONTAL LINE EXTENSION', 0x23bf:'DENTAL SYMBOL', 0x23ce:'RETURN SYMBOL',
+ 0x23f4:'BLACK MEDIUM LEFT-POINTING TRIANGLE', 0x23f5:'BLACK MEDIUM RIGHT-POINTING TRIANGLE',
+ 0x23f6:'BLACK MEDIUM UP-POINTING TRIANGLE', 0x23f7:'BLACK MEDIUM DOWN-POINTING TRIANGLE',
+ 0x23f8:'DOUBLE VERTICAL BAR (PAUSE)', 0x23f9:'BLACK MEDIUM SQUARE (STOP)', 0x23fa:'BLACK MEDIUM CIRCLE',
+ 0x2b12:'SQUARE WITH TOP HALF BLACK', 0x2b13:'SQUARE WITH BOTTOM HALF BLACK',
+ 0x2b1a:'DOTTED SQUARE', 0x2b1b:'BLACK LARGE SQUARE', 0x2b1c:'WHITE LARGE SQUARE',
+ 0x2b1d:'BLACK VERY SMALL SQUARE', 0x2b1e:'WHITE VERY SMALL SQUARE', 0x2b24:'BLACK LARGE CIRCLE',
+};
+
+// Group labels for the filter dropdown
+const GROUP_RANGES = {
+ '2500': [0x2500, 0x257f],
+ '2580': [0x2580, 0x259f],
+ '25a0': [0x25a0, 0x25b1],
+ '25c0': [0x25c0, 0x25d8],
+ '23a0': [0x23a0, 0x23ce],
+ '23f4': [0x23f4, 0x23fa],
+ '2b00': [0x2b00, 0x2b24],
+};
+
+// Build full glyph table
+function buildGlyphTable() {
+    const entries = [];
+    function add(cp, cmds) {
+        if (!cmds || cmds.length === 0) return;
+        const ch = String.fromCodePoint(cp);
+        const hex = '0x' + cp.toString(16).toUpperCase().padStart(4,'0');
+        const name = UNICODE_NAMES[cp] || `U+${cp.toString(16).toUpperCase().padStart(4,'0')}`;
+        entries.push({ cp, char: ch, hex, name, cmds });
+    }
+
+    // 2500-259f from offset table
+    for (let i = 0; i < offs2500.length; i++) {
+        const offs = offs2500[i];
+        if (!offs) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        add(0x2500 + i, cmd2500.slice(start, start + count));
+    }
+    // 25a0-25b1 from offset table
+    for (let i = 0; i < offs25a0.length; i++) {
+        const offs = offs25a0[i];
+        if (!offs) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        add(0x25a0 + i, cmd25a0.slice(start, start + count));
+    }
+    // 25c0-25d8
+    for (let i = 0; i < offs25c0.length; i++) {
+        const offs = offs25c0[i];
+        if (!offs) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        add(0x25c0 + i, cmd25c0.slice(start, start + count));
+    }
+    // 23a0-23ce
+    for (let i = 0; i < offs23a0.length; i++) {
+        const offs = offs23a0[i];
+        if (!offs) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        add(0x23a0 + i, cmd23a0.slice(start, start + count));
+    }
+    // 23f4-23fa
+    for (let i = 0; i < offs23f4.length; i++) {
+        const offs = offs23f4[i];
+        if (!offs) continue;
+        const start = offs >> 4;
+        const count = offs & 0xF;
+        if (count === 0) continue;
+        add(0x23f4 + i, cmd23f4.slice(start, start + count));
+    }
+    // 2b00 map entries
+    for (const [cp, cmds] of Object.entries(map2b00)) {
+        add(parseInt(cp), cmds);
+    }
+
+    entries.sort((a,b) => a.cp - b.cp);
+    return entries;
+}
+
+const GLYPH_TABLE = buildGlyphTable();
+
+// ========== CANVAS SETUP ==========
+const displayCanvas = document.getElementById('x11canvas');
+const x11 = new X11Canvas(displayCanvas);
+
+const canvasWInput = document.getElementById('canvasW');
+const canvasHInput = document.getElementById('canvasH');
+const cellWInput   = document.getElementById('cellW');
+const cellHInput   = document.getElementById('cellH');
+const hexInput     = document.getElementById('hexInput');
+const textInput    = document.getElementById('textInput');
+const u32Status    = document.getElementById('u32Status');
+const filterInput  = document.getElementById('filterInput');
+const groupFilter  = document.getElementById('groupFilter');
+const tableContainer = document.getElementById('tableContainer');
+const countBadge   = document.getElementById('countBadge');
+
+let lastValidRawCmds = []; // array of raw u32 numbers
+let activeRow = null;
+
+function getCellDims() {
+    return {
+        W: parseInt(cellWInput.value) || 32,
+        H: parseInt(cellHInput.value) || 48,
+    };
+}
+
+function redrawMain() {
+    const {W, H} = getCellDims();
+    displayCanvas.width  = parseInt(canvasWInput.value) || 100;
+    displayCanvas.height = parseInt(canvasHInput.value) || 100;
+    x11.ctx.imageSmoothingEnabled = false;
+    x11.beginCell(W, H);
+    x11.drawCommands(lastValidRawCmds);
+    x11.present();
+}
+
+function parseHexLines(text) {
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+    const raws = [];
+    for (const line of lines) {
+        const hex = line.replace(/^0x/i,'');
+        if (!/^[0-9a-fA-F]{1,8}$/.test(hex)) return null;
+        raws.push(parseInt(hex, 16));
+    }
+    return raws;
+}
+
+function parseTextLines(text) {
+    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+    const raws = [];
+    for (const line of lines) {
+        const parts = line.split(/\s+/);
+        if (parts.length !== 7) return null;
+        const op = OP_MAP[parts[0]];
+        if (op === undefined) return null;
+        const nums = parts.slice(1).map(Number);
+        if (nums.some(n => isNaN(n) || n < 0 || n > 15)) return null;
+        raws.push(encodeU32({op, a:nums[0], b:nums[1], x1:nums[2], y1:nums[3], x2:nums[4], y2:nums[5]}));
+    }
+    return raws;
+}
+
+function rawsToHexText(raws) {
+    return raws.map(r => '0x' + (r>>>0).toString(16).padStart(8,'0')).join('\n');
+}
+function rawsToText(raws) {
+    return raws.map(r => objToText(decodeU32(r))).join('\n');
+}
+
+function updateFromHex() {
+    const raws = parseHexLines(hexInput.value.trim());
+    if (raws) {
+        lastValidRawCmds = raws;
+        hexInput.classList.remove('invalid');
+        textInput.value = rawsToText(raws);
+        textInput.classList.remove('invalid');
+        u32Status.textContent = `Valid: ${raws.length} command${raws.length!==1?'s':''}.`;
+        redrawMain();
+    } else {
+        hexInput.classList.add('invalid');
+        u32Status.textContent = 'Invalid hex';
+    }
+}
+
+function updateFromText() {
+    const raws = parseTextLines(textInput.value.trim());
+    if (raws) {
+        lastValidRawCmds = raws;
+        textInput.classList.remove('invalid');
+        hexInput.value = rawsToHexText(raws);
+        hexInput.classList.remove('invalid');
+        u32Status.textContent = `Valid: ${raws.length} command${raws.length!==1?'s':''}.`;
+        redrawMain();
+    } else {
+        textInput.classList.add('invalid');
+        u32Status.textContent = 'Invalid text';
+    }
+}
+
+hexInput.addEventListener('input', updateFromHex);
+textInput.addEventListener('input', updateFromText);
+
+// Arrow key number nudge in textInput
+textInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    const ta = e.target;
+    const pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd) return;
+    const val = ta.value;
+    let ns = pos, ne = pos;
+    while (ns > 0 && /\d/.test(val[ns-1])) ns--;
+    while (ne < val.length && /\d/.test(val[ne])) ne++;
+    if (ns === ne) return;
+    e.preventDefault();
+    let n = parseInt(val.slice(ns, ne), 10);
+    n = Math.max(0, Math.min(15, n + (e.key === 'ArrowUp' ? 1 : -1)));
+    const newVal = val.slice(0, ns) + n + val.slice(ne);
+    ta.value = newVal;
+    const nc = ns + String(n).length;
+    ta.setSelectionRange(nc, nc);
+    updateFromText();
+});
+
+[canvasWInput, canvasHInput, cellWInput, cellHInput].forEach(el =>
+    el.addEventListener('input', redrawMain)
+);
+
+// ========== MINI CANVAS RENDERING ==========
+const MINI_W = 16, MINI_H = 22; // mini preview dimensions (matches typical cell ratio ~2:3)
+
+function renderMiniCanvas(cmds) {
+    const mc = document.createElement('canvas');
+    mc.width = MINI_W; mc.height = MINI_H;
+    mc.className = 'mini-canvas';
+    mc.style.width = MINI_W + 'px';
+    mc.style.height = MINI_H + 'px';
+    const ctx = mc.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = '#faf6ef';
+    ctx.fillRect(0, 0, MINI_W, MINI_H);
+    drawGlyph(ctx, 0, 0, MINI_W, MINI_H, cmds, '#1e2b3c', '#1e2b3c', '#1e2b3c', '#faf6ef');
+    return mc;
+}
+
+// ========== TABLE RENDERING ==========
+function renderTable(filterText, groupKey) {
+    const filter = filterText.toLowerCase();
+    const groupRange = groupKey ? GROUP_RANGES[groupKey] : null;
+
+    const filtered = GLYPH_TABLE.filter(entry => {
+        if (groupRange && (entry.cp < groupRange[0] || entry.cp > groupRange[1])) return false;
+        if (filter && !entry.name.toLowerCase().includes(filter) && !entry.hex.toLowerCase().includes(filter)) return false;
+        return true;
+    });
+
+    countBadge.textContent = filtered.length;
+
+    // Rebuild table (keep header)
+    const header = tableContainer.querySelector('.table-header');
+    tableContainer.innerHTML = '';
+    tableContainer.appendChild(header);
+
+    for (const entry of filtered) {
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        row.dataset.cp = entry.cp;
+
+        // Browser-rendered char
+        const charSpan = document.createElement('span');
+        charSpan.className = 'table-char';
+        charSpan.textContent = entry.char;
+
+        // Mini canvas — browser font version (just the char, system font)
+        const fontMini = document.createElement('div');
+        fontMini.className = 'table-mini';
+        const fontCanvas = document.createElement('canvas');
+        fontCanvas.width = MINI_W; fontCanvas.height = MINI_H;
+        fontCanvas.className = 'mini-canvas';
+        fontCanvas.style.width = MINI_W+'px'; fontCanvas.style.height = MINI_H+'px';
+        {
+            const ctx = fontCanvas.getContext('2d');
+            ctx.fillStyle = '#faf6ef';
+            ctx.fillRect(0,0,MINI_W,MINI_H);
+            ctx.fillStyle = '#1e2b3c';
+            ctx.font = `${MINI_H * 0.85}px monospace`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(entry.char, MINI_W/2, MINI_H/2);
         }
+        fontMini.appendChild(fontCanvas);
 
-        function redrawGlyph() {
-            const commands = activeSource === 'hex' ? lastValidHexLines : lastValidTextLines;
-            const cw = parseInt(cellWInput.value) || 32;
-            const ch = parseInt(cellHInput.value) || 48;
-            x11.beginCell(cw, ch);
-            // Draw all commands sequentially into the cell
-            for (const cmd of commands) {
-                x11.executeU32Command(cmd);
-            }
-            x11.presentCell();  // scale to display canvas
-        }
+        // Mini canvas — library-rendered version
+        const libMini = document.createElement('div');
+        libMini.className = 'table-mini';
+        libMini.appendChild(renderMiniCanvas(entry.cmds));
 
-        function parseHexLines(text) {
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
-            const commands = [];
-            for (const line of lines) {
-                const hex = line.replace(/^0x/i, '');
-                if (!/^[0-9a-fA-F]+$/.test(hex)) return null;
-                const cmd = parseInt(hex, 16);
-                if (isNaN(cmd)) return null;
-                commands.push(decodeU32Command(cmd));
-            }
-            return commands;
-        }
+        const hexSpan = document.createElement('span');
+        hexSpan.className = 'table-hex';
+        hexSpan.textContent = entry.hex;
 
-        function parseTextLines(text) {
-            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l !== '');
-            const commands = [];
-            for (const line of lines) {
-                const parts = line.split(/\s+/);
-                if (parts.length !== 7) return null;
-                const op = parts[0];
-                if (!(op in OP_MAP)) return null;
-                const nums = parts.slice(1).map(Number);
-                if (nums.some(n => isNaN(n) || n < 0 || n > 15)) return null;
-                commands.push({
-                    op: OP_MAP[op],
-                    a: nums[0], b: nums[1],
-                    x1: nums[2], y1: nums[3],
-                    x2: nums[4], y2: nums[5]
-                });
-            }
-            return commands;
-        }
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'table-name';
+        nameSpan.textContent = entry.name;
 
-        function updateU32UI(sourceElement) {
-            const hexText = hexInput.value.trim();
-            const textText = textInput.value.trim();
+        const cmdsSpan = document.createElement('span');
+        cmdsSpan.className = 'table-cmds';
+        cmdsSpan.textContent = entry.cmds.length;
 
-            let hexCmds = null, textCmds = null;
-            if (sourceElement === hexInput || sourceElement === 'hex') {
-                hexCmds = parseHexLines(hexText);
-                if (hexCmds) {
-                    lastValidHexLines = hexCmds;
-                    activeSource = 'hex';
-                    hexInput.classList.remove('invalid');
-                    const textLines = hexCmds.map(objToText);
-                    textInput.value = textLines.join('\n');
-                    textInput.classList.remove('invalid');
-                    u32Status.textContent = `✅ ${hexCmds.length} commands — order matters (last on top)`;
-                } else {
-                    hexInput.classList.add('invalid');
-                    u32Status.textContent = '❌ Invalid hex';
-                }
-            } else if (sourceElement === textInput || sourceElement === 'text') {
-                textCmds = parseTextLines(textText);
-                if (textCmds) {
-                    lastValidTextLines = textCmds;
-                    activeSource = 'text';
-                    textInput.classList.remove('invalid');
-                    const hexLines = textCmds.map(objToHex);
-                    hexInput.value = hexLines.join('\n');
-                    hexInput.classList.remove('invalid');
-                    u32Status.textContent = `✅ ${textCmds.length} commands — order matters (last on top)`;
-                } else {
-                    textInput.classList.add('invalid');
-                    u32Status.textContent = '❌ Invalid text';
-                }
-            }
+        row.append(charSpan, fontMini, libMini, hexSpan, nameSpan, cmdsSpan);
 
-            if (hexInput.classList.contains('invalid') || textInput.classList.contains('invalid')) return;
-            redrawGlyph();
-        }
-
-        hexInput.addEventListener('input', () => updateU32UI(hexInput));
-        textInput.addEventListener('input', () => updateU32UI(textInput));
-
-        [canvasWInput, canvasHInput, cellWInput, cellHInput].forEach(el =>
-            el.addEventListener('input', () => {
-                resizeDisplayCanvas();
-                redrawGlyph();
-            })
-        );
-
-        // Quick example clicks
-        document.querySelectorAll('.example-cmd').forEach(el => {
-            el.addEventListener('click', () => {
-                const target = el.dataset.target;
-                const cmd = el.textContent.replace(/\\n/g, '\n');
-                if (target === 'hex') {
-                    hexInput.value = cmd;
-                    updateU32UI(hexInput);
-                } else if (target === 'text') {
-                    textInput.value = cmd;
-                    updateU32UI(textInput);
-                }
-            });
+        row.addEventListener('click', () => {
+            if (activeRow) activeRow.classList.remove('active');
+            activeRow = row;
+            row.classList.add('active');
+            hexInput.value = rawsToHexText(entry.cmds);
+            updateFromHex();
         });
 
-        // Initial draw
-        resizeDisplayCanvas();
-        updateU32UI(hexInput);
-    })();
+        tableContainer.appendChild(row);
+    }
+}
+
+filterInput.addEventListener('input', () => renderTable(filterInput.value, groupFilter.value));
+groupFilter.addEventListener('change', () => renderTable(filterInput.value, groupFilter.value));
+
+// ========== INIT ==========
+renderTable('', '');
+redrawMain();
+updateFromHex();
+
+})();
 </script>
 </body>
 </html>
