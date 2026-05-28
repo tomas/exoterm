@@ -1987,7 +1987,7 @@ rxvt_term::proc_poll_cb (ev::timer &w, int revents)
     rxvt_term *t = termlist[i];
     if (t->split_is_child) continue;
     if (t->has_running_fg) {
-      t->run_anim_tick++;
+      t->run_anim_tick += rxvt_term::run_anim_step;
       changed = true;
     }
   }

@@ -2332,7 +2332,7 @@ void rxvt_term::scr_draw_bar() NOTHROW {
   XAllocColor(dpy, cm, &unfocused);
   XParseColor(dpy, cm, "#ffffff", &done_clr); // white: program exit
   XAllocColor(dpy, cm, &done_clr);
-  XParseColor(dpy, cm, "#d4873a", &running_clr); // amber: fg command running
+  XParseColor(dpy, cm, "#999999", &running_clr); // amber: fg command running
   XAllocColor(dpy, cm, &running_clr);
 
   // Get the full terminal width from root's WM window.
@@ -2375,12 +2375,12 @@ void rxvt_term::scr_draw_bar() NOTHROW {
     int x = visual_i * tab_width - pane_x;
 
     if (is_running) {
-      // Scrolling dot pattern: 2px amber, 2px gap, repeating (4px cycle)
-      int off = t->run_anim_tick % 4;
+      int cycle = rxvt_term::run_dot_w + rxvt_term::run_gap_w;
+      int off = t->run_anim_tick % cycle;
       for (int p = 0; p < tab_width; ) {
-        bool dot = ((p + off) % 4) < 2;
-        int seg = tab_width - p;
-        if (seg > 2) seg = 2;
+        bool dot = ((p + off) % cycle) < rxvt_term::run_dot_w;
+        int seg = dot ? rxvt_term::run_dot_w : rxvt_term::run_gap_w;
+        if (seg > tab_width - p) seg = tab_width - p;
         XSetForeground(dpy, gc, dot ? running_clr.pixel : unfocused.pixel);
         XFillRectangle(dpy, parent, gc, x + p, bar_pos, seg, bar_height);
         p += seg;

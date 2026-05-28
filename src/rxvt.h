@@ -1209,6 +1209,10 @@ struct rxvt_term : zero_initialized, rxvt_vars, rxvt_screen
   bool         has_running_fg;  // true while a fg command is running in this inactive tab
   int          run_anim_tick;   // animation tick for scrolling dot pattern
 
+  static const int run_dot_w = 10;     // width of each running indicator rectangle
+  static const int run_gap_w = 6;     // gap between rectangles
+  static const int run_anim_step = run_dot_w;  // pixels to advance per tick
+
   // special markers with magic addresses
   static const char resval_undef [];    // options specifically unset
   static const char resval_on [];       // boolean options switched on
