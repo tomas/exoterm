@@ -467,6 +467,7 @@ struct rxvt_font_default : rxvt_font {
 
     switch (unicode)
       {
+        case 0x202f: // narrow no-break space
         case ZERO_WIDTH_CHAR:
         case NOCHAR:
           return true;
@@ -650,6 +651,7 @@ rxvt_font_default::draw (rxvt_drawable &d, int x, int y,
           {
             case ' ':
             case '\t':
+            case 0x202f: // narrow no-break space
             case ZERO_WIDTH_CHAR:
             case NOCHAR:
               break;
