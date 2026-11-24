@@ -1570,6 +1570,14 @@ rxvt_term::key_release (XKeyEvent &ev)
 #endif
 }
 
+static void unmark_trailing_dots(line_t * l, int end) {
+  // A trailing dot is usually sentence punctuation, not part of the URL.
+  while (end > 0 && l->t[end - 1] == '.' && (l->r[end - 1] & RS_Uline)) {
+    l->r[end - 1] &= ~RS_Uline;
+    end--;
+  }
+}
+
 int parse_links(line_t * l, int in_link) {
   int len = l->l;
   if (!in_link && len < 10) return 0;
@@ -1580,6 +1588,7 @@ int parse_links(line_t * l, int in_link) {
   for (i; i < len; i++) {
     if (in_link) {
       if (l->t[i] == ' ' || l->t[i] == '"' || l->t[i] == '\'' || l->t[i] == '>') {
+        unmark_trailing_dots(l, i);
         in_link = 0;
       } else {
         l->r[i] |= RS_Uline; // l->r[i] |= Color_Yellow << RS_fgShift;
@@ -1648,6 +1657,8 @@ rxvt_term::flush () {
                       l->f |= LINE_FILTERED;
                     }
 
+                    if (in_link)
+                      unmark_trailing_dots (l, l->l);
                     in_link = 0;
                     HOOK_INVOKE ((this, HOOK_LINE_UPDATE, DT_INT, start_row, DT_END));
                     break;
@@ -3006,7 +3017,6 @@ void rxvt_term::selnotify(XEvent *e) {
   int fmt;
   char *uri, *data;
   Atom type, prop = None;
-  uint16_t len;
 
   if (e->type == SelectionNotify) prop = e->xselection.property;
   if (prop == None)
@@ -3031,9 +3041,8 @@ void rxvt_term::selnotify(XEvent *e) {
       handle_uri(uri, strlen(uri));
     } else if (strncmp(uri, "file://", strlen("file://")) == 0) {
       uri += strlen("file://");
-      len = strlen(uri) + 1;
-      urldecode(uri, uri, len);
-      handle_uri(uri, len);
+      urldecode(uri, uri, strlen(uri) + 1);
+      handle_uri(uri, strlen(uri));
     } else {
       // printf("uri doesn't match: %s\n", uri);
     }
@@ -4228,7 +4237,10 @@ rxvt_term::button_press (XButtonEvent &ev)
 }
 
 void rxvt_term::open_url(char * link, int len) {
-  printf("opening url: %s\n", link);
+  while (len > 0 && link[len - 1] == '.')
+    len--;
+
+  printf("opening url: %.*s\n", len, link);
 
 /*
   char * args [] = { "xdg-open", link, NULL};
@@ -4245,7 +4257,7 @@ void rxvt_term::open_url(char * link, int len) {
 */
 
   char command[len + 12];
-  sprintf(command, "xdg-open '%s'", link);
+  sprintf(command, "xdg-open '%.*s'", len, link);
   system(command);
 }
 
